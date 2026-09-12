@@ -27,4 +27,9 @@ class TeacherProfile extends Model
     {
         return $this->hasMany(LessonSlot::class);
     }
+
+    public function lessonEnrollments(): HasMany
+    {
+        return $this->hasMany(LessonEnrollment::class);
+    }
 }

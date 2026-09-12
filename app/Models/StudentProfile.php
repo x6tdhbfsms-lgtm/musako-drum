@@ -42,4 +42,24 @@ class StudentProfile extends Model
     {
         return $this->hasMany(MembershipStatusRequest::class);
     }
+
+    public function contractChangeRequests(): HasMany
+    {
+        return $this->hasMany(ContractChangeRequest::class);
+    }
+
+    public function personalInformationChangeRequests(): HasMany
+    {
+        return $this->hasMany(PersonalInformationChangeRequest::class);
+    }
+
+    public function paymentMethodChangeRequests(): HasMany
+    {
+        return $this->hasMany(PaymentMethodChangeRequest::class);
+    }
+
+    public function inquiries(): HasMany
+    {
+        return $this->hasMany(Inquiry::class);
+    }
 }
