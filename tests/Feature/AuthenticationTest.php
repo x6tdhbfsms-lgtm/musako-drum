@@ -27,6 +27,28 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_teacher_login_ignores_a_student_intended_url_and_opens_the_staff_calendar(): void
+    {
+        $teacher = User::factory()->teacher()->create(['password' => 'secret-password']);
+        $this->get(route('student.dashboard'))->assertRedirectToRoute('login');
+
+        $this->post(route('login'), ['email' => $teacher->email, 'password' => 'secret-password'])
+            ->assertRedirectToRoute('staff.dashboard');
+
+        $this->assertAuthenticatedAs($teacher);
+    }
+
+    public function test_student_login_ignores_a_staff_intended_url_and_opens_the_student_calendar(): void
+    {
+        $student = User::factory()->create(['password' => 'secret-password']);
+        $this->get(route('staff.dashboard'))->assertRedirectToRoute('login');
+
+        $this->post(route('login'), ['email' => $student->email, 'password' => 'secret-password'])
+            ->assertRedirectToRoute('student.dashboard');
+
+        $this->assertAuthenticatedAs($student);
+    }
+
     public function test_login_returns_validation_errors_for_missing_credentials(): void
     {
         $this->postJson('/login')

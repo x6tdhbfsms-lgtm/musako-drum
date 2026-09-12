@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\AccountStatus;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,9 +22,15 @@ class AuthenticatedSessionController extends Controller
         }
         $request->session()->regenerate();
 
-        return $request->expectsJson()
-            ? response()->json(['user' => $request->user()->only(['id', 'name', 'email', 'role'])])
-            : redirect()->intended('/');
+        if ($request->expectsJson()) {
+            return response()->json(['user' => $request->user()->only(['id', 'name', 'email', 'role'])]);
+        }
+
+        $dashboardRoute = $request->user()->role === UserRole::Student
+            ? 'student.dashboard'
+            : 'staff.dashboard';
+
+        return redirect()->route($dashboardRoute);
     }
 
     public function destroy(Request $request): JsonResponse|RedirectResponse
