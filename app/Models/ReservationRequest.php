@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use App\Enums\ReservationStatus;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ReservationRequest extends Model
 {
@@ -39,5 +42,28 @@ class ReservationRequest extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by_user_id');
+    }
+
+    public function attendanceNotice(): HasOne
+    {
+        return $this->hasOne(AttendanceNotice::class);
+    }
+
+    public function transferRequests(): HasMany
+    {
+        return $this->hasMany(TransferRequest::class, 'original_reservation_request_id');
+    }
+
+    public function resultingTransferRequest(): HasOne
+    {
+        return $this->hasOne(TransferRequest::class, 'resulting_reservation_request_id');
+    }
+
+    public function transferRequestDeadline(): CarbonImmutable
+    {
+        return CarbonImmutable::instance($this->lessonSlot->starts_at)
+            ->setTimezone(config('app.timezone'))
+            ->subDay()
+            ->setTime(19, 0);
     }
 }

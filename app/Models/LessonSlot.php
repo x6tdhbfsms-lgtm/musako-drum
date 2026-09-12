@@ -38,4 +38,9 @@ class LessonSlot extends Model
     {
         return $this->hasMany(ReservationRequest::class);
     }
+
+    public function requestedTransferRequests(): HasMany
+    {
+        return $this->hasMany(TransferRequest::class, 'requested_lesson_slot_id');
+    }
 }

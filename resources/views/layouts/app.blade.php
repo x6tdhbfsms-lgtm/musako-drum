@@ -20,10 +20,15 @@
                         <a href="{{ route('student.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">マイページ</a>
                         <a href="{{ route('student.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">空き枠</a>
                         <a href="{{ route('student.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">予約一覧</a>
+                        <a href="{{ route('student.attendance-notices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">お休み・遅刻</a>
+                        <a href="{{ route('student.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
+                        <a href="{{ route('student.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>
                     @else
                         <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">ダッシュボード</a>
                         <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン枠</a>
                         <a href="{{ route('staff.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">申請管理</a>
+                        <a href="{{ route('staff.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
+                        <a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>
                     @endif
                     <form method="post" action="{{ route('logout') }}">@csrf<button class="rounded-full border border-stone-300 px-3 py-2 hover:bg-stone-100">ログアウト</button></form>
                 </nav>

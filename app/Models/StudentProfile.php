@@ -32,4 +32,14 @@ class StudentProfile extends Model
     {
         return $this->hasMany(ReservationRequest::class);
     }
+
+    public function transferRequests(): HasMany
+    {
+        return $this->hasMany(TransferRequest::class);
+    }
+
+    public function membershipStatusRequests(): HasMany
+    {
+        return $this->hasMany(MembershipStatusRequest::class);
+    }
 }

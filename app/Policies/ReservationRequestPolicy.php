@@ -53,6 +53,20 @@ class ReservationRequestPolicy
             && $reservationRequest->lessonSlot->starts_at->isFuture();
     }
 
+    public function submitAttendanceNotice(User $user, ReservationRequest $reservationRequest): bool
+    {
+        return $this->belongsToStudent($user, $reservationRequest)
+            && $reservationRequest->status === ReservationStatus::Approved
+            && $reservationRequest->lessonSlot->ends_at->isFuture();
+    }
+
+    public function requestTransfer(User $user, ReservationRequest $reservationRequest): bool
+    {
+        return $this->belongsToStudent($user, $reservationRequest)
+            && $reservationRequest->status === ReservationStatus::Approved
+            && $reservationRequest->lessonSlot->starts_at->isFuture();
+    }
+
     /**
      * Determine whether the user can restore the model.
      */
