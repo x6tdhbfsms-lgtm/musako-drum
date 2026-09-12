@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'MUSAKOドラム教室')</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="min-h-screen bg-stone-50 text-stone-900 antialiased">
+    <header class="border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <a href="/" class="flex items-center gap-3">
+                <span class="grid size-10 place-items-center rounded-2xl bg-amber-400 text-xl shadow-sm">🥁</span>
+                <span><strong class="block text-sm tracking-wide">MUSAKO</strong><span class="text-xs text-stone-500">ドラム教室</span></span>
+            </a>
+            @auth
+                <nav class="flex flex-wrap items-center justify-end gap-2 text-sm">
+                    @if (auth()->user()->role->value === 'student')
+                        <a href="{{ route('student.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">マイページ</a>
+                        <a href="{{ route('student.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">空き枠</a>
+                        <a href="{{ route('student.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">予約一覧</a>
+                    @else
+                        <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">ダッシュボード</a>
+                        <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン枠</a>
+                        <a href="{{ route('staff.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">申請管理</a>
+                    @endif
+                    <form method="post" action="{{ route('logout') }}">@csrf<button class="rounded-full border border-stone-300 px-3 py-2 hover:bg-stone-100">ログアウト</button></form>
+                </nav>
+            @endauth
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+        @if (session('success'))
+            <div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{{ session('success') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
+        @endif
+        @yield('content')
+    </main>
+</body>
+</html>
