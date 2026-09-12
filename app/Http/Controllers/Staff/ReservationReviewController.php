@@ -47,6 +47,8 @@ class ReservationReviewController extends Controller
             $user,
             ReservationStatus::from($request->validated('decision')),
             $request->validated('staff_note'),
+            $request->boolean('override_monthly_limit'),
+            $request->validated('monthly_limit_override_reason'),
         );
 
         $message = $request->validated('decision') === ReservationStatus::Approved->value

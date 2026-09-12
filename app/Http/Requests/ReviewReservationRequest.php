@@ -31,6 +31,8 @@ class ReviewReservationRequest extends FormRequest
         return [
             'decision' => ['required', Rule::in([ReservationStatus::Approved->value, ReservationStatus::Rejected->value])],
             'staff_note' => ['nullable', 'string', 'max:1000'],
+            'override_monthly_limit' => ['nullable', 'boolean'],
+            'monthly_limit_override_reason' => ['nullable', 'required_if:override_monthly_limit,1', 'string', 'max:255'],
         ];
     }
 }

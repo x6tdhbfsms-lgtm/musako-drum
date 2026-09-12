@@ -3,7 +3,6 @@
 namespace App\Actions;
 
 use App\Enums\ApplicationStatus;
-use App\Enums\EnrollmentStatus;
 use App\Enums\LessonSlotStatus;
 use App\Enums\ReservationStatus;
 use App\Models\LessonSlot;
@@ -66,17 +65,12 @@ class ReviewTransferRequest
                 throw ValidationException::withMessages(['transfer_request' => '生徒は振替先の枠にすでに予約履歴があります。']);
             }
 
-            $enrollment = $lockedTransfer->studentProfile->enrollments()
-                ->where('status', EnrollmentStatus::Active)
-                ->when($requestedSlot->course_id, fn ($query) => $query->where('course_id', $requestedSlot->course_id))
-                ->whereDate('starts_on', '<=', $requestedSlot->starts_at)
-                ->where(fn ($query) => $query->whereNull('ends_on')->orWhereDate('ends_on', '>=', $requestedSlot->starts_at))
-                ->first();
-
             $resultingReservation = ReservationRequest::create([
                 'student_profile_id' => $lockedTransfer->student_profile_id,
                 'lesson_slot_id' => $requestedSlot->id,
-                'lesson_enrollment_id' => $enrollment?->id,
+                'lesson_enrollment_id' => $originalReservation->lesson_enrollment_id,
+                'lesson_entitlement_month' => ($originalReservation->lesson_entitlement_month
+                    ?? $originalReservation->lessonSlot->starts_at->startOfMonth())->toDateString(),
                 'status' => ReservationStatus::Approved,
                 'requested_at' => $lockedTransfer->requested_at,
                 'reviewed_by_user_id' => $reviewer->id,

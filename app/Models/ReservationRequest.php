@@ -16,12 +16,22 @@ class ReservationRequest extends Model
 
     protected $fillable = [
         'student_profile_id', 'lesson_slot_id', 'lesson_enrollment_id', 'status', 'requested_at',
-        'reviewed_by_user_id', 'reviewed_at', 'student_note', 'staff_note', 'cancelled_at', 'cancellation_reason',
+        'lesson_entitlement_month', 'reviewed_by_user_id', 'reviewed_at', 'student_note', 'staff_note',
+        'cancelled_at', 'cancellation_reason', 'completed_at', 'monthly_limit_overridden_at',
+        'monthly_limit_overridden_by_user_id', 'monthly_limit_override_reason',
     ];
 
     protected function casts(): array
     {
-        return ['status' => ReservationStatus::class, 'requested_at' => 'datetime', 'reviewed_at' => 'datetime', 'cancelled_at' => 'datetime'];
+        return [
+            'status' => ReservationStatus::class,
+            'lesson_entitlement_month' => 'date',
+            'requested_at' => 'datetime',
+            'reviewed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'monthly_limit_overridden_at' => 'datetime',
+        ];
     }
 
     public function studentProfile(): BelongsTo
@@ -42,6 +52,11 @@ class ReservationRequest extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by_user_id');
+    }
+
+    public function monthlyLimitOverrideReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'monthly_limit_overridden_by_user_id');
     }
 
     public function attendanceNotice(): HasOne
