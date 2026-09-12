@@ -1,0 +1,14 @@
+@php
+    $slot = $entry['slot']; $status = $entry['status']; $reservation = $entry['reservation'];
+    $style = ['available' => 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100', 'reservation_pending' => 'border-sky-300 bg-sky-50 text-sky-900', 'reservation_approved' => 'border-emerald-300 bg-emerald-50 text-emerald-900', 'transfer_pending' => 'border-violet-300 bg-violet-50 text-violet-900', 'transfer_approved' => 'border-indigo-300 bg-indigo-50 text-indigo-900', 'absence' => 'border-red-300 bg-red-50 text-red-800', 'late' => 'border-orange-300 bg-orange-50 text-orange-900', 'full' => 'border-stone-300 bg-stone-100 text-stone-600', 'unavailable' => 'border-stone-200 bg-stone-50 text-stone-400'][$status->value];
+    $contentClass = ($compact ?? false) ? 'p-2 text-[11px]' : 'p-4 text-sm shadow-sm';
+@endphp
+@if ($status->value === 'available')
+    <form method="post" action="{{ route('student.reservations.store', $slot) }}" class="min-w-0">@csrf<button class="block w-full min-w-0 rounded-xl border text-left {{ $contentClass }} {{ $style }}"><strong class="block {{ ($compact ?? false) ? '' : 'text-base' }}">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-0.5 block truncate">{{ $slot->course?->name ?? 'レッスン' }}</span><span class="mt-1 block font-bold">{{ $status->label() }} →</span></button></form>
+@elseif ($reservation)
+    <a href="{{ route('student.reservations.show', $reservation) }}" class="block min-w-0 rounded-xl border {{ $contentClass }} {{ $style }}"><strong class="block {{ ($compact ?? false) ? '' : 'text-base' }}">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-0.5 block truncate">{{ $slot->course?->name ?? 'レッスン' }}</span><span class="mt-1 block font-bold">{{ $status->label() }} →</span>@unless ($compact ?? false)<span class="mt-1 block text-xs opacity-75">{{ $slot->teacherProfile->display_name }} · {{ $slot->venue?->name ?? '会場未定' }}</span>@endunless</a>
+@elseif ($status->value === 'transfer_pending')
+    <a href="{{ route('student.transfer-requests.index') }}" class="block min-w-0 rounded-xl border {{ $contentClass }} {{ $style }}"><strong class="block">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-1 block font-bold">{{ $status->label() }} →</span></a>
+@else
+    <div class="min-w-0 rounded-xl border {{ $contentClass }} {{ $style }}"><strong class="block">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-0.5 block truncate">{{ $slot->course?->name ?? 'レッスン' }}</span><span class="mt-1 block font-bold">{{ $status->label() }}</span></div>
+@endif

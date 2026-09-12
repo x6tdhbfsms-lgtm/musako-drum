@@ -6,25 +6,67 @@ use App\Enums\ApplicationStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StaffCalendarRequest;
 use App\Models\AttendanceNotice;
 use App\Models\LessonSlot;
 use App\Models\MembershipStatusRequest;
 use App\Models\ReservationRequest;
+use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
 use App\Models\User;
+use App\Models\Venue;
+use App\Support\CalendarRange;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    /**
-     * Handle the incoming request.
-     */
-    public function __invoke(Request $request): View
+    public function __invoke(StaffCalendarRequest $request): View
     {
+        $validated = $request->validated();
+        $calendarView = $validated['view'] ?? 'month';
+        $focus = CarbonImmutable::createFromFormat(
+            '!Y-m-d',
+            $validated['date'] ?? now()->format('Y-m-d'),
+            config('app.timezone'),
+        );
+        $calendarRange = CalendarRange::forView($focus, $calendarView);
+        $reservationStatus = isset($validated['reservation_status'])
+            ? ReservationStatus::from($validated['reservation_status'])
+            : null;
+
         /** @var User $user */
         $user = $request->user();
         $teacherProfile = $user->teacherProfile;
+        $teacherFilterId = $user->role === UserRole::Teacher
+            ? $teacherProfile?->id
+            : ($validated['teacher_profile_id'] ?? null);
+        $venueFilterId = $validated['venue_id'] ?? null;
+
+        $calendarSlots = LessonSlot::query()
+            ->with(['teacherProfile.user', 'venue', 'course'])
+            ->with(['reservationRequests' => function ($query) use ($reservationStatus): void {
+                $query->when($reservationStatus !== null, fn ($reservations) => $reservations->where('status', $reservationStatus))
+                    ->with(['studentProfile.user', 'attendanceNotice', 'transferRequests', 'resultingTransferRequest'])
+                    ->orderBy('requested_at');
+            }])
+            ->withCount([
+                'reservationRequests as approved_reservations_count' => fn ($query) => $query->where('status', ReservationStatus::Approved),
+            ])
+            ->when($teacherFilterId === null && $user->role === UserRole::Teacher, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($teacherFilterId !== null, fn ($query) => $query->where('teacher_profile_id', $teacherFilterId))
+            ->when($venueFilterId !== null, fn ($query) => $query->where('venue_id', $venueFilterId))
+            ->when(
+                $reservationStatus !== null,
+                fn ($query) => $query->whereHas('reservationRequests', fn ($reservations) => $reservations->where('status', $reservationStatus))
+            )
+            ->whereBetween('starts_at', [$calendarRange->start, $calendarRange->end])
+            ->orderBy('starts_at')
+            ->get();
+        $calendarSlotsByDay = $calendarSlots->groupBy(fn (LessonSlot $slot): string => $slot->starts_at->format('Y-m-d'));
+        $firstTimelineHour = min(8, (int) ($calendarSlots->min(fn (LessonSlot $slot): int => $slot->starts_at->hour) ?? 8));
+        $lastTimelineHour = max(22, (int) ($calendarSlots->max(fn (LessonSlot $slot): int => $slot->starts_at->hour) ?? 22));
+
         $reservations = ReservationRequest::query()
             ->when(
                 $user->role === UserRole::Teacher,
@@ -60,22 +102,23 @@ class DashboardController extends Controller
                     })
             )
             ->count();
-        $pendingMembershipCount = MembershipStatusRequest::query()
-            ->where('status', ApplicationStatus::Pending)
-            ->count();
 
         return view('staff.dashboard', [
             'pendingCount' => (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
             'upcomingSlotCount' => (clone $slots)->where('starts_at', '>', now())->count(),
-            'pendingReservations' => (clone $reservations)
-                ->where('status', ReservationStatus::Pending)
-                ->with(['studentProfile.user', 'lessonSlot'])
-                ->oldest('requested_at')
-                ->limit(5)
-                ->get(),
             'todayNotices' => $todayNotices,
             'pendingTransferCount' => $pendingTransferCount,
-            'pendingMembershipCount' => $pendingMembershipCount,
+            'pendingMembershipCount' => MembershipStatusRequest::query()->where('status', ApplicationStatus::Pending)->count(),
+            'calendarView' => $calendarView,
+            'calendarRange' => $calendarRange,
+            'calendarDays' => $calendarRange->days(),
+            'calendarSlotsByDay' => $calendarSlotsByDay,
+            'timelineHours' => range($firstTimelineHour, $lastTimelineHour),
+            'teachers' => TeacherProfile::query()->orderBy('display_name')->get(),
+            'venues' => Venue::query()->orderBy('name')->get(),
+            'teacherFilterId' => $teacherFilterId,
+            'venueFilterId' => $venueFilterId,
+            'reservationStatus' => $reservationStatus,
         ]);
     }
 }

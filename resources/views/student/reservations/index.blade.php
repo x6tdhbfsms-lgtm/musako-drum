@@ -12,6 +12,7 @@
                     @if ($reservation->staff_note)<p class="mt-2 text-sm text-stone-500">先生から: {{ $reservation->staff_note }}</p>@endif
                 </div>
                 <div class="grid gap-2 sm:min-w-56">
+                    <a href="{{ route('student.reservations.show', $reservation) }}" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-stone-900 px-4 text-sm font-semibold text-white">予約詳細</a>
                     @if ($reservation->status->value === 'approved' && $reservation->lessonSlot->ends_at->isFuture())
                         <a href="{{ route('student.attendance-notices.index') }}" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-300 px-4 text-sm font-semibold text-amber-800 hover:bg-amber-50">お休み・遅刻連絡</a>
                     @endif

@@ -11,6 +11,7 @@ use App\Models\LessonSlot;
 use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\Venue;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -45,11 +46,20 @@ class LessonSlotController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         Gate::authorize('create', LessonSlot::class);
+        $validated = $request->validate(['starts_at' => ['nullable', 'date_format:Y-m-d\TH:i']]);
+        $suggestedStartsAt = $validated['starts_at'] ?? null;
+        $suggestedEndsAt = $suggestedStartsAt === null
+            ? null
+            : CarbonImmutable::createFromFormat('!Y-m-d\TH:i', $suggestedStartsAt, config('app.timezone'))->addHour()->format('Y-m-d\TH:i');
 
-        return view('staff.lesson-slots.create', $this->formOptions());
+        return view('staff.lesson-slots.create', [
+            ...$this->formOptions(),
+            'suggestedStartsAt' => $suggestedStartsAt,
+            'suggestedEndsAt' => $suggestedEndsAt,
+        ]);
     }
 
     /**
