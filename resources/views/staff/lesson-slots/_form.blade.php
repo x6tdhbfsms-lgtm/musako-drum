@@ -1,0 +1,16 @@
+@if ($errors->any())<div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+<div class="grid gap-5 sm:grid-cols-2">
+    @if (auth()->user()->role->value === 'admin')
+        <label class="grid gap-2 text-sm font-semibold">担当講師<select name="teacher_profile_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>@foreach ($teachers as $teacher)<option value="{{ $teacher->id }}" @selected(old('teacher_profile_id', $lessonSlot?->teacher_profile_id) == $teacher->id)>{{ $teacher->display_name }}</option>@endforeach</select></label>
+    @endif
+    <label class="grid gap-2 text-sm font-semibold">会場<select name="venue_id" class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">未定</option>@foreach ($venues as $venue)<option value="{{ $venue->id }}" @selected(old('venue_id', $lessonSlot?->venue_id) == $venue->id)>{{ $venue->name }}</option>@endforeach</select></label>
+    <label class="grid gap-2 text-sm font-semibold">コース<select name="course_id" class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">指定なし</option>@foreach ($courses as $course)<option value="{{ $course->id }}" @selected(old('course_id', $lessonSlot?->course_id) == $course->id)>{{ $course->name }}</option>@endforeach</select></label>
+    <label class="grid gap-2 text-sm font-semibold">開始日時<input type="datetime-local" name="starts_at" required value="{{ old('starts_at', $lessonSlot?->starts_at?->format('Y-m-d\TH:i')) }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+    <label class="grid gap-2 text-sm font-semibold">終了日時<input type="datetime-local" name="ends_at" required value="{{ old('ends_at', $lessonSlot?->ends_at?->format('Y-m-d\TH:i')) }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+    <label class="grid gap-2 text-sm font-semibold">定員<input type="number" name="capacity" min="1" max="20" required value="{{ old('capacity', $lessonSlot?->capacity ?? 1) }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+    @if ($lessonSlot)
+        <label class="grid gap-2 text-sm font-semibold">状態<select name="status" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3">@foreach (['open' => '受付中', 'closed' => '締切', 'cancelled' => '中止'] as $value => $label)<option value="{{ $value }}" @selected(old('status', $lessonSlot->status->value) === $value)>{{ $label }}</option>@endforeach</select></label>
+    @endif
+</div>
+<label class="mt-5 grid gap-2 text-sm font-semibold">メモ<textarea name="notes" rows="4" maxlength="2000" class="rounded-xl border border-stone-300 p-3">{{ old('notes', $lessonSlot?->notes) }}</textarea></label>
+<div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><a href="{{ route('staff.lesson-slots.index') }}" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-stone-300 px-5 font-semibold">戻る</a><button class="min-h-12 rounded-xl bg-stone-900 px-6 font-semibold text-white hover:bg-stone-700">{{ $submitLabel }}</button></div>
