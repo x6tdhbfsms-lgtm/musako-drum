@@ -14,6 +14,9 @@ class ReservationDetailController extends Controller
         Gate::authorize('view', $reservationRequest);
         $reservationRequest->load([
             'studentProfile.user',
+            'lessonEnrollment.course',
+            'lessonEnrollment.teacherProfile',
+            'lessonEnrollment.venue',
             'lessonSlot.teacherProfile.user',
             'lessonSlot.venue',
             'lessonSlot.course',

@@ -2,16 +2,26 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Staff\ContractChangeRequestController as StaffContractChangeRequestController;
 use App\Http\Controllers\Staff\DashboardController as StaffDashboardController;
+use App\Http\Controllers\Staff\InquiryController as StaffInquiryController;
 use App\Http\Controllers\Staff\LessonSlotController;
 use App\Http\Controllers\Staff\MembershipStatusRequestController as StaffMembershipStatusRequestController;
+use App\Http\Controllers\Staff\PaymentMethodChangeRequestController as StaffPaymentMethodChangeRequestController;
+use App\Http\Controllers\Staff\PersonalInformationChangeRequestController as StaffPersonalInformationChangeRequestController;
+use App\Http\Controllers\Staff\ProcedureRequestController;
 use App\Http\Controllers\Staff\ReservationDetailController as StaffReservationDetailController;
 use App\Http\Controllers\Staff\ReservationReviewController;
+use App\Http\Controllers\Staff\StudentController as StaffStudentController;
 use App\Http\Controllers\Staff\TransferRequestController as StaffTransferRequestController;
 use App\Http\Controllers\Student\AttendanceNoticeController;
 use App\Http\Controllers\Student\AvailableLessonSlotController;
+use App\Http\Controllers\Student\ContractChangeRequestController as StudentContractChangeRequestController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+use App\Http\Controllers\Student\InquiryController as StudentInquiryController;
 use App\Http\Controllers\Student\MembershipStatusRequestController as StudentMembershipStatusRequestController;
+use App\Http\Controllers\Student\PaymentMethodChangeRequestController as StudentPaymentMethodChangeRequestController;
+use App\Http\Controllers\Student\PersonalInformationChangeRequestController as StudentPersonalInformationChangeRequestController;
 use App\Http\Controllers\Student\ReservationDetailController as StudentReservationDetailController;
 use App\Http\Controllers\Student\ReservationRequestController;
 use App\Http\Controllers\Student\TransferRequestController as StudentTransferRequestController;
@@ -49,6 +59,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/reservations/{reservation_request}/transfer-request', [StudentTransferRequestController::class, 'store'])->name('transfer-requests.store');
         Route::get('/membership-status-requests', [StudentMembershipStatusRequestController::class, 'index'])->name('membership-status-requests.index');
         Route::post('/membership-status-requests', [StudentMembershipStatusRequestController::class, 'store'])->name('membership-status-requests.store');
+        Route::get('/contract-change-requests', [StudentContractChangeRequestController::class, 'index'])->name('contract-change-requests.index');
+        Route::post('/contract-change-requests', [StudentContractChangeRequestController::class, 'store'])->name('contract-change-requests.store');
+        Route::get('/personal-information-change-requests', [StudentPersonalInformationChangeRequestController::class, 'index'])->name('personal-information-change-requests.index');
+        Route::post('/personal-information-change-requests', [StudentPersonalInformationChangeRequestController::class, 'store'])->name('personal-information-change-requests.store');
+        Route::get('/payment-method-change-requests', [StudentPaymentMethodChangeRequestController::class, 'index'])->name('payment-method-change-requests.index');
+        Route::post('/payment-method-change-requests', [StudentPaymentMethodChangeRequestController::class, 'store'])->name('payment-method-change-requests.store');
+        Route::get('/inquiries', [StudentInquiryController::class, 'index'])->name('inquiries.index');
+        Route::post('/inquiries', [StudentInquiryController::class, 'store'])->name('inquiries.store');
+        Route::get('/inquiries/{inquiry}', [StudentInquiryController::class, 'show'])->name('inquiries.show');
     });
 
     Route::prefix('staff')->name('staff.')->middleware('role:teacher,admin')->group(function () {
@@ -63,5 +82,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/membership-status-requests', [StaffMembershipStatusRequestController::class, 'index'])->name('membership-status-requests.index');
         Route::get('/membership-status-requests/{membership_status_request}', [StaffMembershipStatusRequestController::class, 'show'])->name('membership-status-requests.show');
         Route::patch('/membership-status-requests/{membership_status_request}', [StaffMembershipStatusRequestController::class, 'update'])->name('membership-status-requests.update');
+        Route::get('/procedure-requests', ProcedureRequestController::class)->name('procedure-requests.index');
+        Route::get('/contract-change-requests/{contract_change_request}', [StaffContractChangeRequestController::class, 'show'])->name('contract-change-requests.show');
+        Route::patch('/contract-change-requests/{contract_change_request}', [StaffContractChangeRequestController::class, 'update'])->name('contract-change-requests.update');
+        Route::get('/personal-information-change-requests/{personal_change}', [StaffPersonalInformationChangeRequestController::class, 'show'])->name('personal-information-change-requests.show');
+        Route::patch('/personal-information-change-requests/{personal_change}', [StaffPersonalInformationChangeRequestController::class, 'update'])->name('personal-information-change-requests.update');
+        Route::get('/payment-method-change-requests/{payment_change}', [StaffPaymentMethodChangeRequestController::class, 'show'])->name('payment-method-change-requests.show');
+        Route::patch('/payment-method-change-requests/{payment_change}', [StaffPaymentMethodChangeRequestController::class, 'update'])->name('payment-method-change-requests.update');
+        Route::get('/inquiries', [StaffInquiryController::class, 'index'])->name('inquiries.index');
+        Route::get('/inquiries/{inquiry}', [StaffInquiryController::class, 'show'])->name('inquiries.show');
+        Route::patch('/inquiries/{inquiry}', [StaffInquiryController::class, 'update'])->name('inquiries.update');
+        Route::resource('students', StaffStudentController::class)->only(['index', 'show']);
     });
 });

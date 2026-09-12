@@ -1,0 +1,5 @@
+@extends('layouts.app')
+@section('title', 'お問い合わせ詳細 | MUSAKO')
+@section('content')
+<div class="mx-auto max-w-3xl"><a href="{{ route('student.inquiries.index') }}" class="text-sm font-semibold text-amber-700">← お問い合わせ一覧</a><article class="mt-5 min-w-0 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7"><div class="flex flex-wrap items-center justify-between gap-2"><span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold">{{ $inquiry->status->label() }}</span><span class="text-xs text-stone-500">{{ $inquiry->requested_at->format('Y年n月j日 H:i') }}</span></div><p class="mt-5 text-sm font-semibold text-amber-700">{{ $inquiry->category->label() }}</p><h1 class="mt-1 break-words text-2xl font-bold">{{ $inquiry->subject }}</h1><p class="mt-5 whitespace-pre-wrap break-words text-sm leading-7">{{ $inquiry->body }}</p>@if ($inquiry->staff_note)<div class="mt-6 rounded-xl bg-stone-100 p-4"><strong class="text-sm">教室からのメモ</strong><p class="mt-2 whitespace-pre-wrap break-words text-sm">{{ $inquiry->staff_note }}</p></div>@endif</article></div>
+@endsection

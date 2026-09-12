@@ -8,8 +8,12 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StaffCalendarRequest;
 use App\Models\AttendanceNotice;
+use App\Models\ContractChangeRequest;
+use App\Models\Inquiry;
 use App\Models\LessonSlot;
 use App\Models\MembershipStatusRequest;
+use App\Models\PaymentMethodChangeRequest;
+use App\Models\PersonalInformationChangeRequest;
 use App\Models\ReservationRequest;
 use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
@@ -109,6 +113,10 @@ class DashboardController extends Controller
             'todayNotices' => $todayNotices,
             'pendingTransferCount' => $pendingTransferCount,
             'pendingMembershipCount' => MembershipStatusRequest::query()->where('status', ApplicationStatus::Pending)->count(),
+            'pendingProcedureCount' => ContractChangeRequest::query()->where('status', ApplicationStatus::Pending)->count()
+                + PersonalInformationChangeRequest::query()->where('status', ApplicationStatus::Pending)->count()
+                + PaymentMethodChangeRequest::query()->where('status', ApplicationStatus::Pending)->count(),
+            'openInquiryCount' => Inquiry::query()->whereIn('status', ['open', 'in_progress'])->count(),
             'calendarView' => $calendarView,
             'calendarRange' => $calendarRange,
             'calendarDays' => $calendarRange->days(),
