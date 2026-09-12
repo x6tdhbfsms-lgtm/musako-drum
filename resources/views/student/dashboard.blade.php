@@ -7,6 +7,21 @@
 </div>
 @if ($errors->any())<div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>@endif
 
+@if ($monthlySummary)
+<section class="mt-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm" aria-labelledby="monthly-summary-title">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><p class="text-xs font-semibold tracking-widest text-amber-700">MONTHLY LESSONS</p><h2 id="monthly-summary-title" class="mt-1 text-xl font-bold">{{ $month->format('n月') }}のレッスン</h2><p class="mt-1 text-sm text-stone-600">確定・申請中・実施済みを含む回数です。</p></div>
+        <div class="shrink-0 rounded-2xl bg-stone-900 px-6 py-4 text-center text-white"><strong class="text-3xl">{{ $monthlySummary->used }} / {{ $monthlySummary->contracted }}</strong><span class="ml-1 text-sm">回</span><p class="mt-1 text-xs text-stone-300">残り {{ $monthlySummary->remaining }}回</p></div>
+    </div>
+    <dl class="mt-5 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-7">
+        @foreach ([['実施済み', $monthlySummary->completed], ['予約確定', $monthlySummary->confirmed], ['申請中', $monthlySummary->pending], ['振替予定', $monthlySummary->transferScheduled], ['欠席', $monthlySummary->absent], ['キャンセル', $monthlySummary->cancelled], ['予約可能', $monthlySummary->remaining]] as [$label, $count])
+            <div class="rounded-xl border border-stone-200 bg-white p-3"><dt class="text-xs text-stone-500">{{ $label }}</dt><dd class="mt-1 text-xl font-bold">{{ $count }}<span class="ml-0.5 text-xs font-normal">回</span></dd></div>
+        @endforeach
+    </dl>
+    @if ($monthlySummary->contracted > 0 && $monthlySummary->remaining === 0)<p class="mt-4 rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-900">今月の予約可能回数を使い切っています。</p>@endif
+</section>
+@endif
+
 <section class="mt-6" aria-labelledby="lesson-calendar-title">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 id="lesson-calendar-title" class="text-xl font-bold">レッスンカレンダー</h2><a href="{{ route('student.reservations.index') }}" class="text-sm font-semibold text-amber-700">予約一覧を見る →</a></div>
     <div class="mt-3 flex flex-wrap gap-2 text-xs">

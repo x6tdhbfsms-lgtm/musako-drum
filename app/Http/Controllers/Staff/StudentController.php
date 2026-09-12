@@ -6,6 +6,8 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Support\MonthlyLessonUsageCalculator;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -30,9 +32,11 @@ class StudentController extends Controller
         return view('staff.students.index', compact('students'));
     }
 
-    public function show(StudentProfile $student): View
+    public function show(Request $request, StudentProfile $student, MonthlyLessonUsageCalculator $monthlyLessonUsage): View
     {
         Gate::authorize('view', $student);
+        $validated = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $month = CarbonImmutable::createFromFormat('!Y-m', $validated['month'] ?? now()->format('Y-m'), config('app.timezone'))->startOfMonth();
         $studentProfile = $student;
         $studentProfile->load([
             'user',
@@ -52,6 +56,8 @@ class StudentController extends Controller
             ->whereHas('lessonSlot', fn ($query) => $query->where('starts_at', '<', now()))
             ->latest('requested_at')->limit(20)->get();
 
-        return view('staff.students.show', compact('studentProfile', 'upcomingReservations', 'recentReservations'));
+        $monthlySummary = $monthlyLessonUsage->calculate($studentProfile, $month);
+
+        return view('staff.students.show', compact('studentProfile', 'upcomingReservations', 'recentReservations', 'month', 'monthlySummary'));
     }
 }

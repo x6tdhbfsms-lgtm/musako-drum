@@ -10,5 +10,5 @@
 @elseif ($status->value === 'transfer_pending')
     <a href="{{ route('student.transfer-requests.index') }}" class="block min-w-0 rounded-xl border {{ $contentClass }} {{ $style }}"><strong class="block">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-1 block font-bold">{{ $status->label() }} →</span></a>
 @else
-    <div class="min-w-0 rounded-xl border {{ $contentClass }} {{ $style }}"><strong class="block">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-0.5 block truncate">{{ $slot->course?->name ?? 'レッスン' }}</span><span class="mt-1 block font-bold">{{ $status->label() }}</span></div>
+    <div class="min-w-0 rounded-xl border {{ $contentClass }} {{ $style }}"><strong class="block">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-0.5 block truncate">{{ $slot->course?->name ?? 'レッスン' }}</span><span class="mt-1 block font-bold">{{ $entry['unavailable_reason'] ?? $status->label() }}</span></div>
 @endif

@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Student;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\StudentCalendarStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LessonSlot;
 use App\Models\User;
 use App\Support\CalendarRange;
+use App\Support\MonthlyLessonUsageCalculator;
 use App\Support\StudentLessonSlotState;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -15,8 +17,11 @@ use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, StudentLessonSlotState $lessonSlotState): View
-    {
+    public function __invoke(
+        Request $request,
+        StudentLessonSlotState $lessonSlotState,
+        MonthlyLessonUsageCalculator $monthlyLessonUsage,
+    ): View {
         $validated = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
             'date' => ['nullable', 'date_format:Y-m-d'],
@@ -62,11 +67,24 @@ class DashboardController extends Controller
             ->whereBetween('starts_at', [$calendarRange->start, $calendarRange->end])
             ->orderBy('starts_at')
             ->get();
+        $monthlySummary = $studentProfile === null ? null : $monthlyLessonUsage->calculate($studentProfile, $month);
         $calendarEntriesByDay = $lessonSlots
-            ->map(fn (LessonSlot $lessonSlot): array => [
-                'slot' => $lessonSlot,
-                ...$lessonSlotState->resolve($lessonSlot, $studentProfile),
-            ])
+            ->map(function (LessonSlot $lessonSlot) use ($lessonSlotState, $studentProfile, $monthlySummary, $month): array {
+                $entry = [
+                    'slot' => $lessonSlot,
+                    ...$lessonSlotState->resolve($lessonSlot, $studentProfile),
+                ];
+
+                if ($entry['status'] === StudentCalendarStatus::Available
+                    && $lessonSlot->starts_at->isSameMonth($month)
+                    && $monthlySummary?->contracted > 0
+                    && $monthlySummary->remaining === 0) {
+                    $entry['status'] = StudentCalendarStatus::Unavailable;
+                    $entry['unavailable_reason'] = '今月の予約可能回数を使い切っています';
+                }
+
+                return $entry;
+            })
             ->groupBy(fn (array $entry): string => $entry['slot']->starts_at->format('Y-m-d'));
 
         $reservations = $studentProfile?->reservationRequests();
@@ -89,6 +107,7 @@ class DashboardController extends Controller
             'calendarDays' => $calendarRange->days(),
             'calendarEntriesByDay' => $calendarEntriesByDay,
             'selectedDate' => $selectedDate,
+            'monthlySummary' => $monthlySummary,
         ]);
     }
 }
