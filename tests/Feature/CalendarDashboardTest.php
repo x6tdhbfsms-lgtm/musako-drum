@@ -110,8 +110,8 @@ class CalendarDashboardTest extends TestCase
         $this->travelTo('2026-09-01 09:00:00');
         $teacher = TeacherProfile::factory()->create();
         $otherTeacher = TeacherProfile::factory()->create();
-        $ownReservation = $this->reservation(StudentProfile::factory()->create(), $teacher, '2026-09-10 10:00:00', ReservationStatus::Approved);
-        $otherReservation = $this->reservation(StudentProfile::factory()->create(), $otherTeacher, '2026-09-10 11:00:00', ReservationStatus::Approved);
+        $ownReservation = $this->reservation(StudentProfile::factory()->create(['user_id' => User::factory()->create(['name' => '担当生徒'])]), $teacher, '2026-09-10 10:00:00', ReservationStatus::Approved);
+        $otherReservation = $this->reservation(StudentProfile::factory()->create(['user_id' => User::factory()->create(['name' => '別講師の生徒'])]), $otherTeacher, '2026-09-10 11:00:00', ReservationStatus::Approved);
 
         $this->actingAs($teacher->user)
             ->get(route('staff.dashboard', ['view' => 'week', 'date' => '2026-09-10']))
