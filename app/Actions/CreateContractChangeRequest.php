@@ -84,7 +84,7 @@ class CreateContractChangeRequest
     private function snapshot(LessonEnrollment $enrollment): array
     {
         return Arr::only($enrollment->getAttributes(), [
-            'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time',
+            'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time', 'regular_week_numbers',
             'monthly_lesson_limit', 'lesson_minutes', 'payment_method', 'status', 'starts_on', 'ends_on',
         ]);
     }

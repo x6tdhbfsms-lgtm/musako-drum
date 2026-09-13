@@ -17,7 +17,7 @@ class LessonEnrollment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'student_profile_id', 'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time',
+        'student_profile_id', 'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time', 'regular_week_numbers',
         'monthly_lesson_limit', 'lesson_minutes', 'payment_method', 'status', 'starts_on', 'ends_on',
         'supersedes_lesson_enrollment_id',
     ];
@@ -31,6 +31,7 @@ class LessonEnrollment extends Model
             'payment_method' => PaymentMethod::class,
             'starts_on' => 'date',
             'ends_on' => 'date',
+            'regular_week_numbers' => 'array',
         ];
     }
 
@@ -67,6 +68,11 @@ class LessonEnrollment extends Model
     public function contractChangeRequests(): HasMany
     {
         return $this->hasMany(ContractChangeRequest::class);
+    }
+
+    public function regularScheduleBatches(): HasMany
+    {
+        return $this->hasMany(RegularScheduleBatch::class);
     }
 
     public function scopeActiveOn(Builder $query, mixed $date): Builder

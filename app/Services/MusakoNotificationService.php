@@ -14,7 +14,9 @@ use App\Models\Inquiry;
 use App\Models\MembershipStatusRequest;
 use App\Models\PaymentMethodChangeRequest;
 use App\Models\PersonalInformationChangeRequest;
+use App\Models\RegularScheduleNotificationDelivery;
 use App\Models\ReservationRequest;
+use App\Models\StudentProfile;
 use App\Models\TransferRequest;
 use App\Models\TrialLessonRequest;
 use App\Models\User;
@@ -27,10 +29,12 @@ use App\Notifications\InquiryNotification;
 use App\Notifications\MembershipStatusApplicationNotification;
 use App\Notifications\PaymentMethodChangeApplicationNotification;
 use App\Notifications\PersonalInformationChangeApplicationNotification;
+use App\Notifications\RegularScheduleConfirmedNotification;
 use App\Notifications\ReservationApplicationNotification;
 use App\Notifications\ReservationCancelledNotification;
 use App\Notifications\TransferApplicationNotification;
 use App\Notifications\TrialLessonApplicationNotification;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -62,6 +66,35 @@ class MusakoNotificationService
             $this->recipients->forLessonSlot($reservationRequest->lessonSlot),
             new ReservationCancelledNotification($reservationRequest),
         );
+    }
+
+    public function regularScheduleConfirmed(StudentProfile $student, CarbonImmutable $month): void
+    {
+        $month = $month->startOfMonth();
+        $signature = hash('sha256', $student->reservationRequests()
+            ->whereDate('lesson_entitlement_month', $month)
+            ->whereNotNull('regular_schedule_occurrence_id')
+            ->with('lessonSlot:id,starts_at,ends_at')
+            ->get()->sortBy('lessonSlot.starts_at')
+            ->map(fn (ReservationRequest $reservation) => $reservation->id.'|'.$reservation->lessonSlot->starts_at->toIso8601String())
+            ->implode(';'));
+        $delivery = RegularScheduleNotificationDelivery::query()
+            ->where('student_profile_id', $student->id)
+            ->whereDate('entitlement_month', $month)
+            ->where('schedule_signature', $signature)
+            ->first();
+        if ($delivery === null) {
+            $delivery = RegularScheduleNotificationDelivery::query()->create([
+                'student_profile_id' => $student->id,
+                'entitlement_month' => $month->toDateString(),
+                'schedule_signature' => $signature,
+                'notified_at' => now(),
+            ]);
+        }
+
+        if ($delivery->wasRecentlyCreated) {
+            $this->sendToStudent($student->user, new RegularScheduleConfirmedNotification($student, $month));
+        }
     }
 
     public function attendanceNoticeChanged(AttendanceNotice $attendanceNotice): void

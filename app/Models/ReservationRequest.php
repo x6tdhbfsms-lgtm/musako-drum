@@ -15,7 +15,7 @@ class ReservationRequest extends Model
     use HasFactory;
 
     protected $fillable = [
-        'student_profile_id', 'lesson_slot_id', 'lesson_enrollment_id', 'status', 'requested_at',
+        'student_profile_id', 'lesson_slot_id', 'lesson_enrollment_id', 'regular_schedule_occurrence_id', 'status', 'requested_at',
         'lesson_entitlement_month', 'studio_fee_amount', 'studio_fee_priced_on', 'reviewed_by_user_id', 'reviewed_at', 'student_note', 'staff_note',
         'cancelled_at', 'cancellation_reason', 'completed_at', 'monthly_limit_overridden_at',
         'monthly_limit_overridden_by_user_id', 'monthly_limit_override_reason',
@@ -49,6 +49,11 @@ class ReservationRequest extends Model
     public function lessonEnrollment(): BelongsTo
     {
         return $this->belongsTo(LessonEnrollment::class);
+    }
+
+    public function regularScheduleOccurrence(): BelongsTo
+    {
+        return $this->belongsTo(RegularScheduleOccurrence::class);
     }
 
     public function reviewer(): BelongsTo

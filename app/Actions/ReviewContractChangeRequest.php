@@ -64,10 +64,14 @@ class ReviewContractChangeRequest
         $previousEnd = $enrollment->ends_on?->toDateString();
         $enrollment->update(['ends_on' => $effectiveOn->subDay()->toDateString()]);
         $attributes = Arr::only($enrollment->getAttributes(), [
-            'student_profile_id', 'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time',
+            'student_profile_id', 'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time', 'regular_week_numbers',
             'monthly_lesson_limit', 'lesson_minutes', 'payment_method', 'status',
         ]);
-        $attributes = array_merge($attributes, $request->after_values, [
+        $changes = $request->after_values;
+        if ($request->type === ContractChangeType::MonthlyLessons || ($request->type === ContractChangeType::LessonType && ($changes['lesson_type'] ?? null) === 'flex')) {
+            $changes['regular_week_numbers'] = null;
+        }
+        $attributes = array_merge($attributes, $changes, [
             'starts_on' => $effectiveOn->toDateString(),
             'ends_on' => $previousEnd,
             'supersedes_lesson_enrollment_id' => $enrollment->id,
@@ -93,6 +97,7 @@ class ReviewContractChangeRequest
             'venue_id' => $base?->venue_id,
             'weekday' => $base?->weekday,
             'starts_at_time' => $base?->starts_at_time,
+            'regular_week_numbers' => null,
             'monthly_lesson_limit' => $course->default_monthly_lessons,
             'lesson_minutes' => $course->default_lesson_minutes,
             'payment_method' => $base?->payment_method,
