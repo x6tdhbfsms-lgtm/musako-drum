@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\LessonSlotAudience;
 use App\Enums\LessonSlotStatus;
 use App\Models\Course;
 use App\Models\LessonSlot;
@@ -29,6 +30,17 @@ class LessonSlotFactory extends Factory
             'ends_at' => now()->addWeek()->startOfHour()->addHour(),
             'capacity' => 1,
             'status' => LessonSlotStatus::Open,
+            'booking_audience' => LessonSlotAudience::Regular,
         ];
+    }
+
+    public function forTrials(): static
+    {
+        return $this->state(fn (): array => ['booking_audience' => LessonSlotAudience::Trial]);
+    }
+
+    public function forAllBookings(): static
+    {
+        return $this->state(fn (): array => ['booking_audience' => LessonSlotAudience::Both]);
     }
 }

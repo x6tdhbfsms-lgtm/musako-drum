@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\LessonSlot;
 use App\Models\StudentProfile;
 use App\Models\TransferRequest;
+use App\Models\TrialLessonRequest;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -58,6 +59,21 @@ class NotificationRecipientResolver
             ->filter(fn (?User $user): bool => $user?->account_status === AccountStatus::Active)
             ->unique('id')
             ->values();
+    }
+
+    /** @return Collection<int, User> */
+    public function forTrial(TrialLessonRequest $trialLessonRequest): Collection
+    {
+        return $this->forLessonSlot($trialLessonRequest->lessonSlot);
+    }
+
+    /** @return Collection<int, User> */
+    public function allStaff(): Collection
+    {
+        return User::query()
+            ->whereIn('role', [UserRole::Teacher, UserRole::Admin])
+            ->where('account_status', AccountStatus::Active)
+            ->get();
     }
 
     /** @return Collection<int, User> */

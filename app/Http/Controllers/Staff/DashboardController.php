@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Enums\AdmissionApplicationStatus;
 use App\Enums\ApplicationStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\TrialLessonStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StaffCalendarRequest;
+use App\Models\AdmissionApplication;
 use App\Models\AttendanceNotice;
 use App\Models\ContractChangeRequest;
 use App\Models\Inquiry;
@@ -17,6 +20,7 @@ use App\Models\PersonalInformationChangeRequest;
 use App\Models\ReservationRequest;
 use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
+use App\Models\TrialLessonRequest;
 use App\Models\User;
 use App\Models\Venue;
 use App\Support\CalendarRange;
@@ -125,12 +129,24 @@ class DashboardController extends Controller
             })
             ->orderBy(LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'reservation_requests.lesson_slot_id'))
             ->get();
+        $trialScope = TrialLessonRequest::query()
+            ->when($user->role === UserRole::Teacher, fn ($query) => $query->whereHas('lessonSlot', fn ($slots) => $slots->where('teacher_profile_id', $teacherProfile?->id ?? 0)));
+        $upcomingTrials = (clone $trialScope)
+            ->with(['lessonSlot.teacherProfile', 'lessonSlot.venue'])
+            ->where('status', TrialLessonStatus::Approved)
+            ->whereHas('lessonSlot', fn ($query) => $query->whereBetween('starts_at', [now(), now()->addDays(14)]))
+            ->orderBy(LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'trial_lesson_requests.lesson_slot_id'))
+            ->limit(8)
+            ->get();
 
         return view('staff.dashboard', [
             'pendingCount' => (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
             'upcomingSlotCount' => (clone $slots)->where('starts_at', '>', now())->count(),
             'todayNotices' => $todayNotices,
             'todayReservations' => $todayReservations,
+            'pendingTrialCount' => (clone $trialScope)->where('status', TrialLessonStatus::Pending)->count(),
+            'upcomingTrials' => $upcomingTrials,
+            'pendingAdmissionCount' => AdmissionApplication::query()->where('status', AdmissionApplicationStatus::Pending)->count(),
             'pendingTransferCount' => $pendingTransferCount,
             'pendingMembershipCount' => MembershipStatusRequest::query()->where('status', ApplicationStatus::Pending)->count(),
             'pendingProcedureCount' => ContractChangeRequest::query()->where('status', ApplicationStatus::Pending)->count()

@@ -1,0 +1,25 @@
+@extends('layouts.app')
+@section('title', '体験レッスン | MUSAKO')
+@section('content')
+<div class="mx-auto max-w-5xl space-y-7">
+    <section class="rounded-3xl bg-stone-900 px-5 py-9 text-white sm:px-10 sm:py-12"><p class="text-sm font-bold tracking-widest text-amber-300">TRIAL LESSON</p><h1 class="mt-2 text-3xl font-bold sm:text-5xl">はじめてのドラム体験</h1><p class="mt-4 max-w-2xl text-sm leading-7 text-stone-300">楽器が初めてでも大丈夫です。日時を選び、必要事項を入力してください。教室で確認後に確定メールをお送りします。</p></section>
+    <section class="grid gap-4 sm:grid-cols-3">@foreach ([['1','日時を選ぶ'],['2','教室が確認'],['3','体験当日']] as [$number,$label])<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="grid size-8 place-items-center rounded-full bg-amber-100 text-sm font-bold text-amber-900">{{ $number }}</span><p class="mt-3 font-bold">{{ $label }}</p></div>@endforeach</section>
+    <form method="post" action="{{ route('trial-lessons.store') }}" class="space-y-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8">@csrf
+        <div><h2 class="text-2xl font-bold">体験レッスンを申し込む</h2><p class="mt-2 text-sm text-stone-600">カード番号・口座番号などは入力しないでください。</p></div>
+        @if ($errors->any())<div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+        <fieldset><legend class="font-bold">受付可能な日時</legend><div class="mt-3 grid gap-3 md:grid-cols-2">@forelse ($lessonSlots as $slot)<label class="flex cursor-pointer gap-3 rounded-2xl border border-stone-200 p-4 has-checked:border-amber-500 has-checked:bg-amber-50"><input type="radio" name="lesson_slot_id" value="{{ $slot->id }}" required @checked(old('lesson_slot_id') == $slot->id) class="mt-1"><span class="min-w-0"><strong class="block">{{ $slot->starts_at->format('n月j日（'.['日','月','火','水','木','金','土'][$slot->starts_at->dayOfWeek].'） H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="mt-1 block text-sm text-stone-600">{{ $slot->teacherProfile->display_name }}／{{ $slot->venue?->name ?? '会場調整中' }}</span><span class="text-sm text-stone-500">{{ $slot->course?->name ?? '体験レッスン' }}</span></span></label>@empty<p class="rounded-xl bg-stone-100 p-4 text-sm text-stone-600 md:col-span-2">現在公開中の体験枠はありません。教室へお問い合わせください。</p>@endforelse</div></fieldset>
+        <div class="grid gap-5 sm:grid-cols-2">
+            <label class="grid gap-2 text-sm font-semibold">氏名<input name="name" value="{{ old('name') }}" required maxlength="100" autocomplete="name" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+            <label class="grid gap-2 text-sm font-semibold">フリガナ<input name="name_kana" value="{{ old('name_kana') }}" required maxlength="100" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+            <label class="grid gap-2 text-sm font-semibold">メールアドレス<input type="email" name="email" value="{{ old('email') }}" required maxlength="254" autocomplete="email" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+            <label class="grid gap-2 text-sm font-semibold">電話番号<input name="phone" value="{{ old('phone') }}" required maxlength="30" autocomplete="tel" inputmode="tel" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+            <label class="grid gap-2 text-sm font-semibold">年齢・年代<select name="age_group" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>@foreach (['under_12'=>'小学生以下','teen'=>'中高生','adult'=>'18歳以上','senior'=>'シニア'] as $value=>$label)<option value="{{ $value }}" @selected(old('age_group') === $value)>{{ $label }}</option>@endforeach</select></label>
+            <label class="grid gap-2 text-sm font-semibold">ドラム経験<select name="drum_experience" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>@foreach (['none'=>'未経験','beginner'=>'少し経験あり','experienced'=>'経験あり'] as $value=>$label)<option value="{{ $value }}" @selected(old('drum_experience') === $value)>{{ $label }}</option>@endforeach</select></label>
+        </div>
+        <label class="grid gap-2 text-sm font-semibold">希望・相談内容（任意）<textarea name="consultation" rows="4" maxlength="1000" class="rounded-xl border border-stone-300 p-3">{{ old('consultation') }}</textarea></label>
+        <div class="absolute -left-[9999px]" aria-hidden="true"><label>ウェブサイト<input name="website" tabindex="-1" autocomplete="off"></label></div>
+        <label class="flex items-start gap-3 rounded-xl bg-stone-50 p-4 text-sm"><input type="checkbox" name="privacy_accepted" value="1" required class="mt-1"><span><a href="{{ config('musako.privacy.policy_url') }}" target="_blank" class="font-bold underline">プライバシーポリシー</a>に同意します。</span></label>
+        <button @disabled($lessonSlots->isEmpty()) class="min-h-12 w-full rounded-xl bg-amber-400 px-6 font-bold text-stone-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:bg-stone-300">体験レッスンを申し込む</button>
+    </form>
+</div>
+@endsection

@@ -22,7 +22,7 @@ abstract class QueuedMusakoNotification extends Notification implements ShouldQu
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        if (! $notifiable instanceof User || ! $notifiable->canReceiveEmailNotification($this->category())) {
+        if ($notifiable instanceof User && ! $notifiable->canReceiveEmailNotification($this->category())) {
             return [];
         }
 

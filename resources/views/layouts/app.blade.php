@@ -34,10 +34,15 @@
                         <a href="{{ route('staff.procedure-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
                         <a href="{{ route('staff.students.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">生徒</a>
                         <a href="{{ route('staff.pricing-settings.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">料金設定</a>
+                        <a href="{{ route('staff.trial-lessons.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">体験</a>
+                        <a href="{{ route('staff.admission-applications.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">入会</a>
                     @endif
                     <form method="post" action="{{ route('logout') }}">@csrf<button class="rounded-full border border-stone-300 px-3 py-2 hover:bg-stone-100">ログアウト</button></form>
                 </nav>
             @endauth
+            @guest
+                <nav class="flex items-center gap-2 text-sm"><a href="{{ route('trial-lessons.index') }}" class="rounded-full bg-amber-400 px-4 py-2 font-bold">体験レッスン</a><a href="{{ route('pricing') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">料金</a><a href="{{ route('login') }}" class="rounded-full border border-stone-300 px-3 py-2">ログイン</a></nav>
+            @endguest
         </div>
     </header>
 

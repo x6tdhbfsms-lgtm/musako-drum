@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Enums\LessonSlotAudience;
 use App\Enums\LessonSlotStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\TrialLessonStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LessonSlot;
 use App\Models\User;
@@ -28,7 +30,9 @@ class AvailableLessonSlotController extends Controller
         $lessonSlots = LessonSlot::query()
             ->with(['teacherProfile', 'venue', 'course'])
             ->withCount(['reservationRequests as approved_reservations_count' => fn ($query) => $query->where('status', ReservationStatus::Approved)])
+            ->withCount(['trialLessonRequests as approved_trial_requests_count' => fn ($query) => $query->where('status', TrialLessonStatus::Approved)])
             ->where('status', LessonSlotStatus::Open)
+            ->whereIn('booking_audience', [LessonSlotAudience::Regular, LessonSlotAudience::Both])
             ->where('starts_at', '>', now())
             ->where('starts_at', '>=', $month)
             ->where('starts_at', '<', $month->addMonth())

@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Enums\EnrollmentStatus;
 use App\Enums\LessonSlotStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\TrialLessonStatus;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
@@ -31,7 +32,13 @@ class CreateReservationRequest
                 throw ValidationException::withMessages(['lesson_slot' => 'この枠は現在予約できません。']);
             }
 
-            if ($lockedSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count() >= $lockedSlot->capacity) {
+            if (! $lockedSlot->booking_audience->acceptsRegular()) {
+                throw ValidationException::withMessages(['lesson_slot' => 'この枠は通常予約を受け付けていません。']);
+            }
+
+            $approvedCount = $lockedSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count()
+                + $lockedSlot->trialLessonRequests()->where('status', TrialLessonStatus::Approved)->count();
+            if ($approvedCount >= $lockedSlot->capacity) {
                 throw ValidationException::withMessages(['lesson_slot' => 'この枠は満席です。']);
             }
 

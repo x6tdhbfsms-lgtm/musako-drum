@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\LessonSlotAudience;
 use App\Enums\LessonSlotStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\TrialLessonStatus;
 use App\Enums\UserRole;
 use App\Models\LessonSlot;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -43,6 +45,7 @@ class UpdateLessonSlotRequest extends FormRequest
             'ends_at' => ['required', 'date', 'after:starts_at'],
             'capacity' => ['required', 'integer', 'between:1,20'],
             'status' => ['required', Rule::enum(LessonSlotStatus::class)],
+            'booking_audience' => ['sometimes', Rule::enum(LessonSlotAudience::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -67,7 +70,8 @@ class UpdateLessonSlotRequest extends FormRequest
                     return;
                 }
 
-                $approvedCount = $lessonSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count();
+                $approvedCount = $lessonSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count()
+                    + $lessonSlot->trialLessonRequests()->whereIn('status', [TrialLessonStatus::Pending, TrialLessonStatus::Approved])->count();
 
                 if ($this->integer('capacity') < $approvedCount) {
                     $validator->errors()->add('capacity', "承認済み予約が{$approvedCount}件あるため、定員をそれ未満にはできません。");

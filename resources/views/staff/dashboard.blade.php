@@ -41,6 +41,8 @@
     </div>
 </section>
 
+<section class="mt-8 rounded-3xl border border-violet-200 bg-violet-50 p-5 sm:p-6" aria-labelledby="trial-summary-title"><div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-xs font-bold tracking-widest text-violet-700">TRIAL LESSONS</p><h2 id="trial-summary-title" class="text-xl font-bold">体験レッスン</h2></div><div class="flex flex-wrap gap-2"><a href="{{ route('staff.trial-lessons.index', ['status' => 'pending']) }}" class="rounded-full bg-white px-3 py-2 text-sm font-bold">新規 {{ $pendingTrialCount }}件</a><a href="{{ route('staff.admission-applications.index', ['status' => 'pending']) }}" class="rounded-full bg-white px-3 py-2 text-sm font-bold">入会待ち {{ $pendingAdmissionCount }}件</a></div></div><div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">@forelse ($upcomingTrials as $trial)<a href="{{ route('staff.trial-lessons.show', $trial) }}" class="min-w-0 rounded-2xl bg-white p-4 shadow-sm"><span class="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-800">体験</span><p class="mt-2 font-bold">{{ $trial->lessonSlot->starts_at->format('n/j H:i') }}</p><p class="truncate text-sm">{{ $trial->name }}</p><p class="mt-1 truncate text-xs text-stone-500">{{ $trial->lessonSlot->teacherProfile->display_name }}／{{ $trial->lessonSlot->venue?->name ?? '会場未定' }}</p></a>@empty<p class="text-sm text-stone-600 sm:col-span-2 lg:col-span-4">今後14日間の承認済み体験レッスンはありません。</p>@endforelse</div></section>
+
 <section class="mt-8" aria-labelledby="today-lessons-title">
     <div class="flex flex-wrap items-center justify-between gap-2">
         <div>

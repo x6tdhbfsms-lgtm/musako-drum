@@ -52,11 +52,11 @@ class StudentLessonSlotState
             return ['status' => StudentCalendarStatus::Unavailable, 'reservation' => $reservation];
         }
 
-        if ($lessonSlot->status !== LessonSlotStatus::Open || ! $lessonSlot->starts_at->isFuture() || $studentProfile === null) {
+        if ($lessonSlot->status !== LessonSlotStatus::Open || ! $lessonSlot->booking_audience->acceptsRegular() || ! $lessonSlot->starts_at->isFuture() || $studentProfile === null) {
             return ['status' => StudentCalendarStatus::Unavailable, 'reservation' => $reservation];
         }
 
-        if ($lessonSlot->approved_reservations_count >= $lessonSlot->capacity) {
+        if ($lessonSlot->approved_reservations_count + ($lessonSlot->approved_trial_requests_count ?? 0) >= $lessonSlot->capacity) {
             return ['status' => StudentCalendarStatus::Full, 'reservation' => $reservation];
         }
 

@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\AdmissionApplicationStatus;
 use App\Enums\ApplicationStatus;
 use App\Enums\InquiryStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\TrialLessonStatus;
+use App\Models\AdmissionApplication;
 use App\Models\AttendanceNotice;
 use App\Models\ContractChangeRequest;
 use App\Models\Inquiry;
@@ -13,10 +16,13 @@ use App\Models\PaymentMethodChangeRequest;
 use App\Models\PersonalInformationChangeRequest;
 use App\Models\ReservationRequest;
 use App\Models\TransferRequest;
+use App\Models\TrialLessonRequest;
 use App\Models\User;
+use App\Notifications\AdmissionApplicationNotification;
 use App\Notifications\AttendanceNoticeNotification;
 use App\Notifications\Concerns\QueuedMusakoNotification;
 use App\Notifications\ContractChangeApplicationNotification;
+use App\Notifications\InitialPasswordSetupNotification;
 use App\Notifications\InquiryNotification;
 use App\Notifications\MembershipStatusApplicationNotification;
 use App\Notifications\PaymentMethodChangeApplicationNotification;
@@ -24,6 +30,7 @@ use App\Notifications\PersonalInformationChangeApplicationNotification;
 use App\Notifications\ReservationApplicationNotification;
 use App\Notifications\ReservationCancelledNotification;
 use App\Notifications\TransferApplicationNotification;
+use App\Notifications\TrialLessonApplicationNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -161,9 +168,62 @@ class MusakoNotificationService
         );
     }
 
+    public function trialSubmitted(TrialLessonRequest $trialLessonRequest, string $accessToken): void
+    {
+        $this->sendToMail(
+            $trialLessonRequest->email,
+            new TrialLessonApplicationNotification($trialLessonRequest, false, $accessToken),
+        );
+        $this->send(
+            $this->recipients->forTrial($trialLessonRequest),
+            new TrialLessonApplicationNotification($trialLessonRequest, true),
+        );
+    }
+
+    public function trialReviewed(TrialLessonRequest $trialLessonRequest, TrialLessonStatus $decision): void
+    {
+        $this->sendToMail($trialLessonRequest->email, new TrialLessonApplicationNotification($trialLessonRequest, false));
+    }
+
+    public function trialCancelled(TrialLessonRequest $trialLessonRequest): void
+    {
+        $this->send(
+            $this->recipients->forTrial($trialLessonRequest),
+            new TrialLessonApplicationNotification($trialLessonRequest, true),
+        );
+    }
+
+    public function admissionSubmitted(AdmissionApplication $application): void
+    {
+        $this->sendToMail($application->email, new AdmissionApplicationNotification($application, false));
+        $this->send($this->recipients->allStaff(), new AdmissionApplicationNotification($application, true));
+    }
+
+    public function admissionReviewed(AdmissionApplication $application, AdmissionApplicationStatus $decision, ?string $passwordToken = null): void
+    {
+        $this->sendToMail($application->email, new AdmissionApplicationNotification($application, false));
+        if ($decision === AdmissionApplicationStatus::Approved && $passwordToken !== null) {
+            $this->sendToMail($application->email, new InitialPasswordSetupNotification($application->email_normalized, $passwordToken));
+        }
+    }
+
     private function sendToStudent(User $student, QueuedMusakoNotification $notification): void
     {
         $this->send(collect([$student]), $notification);
+    }
+
+    private function sendToMail(string $email, QueuedMusakoNotification $notification): void
+    {
+        try {
+            Notification::route('mail', $email)->notify(
+                $notification->onQueue((string) config('musako.notifications.queue'))->afterCommit(),
+            );
+        } catch (Throwable $exception) {
+            Log::warning('MUSAKO public email notification could not be queued.', [
+                'notification' => $notification::class,
+                'exception' => $exception::class,
+            ]);
+        }
     }
 
     /** @param Collection<int, User> $recipients */

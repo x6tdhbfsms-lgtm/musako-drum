@@ -112,7 +112,7 @@ class LessonSlotController extends Controller
     {
         Gate::authorize('delete', $lessonSlot);
 
-        if ($lessonSlot->reservationRequests()->exists()) {
+        if ($lessonSlot->reservationRequests()->exists() || $lessonSlot->trialLessonRequests()->exists()) {
             return back()->with('error', '予約申請がある枠は削除できません。枠を中止へ変更してください。');
         }
 

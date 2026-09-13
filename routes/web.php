@@ -2,7 +2,12 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\PricingController;
+use App\Http\Controllers\PublicAdmissionApplicationController;
+use App\Http\Controllers\PublicTrialCancellationController;
+use App\Http\Controllers\PublicTrialLessonController;
+use App\Http\Controllers\Staff\AdmissionApplicationController as StaffAdmissionApplicationController;
 use App\Http\Controllers\Staff\ContractChangeRequestController as StaffContractChangeRequestController;
 use App\Http\Controllers\Staff\DashboardController as StaffDashboardController;
 use App\Http\Controllers\Staff\InquiryController as StaffInquiryController;
@@ -16,6 +21,7 @@ use App\Http\Controllers\Staff\ReservationDetailController as StaffReservationDe
 use App\Http\Controllers\Staff\ReservationReviewController;
 use App\Http\Controllers\Staff\StudentController as StaffStudentController;
 use App\Http\Controllers\Staff\TransferRequestController as StaffTransferRequestController;
+use App\Http\Controllers\Staff\TrialLessonRequestController as StaffTrialLessonRequestController;
 use App\Http\Controllers\Student\AttendanceNoticeController;
 use App\Http\Controllers\Student\AvailableLessonSlotController;
 use App\Http\Controllers\Student\ContractChangeRequestController as StudentContractChangeRequestController;
@@ -39,6 +45,17 @@ Route::get('/', function () {
         : redirect()->route('staff.dashboard');
 })->name('home');
 Route::get('/pricing', PricingController::class)->name('pricing');
+Route::view('/privacy', 'public.privacy')->name('privacy');
+Route::get('/trial-lessons', [PublicTrialLessonController::class, 'index'])->name('trial-lessons.index');
+Route::post('/trial-lessons', [PublicTrialLessonController::class, 'store'])->middleware('throttle:trial-application')->name('trial-lessons.store');
+Route::get('/trial-lessons/complete/{reference}', [PublicTrialLessonController::class, 'complete'])->name('trial-lessons.complete');
+Route::get('/trial-lessons/{reference}/{token}', [PublicTrialCancellationController::class, 'show'])->name('trial-lessons.manage');
+Route::delete('/trial-lessons/{reference}/{token}', [PublicTrialCancellationController::class, 'destroy'])->middleware('throttle:trial-application')->name('trial-lessons.cancel');
+Route::get('/trial-lessons/{reference}/{token}/admission', [PublicAdmissionApplicationController::class, 'create'])->name('admissions.create');
+Route::post('/trial-lessons/{reference}/{token}/admission', [PublicAdmissionApplicationController::class, 'store'])->middleware('throttle:admission-application')->name('admissions.store');
+Route::get('/admissions/complete/{reference}', [PublicAdmissionApplicationController::class, 'complete'])->name('admissions.complete');
+Route::get('/password/reset/{token}', [NewPasswordController::class, 'create'])->middleware('guest')->name('password.reset');
+Route::post('/password/reset', [NewPasswordController::class, 'store'])->middleware(['guest', 'throttle:6,1'])->name('password.update');
 
 Route::middleware('guest')->group(function () {
     Route::view('/login', 'auth.login')->name('login');
@@ -99,5 +116,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/pricing-settings', [PricingSettingController::class, 'index'])->name('pricing-settings.index');
         Route::post('/pricing-settings/rates', [PricingSettingController::class, 'storeRate'])->name('pricing-settings.rates.store');
         Route::post('/pricing-settings/configuration', [PricingSettingController::class, 'storeSetting'])->name('pricing-settings.configuration.store');
+        Route::get('/trial-lessons', [StaffTrialLessonRequestController::class, 'index'])->name('trial-lessons.index');
+        Route::get('/trial-lessons/{trial_lesson_request}', [StaffTrialLessonRequestController::class, 'show'])->name('trial-lessons.show');
+        Route::patch('/trial-lessons/{trial_lesson_request}', [StaffTrialLessonRequestController::class, 'update'])->name('trial-lessons.update');
+        Route::get('/admission-applications', [StaffAdmissionApplicationController::class, 'index'])->name('admission-applications.index');
+        Route::get('/admission-applications/{admission_application}', [StaffAdmissionApplicationController::class, 'show'])->name('admission-applications.show');
+        Route::patch('/admission-applications/{admission_application}', [StaffAdmissionApplicationController::class, 'update'])->name('admission-applications.update');
     });
 });

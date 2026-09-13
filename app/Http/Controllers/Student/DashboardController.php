@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Student;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\LessonSlotAudience;
 use App\Enums\ReservationStatus;
 use App\Enums\StudentCalendarStatus;
+use App\Enums\TrialLessonStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LessonSlot;
 use App\Models\PricingSetting;
@@ -66,7 +68,9 @@ class DashboardController extends Controller
             ])
             ->withCount([
                 'reservationRequests as approved_reservations_count' => fn ($query) => $query->where('status', ReservationStatus::Approved),
+                'trialLessonRequests as approved_trial_requests_count' => fn ($query) => $query->where('status', TrialLessonStatus::Approved),
             ])
+            ->whereIn('booking_audience', [LessonSlotAudience::Regular, LessonSlotAudience::Both])
             ->whereBetween('starts_at', [$calendarRange->start, $calendarRange->end])
             ->orderBy('starts_at')
             ->get();

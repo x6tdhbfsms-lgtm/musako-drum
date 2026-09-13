@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Enums\LessonSlotStatus;
 use App\Enums\ReservationStatus;
+use App\Enums\TrialLessonStatus;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
@@ -46,7 +47,8 @@ class ReviewReservationRequest
                 }
 
                 $approvedCount = $lockedSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count();
-                if ($approvedCount >= $lockedSlot->capacity) {
+                $approvedTrialCount = $lockedSlot->trialLessonRequests()->where('status', TrialLessonStatus::Approved)->count();
+                if ($approvedCount + $approvedTrialCount >= $lockedSlot->capacity) {
                     throw ValidationException::withMessages(['reservation' => '定員に達しているため承認できません。']);
                 }
 

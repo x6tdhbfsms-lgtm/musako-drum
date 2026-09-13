@@ -28,5 +28,15 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($key);
         });
+
+        RateLimiter::for('trial-application', function (Request $request): Limit {
+            return Limit::perMinute((int) config('musako.public_forms.trial_rate_limit_per_minute'))
+                ->by(Str::lower($request->string('email')).'|'.$request->ip());
+        });
+
+        RateLimiter::for('admission-application', function (Request $request): Limit {
+            return Limit::perMinute((int) config('musako.public_forms.admission_rate_limit_per_minute'))
+                ->by(Str::lower($request->string('email')).'|'.$request->ip());
+        });
     }
 }

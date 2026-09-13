@@ -10,4 +10,6 @@ enum NotificationCategory: string
     case Procedure = 'procedure';
     case Inquiry = 'inquiry';
     case Reminder = 'reminder';
+    case Trial = 'trial';
+    case Admission = 'admission';
 }

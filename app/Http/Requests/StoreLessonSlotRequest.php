@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\LessonSlotAudience;
 use App\Enums\UserRole;
 use App\Models\LessonSlot;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -37,6 +38,7 @@ class StoreLessonSlotRequest extends FormRequest
             'starts_at' => ['required', 'date', 'after:now'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
             'capacity' => ['required', 'integer', 'between:1,20'],
+            'booking_audience' => ['sometimes', Rule::enum(LessonSlotAudience::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
