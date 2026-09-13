@@ -106,11 +106,31 @@ class DashboardController extends Controller
                     })
             )
             ->count();
+        $todayReservations = ReservationRequest::query()
+            ->with([
+                'studentProfile.user',
+                'lessonSlot.teacherProfile',
+                'lessonSlot.venue',
+                'lessonSlot.course',
+                'attendanceNotice',
+                'resultingTransferRequest',
+            ])
+            ->where('status', ReservationStatus::Approved)
+            ->whereHas('lessonSlot', function ($query) use ($teacherProfile, $user): void {
+                $query->whereBetween('starts_at', [today()->startOfDay(), today()->endOfDay()])
+                    ->when(
+                        $user->role === UserRole::Teacher,
+                        fn ($slots) => $teacherProfile === null ? $slots->whereRaw('1 = 0') : $slots->whereBelongsTo($teacherProfile, 'teacherProfile')
+                    );
+            })
+            ->orderBy(LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'reservation_requests.lesson_slot_id'))
+            ->get();
 
         return view('staff.dashboard', [
             'pendingCount' => (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
             'upcomingSlotCount' => (clone $slots)->where('starts_at', '>', now())->count(),
             'todayNotices' => $todayNotices,
+            'todayReservations' => $todayReservations,
             'pendingTransferCount' => $pendingTransferCount,
             'pendingMembershipCount' => MembershipStatusRequest::query()->where('status', ApplicationStatus::Pending)->count(),
             'pendingProcedureCount' => ContractChangeRequest::query()->where('status', ApplicationStatus::Pending)->count()

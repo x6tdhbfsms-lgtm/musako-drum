@@ -34,6 +34,11 @@ studio34とは完全に分離した、MUSAKOドラム教室専用のLaravelプ�
 - 予約承認時のスタジオ代スナップショットと、振替時の二重請求防止
 - 通常／フレックス、一般／ジュニアの契約変更申請と適用日付き履歴
 - フレックス契約で2か月以上予約がない生徒の先生向け注意表示
+- 予約・振替・在籍・契約・個人情報・支払い方法・問い合わせのメール通知
+- お休み／遅刻連絡と予約キャンセルの先生・管理者向け通知
+- Asia/Tokyo基準の予約前日リマインダーと二重送信防止履歴
+- 先生ダッシュボードの「本日のレッスン」一覧
+- Database Queue対応と、ローカルメール確認用Mailpit
 - SQLiteを使った自動テスト
 
 カード番号や口座番号を保存するカラムは設けていません。将来の決済連携でも、外部決済サービス側で機密情報を管理する方針です。
@@ -58,6 +63,8 @@ cp .env.example .env
 
 ブラウザで <http://localhost:8081> を開きます。MySQLはPC側の `33061` 番ポートを使うため、一般的な `3306` 番ポートを使う別案件と衝突しにくい構成です。
 
+開発用メールは外部へ送信されず、Mailpitの <http://localhost:8025> で確認できます。
+
 停止:
 
 ```bash
@@ -75,6 +82,97 @@ DBデータも消す `sail down -v` は、必要性を確認せず実行しな�
 ```
 
 本番環境ではLaravelのスケジューラを毎分実行するcron設定が必要です。
+
+## メール通知とQueue
+
+通知メールはLaravel Notificationで作成し、`mail` Queueへ登録します。予約承認などのDBトランザクション完了後に通知を登録し、通知のキュー登録に失敗しても予約・申請のDB処理は取り消しません。メール送信エラーはQueue側で最大3回再試行され、最終的な失敗はLaravelの `failed_jobs` で確認できます。
+
+ローカルでQueue workerを起動するには、別のターミナルで次を実行します。
+
+```bash
+./vendor/bin/sail artisan queue:work --queue=mail,default --tries=3 --timeout=30
+```
+
+コードやメール設定を変更した後は、workerへ反映するため次を実行します。
+
+```bash
+./vendor/bin/sail artisan queue:restart
+```
+
+現在の通知対象は次のとおりです。
+
+- 予約申請：担当講師、管理者
+- 予約承認・却下：申請した生徒
+- 生徒による予約キャンセル：担当講師、管理者
+- お休み・遅刻連絡の登録／更新：担当講師、管理者
+- 振替申請：元予約・振替先の担当講師、管理者
+- 振替承認・却下：申請した生徒
+- 休会・退会・再開申請：担当講師、管理者
+- 休会・退会・再開の承認／却下：申請した生徒
+- 契約内容変更、個人情報変更、支払い方法変更の申請：担当講師、管理者
+- 各変更申請の承認／却下：申請した生徒
+- 新しい問い合わせ：担当講師、管理者
+- 問い合わせが解決済みになったとき：問い合わせた生徒
+- 承認済み予約の前日リマインダー：予約した生徒
+
+ユーザーの `notification_preferences` が未設定の場合は全通知ONです。将来、`email`、`reservation`、`attendance`、`transfer`、`procedure`、`inquiry`、`reminder` ごとにON/OFF画面を追加できる構造です。メールアドレスが未登録または不正なユーザーは、安全に送信対象から除外します。
+
+個人情報変更メールに変更前後の氏名・メール・電話番号・住所は記載しません。支払い方法変更メールにもカード番号、口座番号、備考は記載しません。
+
+### ローカルのMailpit
+
+`.env.example` の標準設定ではSMTP送信先がDocker内のMailpitです。
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS=info@musako-drum.local
+```
+
+`./vendor/bin/sail up -d` でMailpitも起動します。Web UIは <http://localhost:8025> です。`FORWARD_MAILPIT_PORT` を変更すればPC側の確認ポートを変更できます。
+
+### 本番SMTP
+
+本番環境では `.env` またはホスティング側のSecretへ実際のSMTP情報を設定します。値をGitへcommitしないでください。
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_SCHEME=tls
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=your-smtp-user
+MAIL_PASSWORD=your-smtp-password
+MAIL_FROM_ADDRESS=info@example.com
+MAIL_FROM_NAME="MUSAKOドラム教室"
+QUEUE_CONNECTION=database
+```
+
+設定後は `php artisan config:cache` とQueue workerの再起動が必要です。
+
+## 前日リマインダーとScheduler
+
+毎日18:00（Asia/Tokyo）に、翌日の承認済み予約を抽出してリマインダーを `mail` Queueへ登録します。時刻は `.env` の次の値で変更できます。
+
+```dotenv
+LESSON_REMINDER_TIME=18:00
+```
+
+予約ごとに `lesson_reminder_deliveries` の一意な履歴を作るため、Schedulerが再実行されても同じ予約へ二重送信しません。送信ジョブにも一意ロックがあり、送信成功日時・失敗日時・試行回数を保存します。
+
+本番サーバーでは、Laravel Schedulerを毎分呼び出します。
+
+```cron
+* * * * * cd /path/to/musako-drum && php artisan schedule:run >> /dev/null 2>&1
+```
+
+複数台構成では共有可能なdatabaseまたはRedisのキャッシュを使ってください。リマインダーと在籍申請反映は `onOneServer()` と `withoutOverlapping()` を使用しています。ローカルでは次のコマンドでSchedulerを継続実行できます。
+
+```bash
+./vendor/bin/sail artisan schedule:work
+```
 
 ## 契約内容変更の適用日
 
@@ -179,6 +277,7 @@ WindowsではWSL2のUbuntu内で同等の手順を実行してください。
 - `pricing_settings`: 料金表示モード、入会金、キャンペーン、注意書き、公式URLの適用日付き履歴
 - `lesson_slots`: 先生が公開する日時枠
 - `reservation_requests`: 生徒の申請、先生・管理者の審査、取消履歴、レッスン権利月、実施日時、上限超過承認履歴、承認時のスタジオ代
+- `lesson_reminder_deliveries`: 予約リマインダーの対象日、キュー登録、送信成功・失敗、試行回数。予約ごとに一意
 - `attendance_notices`: 予約ごとのお休み・遅刻連絡。重複登録せず更新履歴日時を保持
 - `transfer_requests`: 元予約、希望枠、振替後予約、審査結果を保持する振替履歴
 - `membership_status_requests`: 休会・退会・再開の希望日、審査、適用日時、適用前の在籍状態を保持
@@ -186,5 +285,7 @@ WindowsではWSL2のUbuntu内で同等の手順を実行してください。
 - `personal_information_change_requests`: 氏名・連絡先・住所の変更前後と審査履歴
 - `payment_method_change_requests`: 希望する支払い方式と審査履歴。カード・口座情報は保持しない
 - `inquiries`: 問い合わせ本文と `open` / `in_progress` / `resolved` の対応状況
+
+`users.notification_preferences` は将来のユーザー単位通知設定に使用します。メール未登録ユーザーを安全に扱うため、`users.email` はnullableですが、通常のログインユーザー登録・個人情報変更では引き続きメールアドレスを必須として扱います。
 
 予約と振替の満席判定・二重申請防止、月間回数上限、在籍申請の重複防止には、DB制約に加え、同時申請・同時承認による超過を防ぐDBトランザクションと行ロックを使用しています。
