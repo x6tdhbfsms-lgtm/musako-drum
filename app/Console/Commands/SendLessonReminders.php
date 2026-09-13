@@ -4,9 +4,13 @@ namespace App\Console\Commands;
 
 use App\Enums\NotificationCategory;
 use App\Enums\ReservationStatus;
+use App\Enums\TrialLessonStatus;
 use App\Jobs\SendLessonReminder;
+use App\Jobs\SendTrialLessonReminder;
 use App\Models\LessonReminderDelivery;
 use App\Models\ReservationRequest;
+use App\Models\TrialLessonReminderDelivery;
+use App\Models\TrialLessonRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -59,6 +63,33 @@ class SendLessonReminders extends Command
 
                     SendLessonReminder::dispatch($delivery->id)
                         ->onQueue((string) config('musako.notifications.queue'));
+                    $queuedCount++;
+                }
+            });
+
+        TrialLessonRequest::query()
+            ->with('lessonSlot')
+            ->where('status', TrialLessonStatus::Approved)
+            ->whereHas('lessonSlot', fn ($query) => $query->whereBetween('starts_at', [$lessonOn->startOfDay(), $lessonOn->endOfDay()]))
+            ->whereDoesntHave('reminderDelivery')
+            ->orderBy('id')
+            ->chunkById(100, function ($trialRequests) use (&$queuedCount, $lessonOn): void {
+                foreach ($trialRequests as $trialRequest) {
+                    $delivery = DB::transaction(function () use ($trialRequest, $lessonOn): ?TrialLessonReminderDelivery {
+                        $locked = TrialLessonRequest::query()->lockForUpdate()->findOrFail($trialRequest->id);
+                        if ($locked->status !== TrialLessonStatus::Approved) {
+                            return null;
+                        }
+
+                        return TrialLessonReminderDelivery::query()->firstOrCreate(
+                            ['trial_lesson_request_id' => $locked->id],
+                            ['lesson_on' => $lessonOn->toDateString(), 'queued_at' => now()],
+                        );
+                    }, 3);
+                    if ($delivery === null || ! $delivery->wasRecentlyCreated) {
+                        continue;
+                    }
+                    SendTrialLessonReminder::dispatch($delivery->id)->onQueue((string) config('musako.notifications.queue'));
                     $queuedCount++;
                 }
             });
