@@ -62,4 +62,9 @@ class StudentProfile extends Model
     {
         return $this->hasMany(Inquiry::class);
     }
+
+    public function monthlyInvoices(): HasMany
+    {
+        return $this->hasMany(MonthlyInvoice::class);
+    }
 }

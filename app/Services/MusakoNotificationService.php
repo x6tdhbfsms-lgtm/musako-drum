@@ -9,9 +9,12 @@ use App\Enums\ReservationStatus;
 use App\Enums\TrialLessonStatus;
 use App\Models\AdmissionApplication;
 use App\Models\AttendanceNotice;
+use App\Models\BillingSetting;
 use App\Models\ContractChangeRequest;
 use App\Models\Inquiry;
+use App\Models\InvoiceNotificationDelivery;
 use App\Models\MembershipStatusRequest;
+use App\Models\MonthlyInvoice;
 use App\Models\PaymentMethodChangeRequest;
 use App\Models\PersonalInformationChangeRequest;
 use App\Models\RegularScheduleNotificationDelivery;
@@ -27,6 +30,8 @@ use App\Notifications\ContractChangeApplicationNotification;
 use App\Notifications\InitialPasswordSetupNotification;
 use App\Notifications\InquiryNotification;
 use App\Notifications\MembershipStatusApplicationNotification;
+use App\Notifications\MonthlyInvoiceConfirmedNotification;
+use App\Notifications\MonthlyInvoicePaidNotification;
 use App\Notifications\PaymentMethodChangeApplicationNotification;
 use App\Notifications\PersonalInformationChangeApplicationNotification;
 use App\Notifications\RegularScheduleConfirmedNotification;
@@ -95,6 +100,39 @@ class MusakoNotificationService
         if ($delivery->wasRecentlyCreated) {
             $this->sendToStudent($student->user, new RegularScheduleConfirmedNotification($student, $month));
         }
+    }
+
+    public function monthlyInvoiceConfirmed(MonthlyInvoice $invoice): void
+    {
+        if (! BillingSetting::current()->invoice_notifications_enabled) {
+            return;
+        }
+        $signature = hash('sha256', implode('|', [$invoice->invoice_number, $invoice->total_amount, $invoice->due_on?->toDateString()]));
+        if ($this->recordInvoiceDelivery($invoice, 'confirmed', $signature)) {
+            $this->sendToStudent($invoice->studentProfile->user, new MonthlyInvoiceConfirmedNotification($invoice));
+        }
+    }
+
+    public function monthlyInvoicePaid(MonthlyInvoice $invoice): void
+    {
+        if (! BillingSetting::current()->payment_notifications_enabled) {
+            return;
+        }
+        $signature = hash('sha256', implode('|', [$invoice->invoice_number, $invoice->paid_amount, $invoice->paymentRecords()->max('id')]));
+        if ($this->recordInvoiceDelivery($invoice, 'paid', $signature)) {
+            $this->sendToStudent($invoice->studentProfile->user, new MonthlyInvoicePaidNotification($invoice));
+        }
+    }
+
+    private function recordInvoiceDelivery(MonthlyInvoice $invoice, string $type, string $signature): bool
+    {
+        $delivery = InvoiceNotificationDelivery::query()->firstOrCreate([
+            'monthly_invoice_id' => $invoice->id,
+            'type' => $type,
+            'signature' => $signature,
+        ], ['notified_at' => now()]);
+
+        return $delivery->wasRecentlyCreated;
     }
 
     public function attendanceNoticeChanged(AttendanceNotice $attendanceNotice): void

@@ -12,4 +12,5 @@ enum NotificationCategory: string
     case Reminder = 'reminder';
     case Trial = 'trial';
     case Admission = 'admission';
+    case Billing = 'billing';
 }
