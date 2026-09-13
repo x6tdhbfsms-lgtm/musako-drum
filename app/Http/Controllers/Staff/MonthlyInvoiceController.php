@@ -20,6 +20,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class MonthlyInvoiceController extends Controller
@@ -76,6 +77,7 @@ class MonthlyInvoiceController extends Controller
             'invoice' => $invoice->load(['studentProfile.user', 'items.creator', 'paymentRecords.creator', 'audits.actor']),
             'canManage' => request()->user()->can('manage', MonthlyInvoice::class),
             'paymentMethods' => PaymentMethod::cases(),
+            'paymentIdempotencyKey' => Str::uuid()->toString(),
         ]);
     }
 

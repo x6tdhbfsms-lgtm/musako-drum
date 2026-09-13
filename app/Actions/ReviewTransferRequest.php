@@ -10,6 +10,7 @@ use App\Models\ReservationRequest;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Services\LessonPricingService;
+use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +19,7 @@ class ReviewTransferRequest
 {
     public function __construct(
         private readonly LessonPricingService $lessonPricing,
+        private readonly LessonSlotCapacityService $capacity,
         private readonly MusakoNotificationService $notifications,
     ) {}
 
@@ -61,7 +63,7 @@ class ReviewTransferRequest
                 throw ValidationException::withMessages(['transfer_request' => '振替先の枠は現在予約できません。']);
             }
 
-            if ($requestedSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count() >= $requestedSlot->capacity) {
+            if (! $this->capacity->hasCapacity($requestedSlot)) {
                 throw ValidationException::withMessages(['transfer_request' => '振替先が満席のため承認できません。']);
             }
 

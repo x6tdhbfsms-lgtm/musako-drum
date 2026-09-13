@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PaymentRecord extends Model
 {
     protected $fillable = [
-        'monthly_invoice_id', 'amount', 'paid_on', 'payment_method', 'external_payment_provider',
+        'monthly_invoice_id', 'idempotency_key', 'amount', 'paid_on', 'payment_method', 'external_payment_provider',
         'external_payment_reference', 'notes', 'created_by_user_id',
     ];
 

@@ -10,6 +10,8 @@ use App\Models\RegularScheduleOccurrence;
 
 class RegularScheduleConflictDetector
 {
+    public function __construct(private readonly LessonSlotCapacityService $capacity) {}
+
     /** @return list<string> */
     public function detect(RegularScheduleOccurrence $occurrence): array
     {
@@ -36,7 +38,7 @@ class RegularScheduleConflictDetector
                 && $slot->ends_at->equalTo($occurrence->ends_at);
 
             if ($sameReusableSlot) {
-                if ($slot->active_reservations_count + $slot->active_trials_count >= $slot->capacity) {
+                if ($this->capacity->occupiedSeats($slot) >= $slot->capacity) {
                     $reasons[] = '既存レッスン枠が定員に達しています。';
                 }
 

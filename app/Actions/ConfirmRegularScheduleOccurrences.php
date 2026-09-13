@@ -15,6 +15,7 @@ use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Services\LessonPricingService;
+use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
 use App\Services\RegularScheduleConflictDetector;
 use App\Support\MonthlyLessonUsageCalculator;
@@ -30,6 +31,7 @@ class ConfirmRegularScheduleOccurrences
         private readonly MonthlyLessonUsageCalculator $monthlyUsage,
         private readonly LessonPricingService $pricing,
         private readonly MusakoNotificationService $notifications,
+        private readonly LessonSlotCapacityService $capacity,
     ) {}
 
     /** @param list<int> $occurrenceIds
@@ -85,6 +87,10 @@ class ConfirmRegularScheduleOccurrences
                         'booking_audience' => LessonSlotAudience::Regular,
                         'notes' => 'レギュラー固定スケジュールから生成',
                     ]);
+                }
+                $slot = LessonSlot::query()->lockForUpdate()->findOrFail($slot->id);
+                if (! $this->capacity->hasCapacity($slot)) {
+                    throw ValidationException::withMessages(['occurrences' => $occurrence->starts_at->format('n/j H:i').' は満席になったため確定できません。']);
                 }
 
                 $quote = $this->pricing->forEnrollment($occurrence->lessonEnrollment, $occurrence->starts_at);

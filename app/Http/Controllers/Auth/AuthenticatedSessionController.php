@@ -18,7 +18,7 @@ class AuthenticatedSessionController extends Controller
         $credentials = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
         $credentials['account_status'] = AccountStatus::Active->value;
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            throw ValidationException::withMessages(['email' => __('auth.failed')]);
+            throw ValidationException::withMessages(['email' => 'メールアドレスまたはパスワードが正しくありません。']);
         }
         $request->session()->regenerate();
 

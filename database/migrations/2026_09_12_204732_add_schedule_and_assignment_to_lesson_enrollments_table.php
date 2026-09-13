@@ -30,14 +30,14 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('lesson_enrollments', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('supersedes_lesson_enrollment_id');
+            $table->dropConstrainedForeignId('venue_id');
+            $table->dropConstrainedForeignId('teacher_profile_id');
             $table->dropIndex('enrollments_student_period_index');
             $table->dropIndex('enrollments_teacher_period_index');
-            $table->dropConstrainedForeignId('supersedes_lesson_enrollment_id');
             $table->dropColumn('payment_method');
             $table->dropColumn('starts_at_time');
             $table->dropColumn('weekday');
-            $table->dropConstrainedForeignId('venue_id');
-            $table->dropConstrainedForeignId('teacher_profile_id');
         });
     }
 };

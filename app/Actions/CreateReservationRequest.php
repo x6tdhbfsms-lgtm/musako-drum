@@ -53,8 +53,14 @@ class CreateReservationRequest
                 ->where(fn ($query) => $query->whereNull('ends_on')->orWhereDate('ends_on', '>=', $lockedSlot->starts_at))
                 ->first();
 
+            if ($enrollment === null) {
+                throw ValidationException::withMessages([
+                    'lesson_slot' => '対象日時に有効な在籍契約がないため予約できません。',
+                ]);
+            }
+
             $entitlementMonth = CarbonImmutable::instance($lockedSlot->starts_at)->startOfMonth();
-            if ($enrollment?->monthly_lesson_limit !== null) {
+            if ($enrollment->monthly_lesson_limit !== null) {
                 $summary = $this->monthlyLessonUsage->calculate($lockedStudent, $entitlementMonth);
                 if ($summary->remaining < 1) {
                     throw ValidationException::withMessages([

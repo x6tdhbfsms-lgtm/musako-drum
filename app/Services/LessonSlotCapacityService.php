@@ -8,6 +8,26 @@ use App\Models\LessonSlot;
 
 class LessonSlotCapacityService
 {
+    /**
+     * Count seats occupied by approved reservations and approved trial lessons.
+     * Reservations created from regular schedules and approved transfers are
+     * represented by the same reservation table and are therefore counted once.
+     */
+    public function occupiedSeats(LessonSlot $lessonSlot): int
+    {
+        return $lessonSlot->reservationRequests()
+            ->where('status', ReservationStatus::Approved)
+            ->count()
+            + $lessonSlot->trialLessonRequests()
+                ->where('status', TrialLessonStatus::Approved)
+                ->count();
+    }
+
+    public function hasCapacity(LessonSlot $lessonSlot): bool
+    {
+        return $this->occupiedSeats($lessonSlot) < (int) $lessonSlot->capacity;
+    }
+
     public function approvedReservationCount(LessonSlot $lessonSlot): int
     {
         return $lessonSlot->reservationRequests()
@@ -33,6 +53,6 @@ class LessonSlotCapacityService
 
     public function availableForTrialApplication(LessonSlot $lessonSlot): int
     {
-        return max(0, $lessonSlot->capacity - $this->approvedReservationCount($lessonSlot) - $this->activeTrialCount($lessonSlot));
+        return max(0, (int) $lessonSlot->capacity - $this->approvedReservationCount($lessonSlot) - $this->activeTrialCount($lessonSlot));
     }
 }

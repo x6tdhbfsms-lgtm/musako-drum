@@ -18,6 +18,7 @@ class RegisterInvoicePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'idempotency_key' => ['nullable', 'string', 'max:64', 'alpha_dash'],
             'amount' => ['required', 'integer', 'min:1'],
             'paid_on' => ['required', 'date'],
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],

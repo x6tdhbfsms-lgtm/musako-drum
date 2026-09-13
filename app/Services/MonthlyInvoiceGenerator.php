@@ -180,6 +180,15 @@ class MonthlyInvoiceGenerator
                 ]);
             }
 
+            $missingStudioFeeCount = $student->reservationRequests()
+                ->where('status', ReservationStatus::Approved)
+                ->whereDate('lesson_entitlement_month', $month)
+                ->whereNull('studio_fee_amount')
+                ->count();
+            if ($missingStudioFeeCount > 0) {
+                $warnings[] = "スタジオ代の保存がない承認済み予約が{$missingStudioFeeCount}件あります。請求前に予約を確認してください。";
+            }
+
             $invoice->update([
                 'payment_method' => $paymentMethod,
                 'due_on' => $setting->dueDateFor($month)->toDateString(),

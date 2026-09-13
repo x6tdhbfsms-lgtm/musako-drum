@@ -4,12 +4,12 @@ namespace App\Actions;
 
 use App\Enums\LessonSlotStatus;
 use App\Enums\ReservationStatus;
-use App\Enums\TrialLessonStatus;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Services\LessonPricingService;
+use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
@@ -21,6 +21,7 @@ class ReviewReservationRequest
     public function __construct(
         private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage,
         private readonly LessonPricingService $lessonPricing,
+        private readonly LessonSlotCapacityService $capacity,
         private readonly MusakoNotificationService $notifications,
     ) {}
 
@@ -46,9 +47,7 @@ class ReviewReservationRequest
                     throw ValidationException::withMessages(['reservation' => '受付中の未来の枠だけ承認できます。']);
                 }
 
-                $approvedCount = $lockedSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count();
-                $approvedTrialCount = $lockedSlot->trialLessonRequests()->where('status', TrialLessonStatus::Approved)->count();
-                if ($approvedCount + $approvedTrialCount >= $lockedSlot->capacity) {
+                if (! $this->capacity->hasCapacity($lockedSlot)) {
                     throw ValidationException::withMessages(['reservation' => '定員に達しているため承認できません。']);
                 }
 

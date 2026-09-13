@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\LessonSlotStatus;
 use App\Enums\ReservationStatus;
+use App\Models\LessonEnrollment;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
@@ -38,6 +39,10 @@ class StudentReservationFlowTest extends TestCase
     {
         $student = StudentProfile::factory()->create();
         $slot = LessonSlot::factory()->create();
+        LessonEnrollment::factory()->for($student)->create([
+            'course_id' => $slot->course_id,
+            'starts_on' => now()->subMonth()->toDateString(),
+        ]);
 
         $this->actingAs($student->user)
             ->post(route('student.reservations.store', $slot), ['student_note' => '午後を希望します'])
@@ -49,6 +54,21 @@ class StudentReservationFlowTest extends TestCase
             'lesson_slot_id' => $slot->id,
             'status' => ReservationStatus::Pending->value,
             'student_note' => '午後を希望します',
+        ]);
+    }
+
+    public function test_student_without_an_active_enrollment_cannot_submit_a_reservation(): void
+    {
+        $student = StudentProfile::factory()->create();
+        $slot = LessonSlot::factory()->create();
+
+        $this->actingAs($student->user)
+            ->post(route('student.reservations.store', $slot))
+            ->assertSessionHasErrors(['lesson_slot' => '対象日時に有効な在籍契約がないため予約できません。']);
+
+        $this->assertDatabaseMissing('reservation_requests', [
+            'student_profile_id' => $student->id,
+            'lesson_slot_id' => $slot->id,
         ]);
     }
 

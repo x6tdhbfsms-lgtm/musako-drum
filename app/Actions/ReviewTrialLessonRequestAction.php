@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Enums\LessonSlotStatus;
 use App\Enums\TrialLessonStatus;
 use App\Models\LessonSlot;
 use App\Models\TrialLessonRequest;
@@ -34,7 +35,8 @@ class ReviewTrialLessonRequestAction
                 throw ValidationException::withMessages(['status' => '承認済みの体験だけ完了または欠席にできます。']);
             }
             if ($decision === TrialLessonStatus::Approved
-                && $this->capacity->approvedReservationCount($slot) + $this->capacity->confirmedTrialCount($slot, $request->id) >= $slot->capacity) {
+                && ($slot->status !== LessonSlotStatus::Open || ! $slot->starts_at->isFuture()
+                    || $this->capacity->occupiedSeats($slot) - ($from === TrialLessonStatus::Approved ? 1 : 0) >= $slot->capacity)) {
                 throw ValidationException::withMessages(['status' => '定員に達しているため承認できません。']);
             }
 

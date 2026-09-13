@@ -28,6 +28,12 @@ class RegisterInvoicePayment
             if ($locked->status !== MonthlyInvoiceStatus::Confirmed) {
                 throw ValidationException::withMessages(['invoice' => '確定済み請求にのみ入金を登録できます。']);
             }
+            $existing = isset($data['idempotency_key'])
+                ? $locked->paymentRecords()->where('idempotency_key', $data['idempotency_key'])->first()
+                : null;
+            if ($existing !== null) {
+                return [$existing, false];
+            }
             $paid = (int) $locked->paymentRecords()->lockForUpdate()->get()->sum('amount');
             $amount = (int) $data['amount'];
             if ($amount <= 0 || $paid + $amount > $locked->total_amount) {
@@ -35,6 +41,7 @@ class RegisterInvoicePayment
             }
             $wasPaid = $locked->payment_status === InvoicePaymentStatus::Paid;
             $payment = $locked->paymentRecords()->create([
+                'idempotency_key' => $data['idempotency_key'] ?? null,
                 'amount' => $amount,
                 'paid_on' => $data['paid_on'],
                 'payment_method' => PaymentMethod::from($data['payment_method']),
