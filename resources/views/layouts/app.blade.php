@@ -24,6 +24,7 @@
                         <a href="{{ route('student.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
                         <a href="{{ route('student.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>
                         <a href="{{ route('student.contract-change-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
+                        <a href="{{ route('pricing') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">料金</a>
                     @else
                         <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">カレンダー</a>
                         <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン枠</a>
@@ -32,6 +33,7 @@
                         <a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>
                         <a href="{{ route('staff.procedure-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
                         <a href="{{ route('staff.students.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">生徒</a>
+                        <a href="{{ route('staff.pricing-settings.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">料金設定</a>
                     @endif
                     <form method="post" action="{{ route('logout') }}">@csrf<button class="rounded-full border border-stone-300 px-3 py-2 hover:bg-stone-100">ログアウト</button></form>
                 </nav>

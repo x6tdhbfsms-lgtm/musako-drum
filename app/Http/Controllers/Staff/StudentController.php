@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Enums\LessonType;
+use App\Enums\ReservationStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Services\LessonPricingService;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -32,8 +35,12 @@ class StudentController extends Controller
         return view('staff.students.index', compact('students'));
     }
 
-    public function show(Request $request, StudentProfile $student, MonthlyLessonUsageCalculator $monthlyLessonUsage): View
-    {
+    public function show(
+        Request $request,
+        StudentProfile $student,
+        MonthlyLessonUsageCalculator $monthlyLessonUsage,
+        LessonPricingService $pricingService,
+    ): View {
         Gate::authorize('view', $student);
         $validated = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
         $month = CarbonImmutable::createFromFormat('!Y-m', $validated['month'] ?? now()->format('Y-m'), config('app.timezone'))->startOfMonth();
@@ -57,7 +64,25 @@ class StudentController extends Controller
             ->latest('requested_at')->limit(20)->get();
 
         $monthlySummary = $monthlyLessonUsage->calculate($studentProfile, $month);
+        $currentEnrollments = $studentProfile->enrollments()->activeOn(today())->with(['course', 'teacherProfile', 'venue'])->get();
+        $pricingQuotes = $currentEnrollments->mapWithKeys(
+            fn ($enrollment): array => [$enrollment->id => $pricingService->forEnrollment($enrollment, today())],
+        );
+        $hasInactiveFlexWarning = $currentEnrollments->contains('lesson_type', LessonType::Flex)
+            && ! $studentProfile->reservationRequests()
+                ->where('status', ReservationStatus::Approved)
+                ->whereHas('lessonSlot', fn ($slots) => $slots->where('starts_at', '>=', now()->subMonthsNoOverflow(2)))
+                ->exists();
 
-        return view('staff.students.show', compact('studentProfile', 'upcomingReservations', 'recentReservations', 'month', 'monthlySummary'));
+        return view('staff.students.show', compact(
+            'studentProfile',
+            'upcomingReservations',
+            'recentReservations',
+            'month',
+            'monthlySummary',
+            'currentEnrollments',
+            'pricingQuotes',
+            'hasInactiveFlexWarning',
+        ));
     }
 }

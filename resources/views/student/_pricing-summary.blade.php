@@ -1,0 +1,14 @@
+<section class="mt-9" aria-labelledby="pricing-summary-title">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-sm font-semibold tracking-widest text-amber-700">CURRENT PRICING</p><h2 id="pricing-summary-title" class="mt-1 text-2xl font-bold">現在の料金目安</h2></div><a href="{{ route('pricing') }}" class="text-sm font-semibold text-amber-700">料金ページを見る →</a></div>
+    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+        @forelse ($currentEnrollments as $enrollment)
+            @php
+                $quote = $pricingQuotes[$enrollment->id];
+            @endphp
+            <article class="min-w-0 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-2"><strong class="text-lg">{{ $enrollment->course->name }}</strong><span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold">{{ $enrollment->lesson_type->label() }}・{{ $enrollment->pricing_category->label() }}</span></div><p class="mt-2 text-sm text-stone-600">月{{ $enrollment->monthly_lesson_limit }}回</p>@if ($quote->isConsultationRequired)<p class="mt-5 rounded-xl bg-amber-50 p-4 font-semibold text-amber-900">料金表にない回数のため要相談です。</p>@else<dl class="mt-5 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-stone-500">レッスン料金目安</dt><dd class="mt-1 text-xl font-bold">¥{{ number_format($quote->lessonFeeTotal) }}</dd></div><div><dt class="text-stone-500">スタジオ使用料</dt><dd class="mt-1 text-xl font-bold">{{ $quote->studioFeePerLesson === null ? '要確認' : '¥'.number_format($quote->studioFeePerLesson) }}<span class="text-xs font-normal"> / 回</span></dd></div><div class="col-span-2 rounded-xl bg-stone-900 p-4 text-white"><dt class="text-stone-300">月額目安</dt><dd class="mt-1 text-2xl font-bold">{{ $quote->estimatedMonthlyTotal === null ? '要確認' : '¥'.number_format($quote->estimatedMonthlyTotal) }}</dd></div></dl>@endif</article>
+        @empty
+            <p class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center text-sm text-stone-500 lg:col-span-2">現在有効な契約がありません。</p>
+        @endforelse
+    </div>
+    @if ($pricingSetting?->lesson_pricing_url || $pricingSetting?->studio_pricing_url)<div class="mt-4 flex flex-col gap-2 sm:flex-row">@if ($pricingSetting->lesson_pricing_url)<a href="{{ $pricingSetting->lesson_pricing_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-stone-900 px-4 text-sm font-bold text-white">最新のレッスン料金を確認 ↗</a>@endif @if ($pricingSetting->studio_pricing_url)<a href="{{ $pricingSetting->studio_pricing_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-bold">最新のスタジオ料金を確認 ↗</a>@endif</div>@endif
+</section>

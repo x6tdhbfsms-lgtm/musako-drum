@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\PricingController;
 use App\Http\Controllers\Staff\ContractChangeRequestController as StaffContractChangeRequestController;
 use App\Http\Controllers\Staff\DashboardController as StaffDashboardController;
 use App\Http\Controllers\Staff\InquiryController as StaffInquiryController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Staff\LessonSlotController;
 use App\Http\Controllers\Staff\MembershipStatusRequestController as StaffMembershipStatusRequestController;
 use App\Http\Controllers\Staff\PaymentMethodChangeRequestController as StaffPaymentMethodChangeRequestController;
 use App\Http\Controllers\Staff\PersonalInformationChangeRequestController as StaffPersonalInformationChangeRequestController;
+use App\Http\Controllers\Staff\PricingSettingController;
 use App\Http\Controllers\Staff\ProcedureRequestController;
 use App\Http\Controllers\Staff\ReservationDetailController as StaffReservationDetailController;
 use App\Http\Controllers\Staff\ReservationReviewController;
@@ -36,6 +38,7 @@ Route::get('/', function () {
         ? redirect()->route('student.dashboard')
         : redirect()->route('staff.dashboard');
 })->name('home');
+Route::get('/pricing', PricingController::class)->name('pricing');
 
 Route::middleware('guest')->group(function () {
     Route::view('/login', 'auth.login')->name('login');
@@ -93,5 +96,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/inquiries/{inquiry}', [StaffInquiryController::class, 'show'])->name('inquiries.show');
         Route::patch('/inquiries/{inquiry}', [StaffInquiryController::class, 'update'])->name('inquiries.update');
         Route::resource('students', StaffStudentController::class)->only(['index', 'show']);
+        Route::get('/pricing-settings', [PricingSettingController::class, 'index'])->name('pricing-settings.index');
+        Route::post('/pricing-settings/rates', [PricingSettingController::class, 'storeRate'])->name('pricing-settings.rates.store');
+        Route::post('/pricing-settings/configuration', [PricingSettingController::class, 'storeSetting'])->name('pricing-settings.configuration.store');
     });
 });

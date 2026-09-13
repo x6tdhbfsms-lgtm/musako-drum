@@ -7,7 +7,9 @@ use App\Enums\ReservationStatus;
 use App\Enums\StudentCalendarStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LessonSlot;
+use App\Models\PricingSetting;
 use App\Models\User;
+use App\Services\LessonPricingService;
 use App\Support\CalendarRange;
 use App\Support\MonthlyLessonUsageCalculator;
 use App\Support\StudentLessonSlotState;
@@ -21,6 +23,7 @@ class DashboardController extends Controller
         Request $request,
         StudentLessonSlotState $lessonSlotState,
         MonthlyLessonUsageCalculator $monthlyLessonUsage,
+        LessonPricingService $pricingService,
     ): View {
         $validated = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
@@ -88,6 +91,14 @@ class DashboardController extends Controller
             ->groupBy(fn (array $entry): string => $entry['slot']->starts_at->format('Y-m-d'));
 
         $reservations = $studentProfile?->reservationRequests();
+        $currentEnrollments = $studentProfile?->enrollments()
+            ->activeOn(now())
+            ->with(['course', 'teacherProfile', 'venue'])
+            ->orderBy('starts_on')
+            ->get() ?? collect();
+        $pricingQuotes = $currentEnrollments->mapWithKeys(
+            fn ($enrollment): array => [$enrollment->id => $pricingService->forEnrollment($enrollment, today())],
+        );
 
         return view('student.dashboard', [
             'pendingCount' => $reservations === null ? 0 : (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
@@ -108,6 +119,9 @@ class DashboardController extends Controller
             'calendarEntriesByDay' => $calendarEntriesByDay,
             'selectedDate' => $selectedDate,
             'monthlySummary' => $monthlySummary,
+            'currentEnrollments' => $currentEnrollments,
+            'pricingQuotes' => $pricingQuotes,
+            'pricingSetting' => PricingSetting::query()->effectiveOn(today())->first(),
         ]);
     }
 }

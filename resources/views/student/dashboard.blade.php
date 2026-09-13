@@ -47,6 +47,7 @@
 </section>
 
 <div class="mt-8 grid gap-4 sm:grid-cols-3"><a href="{{ route('student.reservations.index') }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">承認待ち</span><strong class="mt-2 block text-3xl">{{ $pendingCount }}</strong></a><a href="{{ route('student.reservations.index') }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">確定予約</span><strong class="mt-2 block text-3xl">{{ $approvedCount }}</strong></a><div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">次回レッスン</span>@if ($nextReservation)<strong class="mt-2 block text-lg">{{ $nextReservation->lessonSlot->starts_at->format('n/j H:i') }}</strong><p class="mt-1 text-sm text-stone-600">{{ $nextReservation->lessonSlot->teacherProfile->display_name }} · {{ $nextReservation->lessonSlot->venue?->name ?? '会場未定' }}</p>@else<p class="mt-3 text-sm text-stone-500">確定した予定はありません</p>@endif</div></div>
+@include('student._pricing-summary')
 @php
     $procedures = [
         ['時間割／曜日／時間変更', '曜日と開始時間', route('student.contract-change-requests.index', ['type' => 'schedule'])],
@@ -55,6 +56,8 @@
         ['コース変更', '現在のコースを変更', route('student.contract-change-requests.index', ['type' => 'course_change'])],
         ['コース追加', '新しいコースを追加', route('student.contract-change-requests.index', ['type' => 'course_add'])],
         ['会場変更', '登録済み会場から選択', route('student.contract-change-requests.index', ['type' => 'venue_change'])],
+        ['レッスン種別変更', 'レギュラー／フレックス', route('student.contract-change-requests.index', ['type' => 'lesson_type'])],
+        ['料金区分変更', '一般／ジュニア', route('student.contract-change-requests.index', ['type' => 'pricing_category'])],
         ['個人情報変更', '氏名・連絡先・住所', route('student.personal-information-change-requests.index')],
         ['支払い方法変更', '決済情報は保存しません', route('student.payment-method-change-requests.index')],
         ['その他問い合わせ', '教室へのお問い合わせ', route('student.inquiries.index')],
