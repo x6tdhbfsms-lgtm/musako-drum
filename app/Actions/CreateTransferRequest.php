@@ -9,12 +9,15 @@ use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\TransferRequest;
+use App\Services\MusakoNotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateTransferRequest
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(
         StudentProfile $studentProfile,
         ReservationRequest $originalReservation,
@@ -22,7 +25,7 @@ class CreateTransferRequest
         ?string $reason,
         ?string $studentNote,
     ): TransferRequest {
-        return DB::transaction(function () use ($studentProfile, $originalReservation, $requestedLessonSlotId, $reason, $studentNote): TransferRequest {
+        $transferRequest = DB::transaction(function () use ($studentProfile, $originalReservation, $requestedLessonSlotId, $reason, $studentNote): TransferRequest {
             $lockedReservation = ReservationRequest::query()
                 ->with('lessonSlot')
                 ->lockForUpdate()
@@ -69,5 +72,9 @@ class CreateTransferRequest
                 'requested_at' => now(),
             ]);
         }, 3);
+
+        $this->notifications->transferSubmitted($transferRequest);
+
+        return $transferRequest;
     }
 }

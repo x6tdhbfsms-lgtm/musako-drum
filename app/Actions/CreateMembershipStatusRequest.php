@@ -7,12 +7,15 @@ use App\Enums\EnrollmentStatus;
 use App\Enums\MembershipRequestType;
 use App\Models\MembershipStatusRequest;
 use App\Models\StudentProfile;
+use App\Services\MusakoNotificationService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateMembershipStatusRequest
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(
         StudentProfile $studentProfile,
         MembershipRequestType $type,
@@ -20,7 +23,7 @@ class CreateMembershipStatusRequest
         ?string $reason,
         ?string $studentNote,
     ): MembershipStatusRequest {
-        return DB::transaction(function () use ($studentProfile, $type, $effectiveOn, $reason, $studentNote): MembershipStatusRequest {
+        $membershipStatusRequest = DB::transaction(function () use ($studentProfile, $type, $effectiveOn, $reason, $studentNote): MembershipStatusRequest {
             $lockedStudent = StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
 
             $hasOutstandingRequest = $lockedStudent->membershipStatusRequests()
@@ -62,5 +65,9 @@ class CreateMembershipStatusRequest
                 'requested_at' => now(),
             ]);
         }, 3);
+
+        $this->notifications->membershipSubmitted($membershipStatusRequest);
+
+        return $membershipStatusRequest;
     }
 }

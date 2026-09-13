@@ -7,6 +7,7 @@ use App\Enums\InquiryStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreInquiryRequest;
 use App\Models\Inquiry;
+use App\Services\MusakoNotificationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,13 +30,14 @@ class InquiryController extends Controller
         return view('student.inquiries.show', compact('inquiry'));
     }
 
-    public function store(StoreInquiryRequest $request): RedirectResponse
+    public function store(StoreInquiryRequest $request, MusakoNotificationService $notifications): RedirectResponse
     {
-        $request->user()->studentProfile->inquiries()->create([
+        $inquiry = $request->user()->studentProfile->inquiries()->create([
             ...$request->validated(),
             'status' => InquiryStatus::Open,
             'requested_at' => now(),
         ]);
+        $notifications->inquirySubmitted($inquiry);
 
         return redirect()->route('student.inquiries.index')->with('success', 'お問い合わせを送信しました。');
     }

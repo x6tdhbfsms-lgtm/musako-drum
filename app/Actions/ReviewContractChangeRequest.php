@@ -9,6 +9,7 @@ use App\Models\ContractChangeRequest;
 use App\Models\Course;
 use App\Models\LessonEnrollment;
 use App\Models\User;
+use App\Services\MusakoNotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -16,9 +17,11 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewContractChangeRequest
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(ContractChangeRequest $request, User $reviewer, ApplicationStatus $decision, ?string $rejectionReason): ContractChangeRequest
     {
-        return DB::transaction(function () use ($request, $reviewer, $decision, $rejectionReason): ContractChangeRequest {
+        $reviewedRequest = DB::transaction(function () use ($request, $reviewer, $decision, $rejectionReason): ContractChangeRequest {
             $lockedRequest = ContractChangeRequest::query()->lockForUpdate()->findOrFail($request->id);
             if ($lockedRequest->status !== ApplicationStatus::Pending) {
                 throw ValidationException::withMessages(['contract_change_request' => 'この申請はすでに処理されています。']);
@@ -38,6 +41,10 @@ class ReviewContractChangeRequest
 
             return $lockedRequest->refresh();
         }, 3);
+
+        $this->notifications->contractChangeReviewed($reviewedRequest, $decision);
+
+        return $reviewedRequest;
     }
 
     private function apply(ContractChangeRequest $request): void

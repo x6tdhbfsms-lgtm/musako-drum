@@ -5,14 +5,17 @@ namespace App\Actions;
 use App\Enums\ApplicationStatus;
 use App\Models\PersonalInformationChangeRequest;
 use App\Models\StudentProfile;
+use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreatePersonalInformationChangeRequest
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(StudentProfile $studentProfile, array $data): PersonalInformationChangeRequest
     {
-        return DB::transaction(function () use ($studentProfile, $data): PersonalInformationChangeRequest {
+        $request = DB::transaction(function () use ($studentProfile, $data): PersonalInformationChangeRequest {
             $profile = StudentProfile::query()->with('user')->lockForUpdate()->findOrFail($studentProfile->id);
             if ($profile->personalInformationChangeRequests()->where('status', ApplicationStatus::Pending)->exists()) {
                 throw ValidationException::withMessages(['personal_information' => '承認待ちの個人情報変更申請があります。']);
@@ -43,5 +46,9 @@ class CreatePersonalInformationChangeRequest
                 'requested_at' => now(),
             ]);
         }, 3);
+
+        $this->notifications->personalInformationChangeSubmitted($request);
+
+        return $request;
     }
 }

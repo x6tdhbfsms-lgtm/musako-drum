@@ -10,12 +10,16 @@ use App\Models\ReservationRequest;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Services\LessonPricingService;
+use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ReviewTransferRequest
 {
-    public function __construct(private readonly LessonPricingService $lessonPricing) {}
+    public function __construct(
+        private readonly LessonPricingService $lessonPricing,
+        private readonly MusakoNotificationService $notifications,
+    ) {}
 
     public function handle(
         TransferRequest $transferRequest,
@@ -23,7 +27,7 @@ class ReviewTransferRequest
         ApplicationStatus $decision,
         ?string $staffNote,
     ): TransferRequest {
-        return DB::transaction(function () use ($transferRequest, $reviewer, $decision, $staffNote): TransferRequest {
+        $reviewedTransfer = DB::transaction(function () use ($transferRequest, $reviewer, $decision, $staffNote): TransferRequest {
             $lockedTransfer = TransferRequest::query()->lockForUpdate()->findOrFail($transferRequest->id);
 
             if ($lockedTransfer->status !== ApplicationStatus::Pending) {
@@ -110,5 +114,9 @@ class ReviewTransferRequest
 
             return $lockedTransfer->refresh();
         }, 3);
+
+        $this->notifications->transferReviewed($reviewedTransfer, $decision);
+
+        return $reviewedTransfer;
     }
 }

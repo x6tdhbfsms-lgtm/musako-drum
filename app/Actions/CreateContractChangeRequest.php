@@ -9,15 +9,18 @@ use App\Models\Course;
 use App\Models\LessonEnrollment;
 use App\Models\StudentProfile;
 use App\Models\Venue;
+use App\Services\MusakoNotificationService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateContractChangeRequest
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(StudentProfile $studentProfile, array $data): ContractChangeRequest
     {
-        return DB::transaction(function () use ($studentProfile, $data): ContractChangeRequest {
+        $contractChangeRequest = DB::transaction(function () use ($studentProfile, $data): ContractChangeRequest {
             StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
             $type = ContractChangeType::from($data['type']);
             $enrollment = isset($data['lesson_enrollment_id'])
@@ -71,6 +74,10 @@ class CreateContractChangeRequest
                 'requested_at' => now(),
             ]);
         }, 3);
+
+        $this->notifications->contractChangeSubmitted($contractChangeRequest);
+
+        return $contractChangeRequest;
     }
 
     /** @return array<string, mixed> */

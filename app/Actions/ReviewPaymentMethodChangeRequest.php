@@ -6,14 +6,17 @@ use App\Enums\ApplicationStatus;
 use App\Models\LessonEnrollment;
 use App\Models\PaymentMethodChangeRequest;
 use App\Models\User;
+use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ReviewPaymentMethodChangeRequest
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(PaymentMethodChangeRequest $request, User $reviewer, ApplicationStatus $decision, ?string $rejectionReason): PaymentMethodChangeRequest
     {
-        return DB::transaction(function () use ($request, $reviewer, $decision, $rejectionReason): PaymentMethodChangeRequest {
+        $reviewedRequest = DB::transaction(function () use ($request, $reviewer, $decision, $rejectionReason): PaymentMethodChangeRequest {
             $lockedRequest = PaymentMethodChangeRequest::query()->lockForUpdate()->findOrFail($request->id);
             if ($lockedRequest->status !== ApplicationStatus::Pending) {
                 throw ValidationException::withMessages(['payment_method_change_request' => 'この申請はすでに処理されています。']);
@@ -34,5 +37,9 @@ class ReviewPaymentMethodChangeRequest
 
             return $lockedRequest->refresh();
         }, 3);
+
+        $this->notifications->paymentMethodChangeReviewed($reviewedRequest, $decision);
+
+        return $reviewedRequest;
     }
 }

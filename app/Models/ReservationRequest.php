@@ -66,6 +66,11 @@ class ReservationRequest extends Model
         return $this->hasOne(AttendanceNotice::class);
     }
 
+    public function lessonReminderDelivery(): HasOne
+    {
+        return $this->hasOne(LessonReminderDelivery::class);
+    }
+
     public function transferRequests(): HasMany
     {
         return $this->hasMany(TransferRequest::class, 'original_reservation_request_id');

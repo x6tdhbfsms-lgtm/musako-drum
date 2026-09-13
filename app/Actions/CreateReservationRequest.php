@@ -8,6 +8,7 @@ use App\Enums\ReservationStatus;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
+use App\Services\MusakoNotificationService;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -15,11 +16,14 @@ use Illuminate\Validation\ValidationException;
 
 class CreateReservationRequest
 {
-    public function __construct(private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage) {}
+    public function __construct(
+        private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage,
+        private readonly MusakoNotificationService $notifications,
+    ) {}
 
     public function handle(StudentProfile $studentProfile, LessonSlot $lessonSlot, ?string $studentNote): ReservationRequest
     {
-        return DB::transaction(function () use ($studentProfile, $lessonSlot, $studentNote): ReservationRequest {
+        $reservationRequest = DB::transaction(function () use ($studentProfile, $lessonSlot, $studentNote): ReservationRequest {
             $lockedStudent = StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
             $lockedSlot = LessonSlot::query()->lockForUpdate()->findOrFail($lessonSlot->id);
 
@@ -62,5 +66,9 @@ class CreateReservationRequest
                 'student_note' => $studentNote,
             ]);
         }, 3);
+
+        $this->notifications->reservationSubmitted($reservationRequest);
+
+        return $reservationRequest;
     }
 }

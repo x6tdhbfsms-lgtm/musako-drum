@@ -9,6 +9,7 @@ use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Services\LessonPricingService;
+use App\Services\MusakoNotificationService;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class ReviewReservationRequest
     public function __construct(
         private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage,
         private readonly LessonPricingService $lessonPricing,
+        private readonly MusakoNotificationService $notifications,
     ) {}
 
     public function handle(
@@ -29,7 +31,7 @@ class ReviewReservationRequest
         bool $overrideMonthlyLimit = false,
         ?string $overrideReason = null,
     ): ReservationRequest {
-        return DB::transaction(function () use ($reservationRequest, $reviewer, $decision, $staffNote, $overrideMonthlyLimit, $overrideReason): ReservationRequest {
+        $reviewedReservation = DB::transaction(function () use ($reservationRequest, $reviewer, $decision, $staffNote, $overrideMonthlyLimit, $overrideReason): ReservationRequest {
             $lockedReservation = ReservationRequest::query()->lockForUpdate()->findOrFail($reservationRequest->id);
             $lockedStudent = StudentProfile::query()->lockForUpdate()->findOrFail($lockedReservation->student_profile_id);
             $lockedSlot = LessonSlot::query()->lockForUpdate()->findOrFail($lockedReservation->lesson_slot_id);
@@ -87,5 +89,9 @@ class ReviewReservationRequest
 
             return $lockedReservation->refresh();
         }, 3);
+
+        $this->notifications->reservationReviewed($reviewedReservation, $decision);
+
+        return $reviewedReservation;
     }
 }

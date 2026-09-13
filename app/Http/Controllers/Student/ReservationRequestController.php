@@ -10,6 +10,7 @@ use App\Http\Requests\StoreReservationRequest;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\User;
+use App\Services\MusakoNotificationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,13 +48,17 @@ class ReservationRequestController extends Controller
         return redirect()->route('student.reservations.index')->with('success', '予約を申請しました。先生の承認をお待ちください。');
     }
 
-    public function destroy(CancelReservationRequest $request, ReservationRequest $reservationRequest): RedirectResponse
-    {
+    public function destroy(
+        CancelReservationRequest $request,
+        ReservationRequest $reservationRequest,
+        MusakoNotificationService $notifications,
+    ): RedirectResponse {
         $reservationRequest->update([
             'status' => ReservationStatus::Cancelled,
             'cancelled_at' => now(),
             'cancellation_reason' => $request->validated('cancellation_reason'),
         ]);
+        $notifications->reservationCancelled($reservationRequest);
 
         return redirect()->route('student.reservations.index')->with('success', '予約をキャンセルしました。');
     }

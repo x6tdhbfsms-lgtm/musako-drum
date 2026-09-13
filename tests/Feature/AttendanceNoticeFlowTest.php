@@ -64,6 +64,7 @@ class AttendanceNoticeFlowTest extends TestCase
 
     public function test_late_notice_requires_minutes_or_an_arrival_time(): void
     {
+        $this->travelTo('2026-09-12 10:00:00');
         $student = StudentProfile::factory()->create();
         $reservation = $this->approvedReservation($student);
 

@@ -7,14 +7,17 @@ use App\Enums\PaymentMethod;
 use App\Models\LessonEnrollment;
 use App\Models\PaymentMethodChangeRequest;
 use App\Models\StudentProfile;
+use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreatePaymentMethodChangeRequest
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(StudentProfile $studentProfile, array $data): PaymentMethodChangeRequest
     {
-        return DB::transaction(function () use ($studentProfile, $data): PaymentMethodChangeRequest {
+        $request = DB::transaction(function () use ($studentProfile, $data): PaymentMethodChangeRequest {
             StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
             $enrollment = isset($data['lesson_enrollment_id'])
                 ? LessonEnrollment::query()->lockForUpdate()->findOrFail($data['lesson_enrollment_id'])
@@ -37,5 +40,9 @@ class CreatePaymentMethodChangeRequest
                 'requested_at' => now(),
             ]);
         }, 3);
+
+        $this->notifications->paymentMethodChangeSubmitted($request);
+
+        return $request;
     }
 }

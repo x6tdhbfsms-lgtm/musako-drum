@@ -7,12 +7,15 @@ use App\Enums\ReservationStatus;
 use App\Models\AttendanceNotice;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
+use App\Services\MusakoNotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UpsertAttendanceNotice
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(
         StudentProfile $studentProfile,
         ReservationRequest $reservationRequest,
@@ -21,7 +24,7 @@ class UpsertAttendanceNotice
         ?string $expectedArrivalTime,
         ?string $notes,
     ): AttendanceNotice {
-        return DB::transaction(function () use ($studentProfile, $reservationRequest, $type, $lateMinutes, $expectedArrivalTime, $notes): AttendanceNotice {
+        $attendanceNotice = DB::transaction(function () use ($studentProfile, $reservationRequest, $type, $lateMinutes, $expectedArrivalTime, $notes): AttendanceNotice {
             $lockedReservation = ReservationRequest::query()
                 ->with('lessonSlot')
                 ->lockForUpdate()
@@ -58,5 +61,9 @@ class UpsertAttendanceNotice
                 ],
             );
         }, 3);
+
+        $this->notifications->attendanceNoticeChanged($attendanceNotice);
+
+        return $attendanceNotice;
     }
 }
