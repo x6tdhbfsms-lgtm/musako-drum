@@ -154,7 +154,7 @@ QUEUE_CONNECTION=database
 
 ## 前日リマインダーとScheduler
 
-毎日18:00（Asia/Tokyo）に、翌日の承認済み予約を抽出してリマインダーを `mail` Queueへ登録します。時刻は `.env` の次の値で変更できます。
+毎日18:00（Asia/Tokyo）に、翌日の承認済み通常予約と体験レッスンを抽出してリマインダーを `mail` Queueへ登録します。時刻は `.env` の次の値で変更できます。
 
 ```dotenv
 LESSON_REMINDER_TIME=18:00
@@ -227,6 +227,42 @@ LESSON_REMINDER_TIME=18:00
 - 備考欄にもカード番号や口座番号を記載しないでください。
 - 将来のオンライン決済は、決済代行サービスの安全な入力画面へ接続します。
 
+## 体験レッスンから入会まで
+
+未ログインの申込者は `/trial-lessons` から、体験向けに公開された未来のレッスン枠を選んで申し込みます。レッスン枠の `booking_audience` は次の4種類です。
+
+- `regular`: 在籍生徒の通常予約のみ
+- `trial`: 体験申込みのみ
+- `both`: 通常予約と体験申込みの両方
+- `hidden`: どちらにも公開しない
+
+体験申込みは通常予約と分離した `trial_lesson_requests` に保存します。一方、定員判定では通常の承認済み予約と、有効な体験申込みを合算します。申込み・承認時は対象枠を行ロックし、同時処理でも定員を超えないようにしています。
+
+体験ステータスは `pending`、`approved`、`rejected`、`cancelled`、`completed`、`no_show`、`converted` です。重要な変更は `trial_lesson_request_events` に処理者・日時・変更前後・理由とともに残します。申込者の操作URLには十分に長いランダムtokenを使用し、DBにはSHA-256ハッシュだけを保存します。Queueへ渡すtokenも暗号化されます。
+
+承認済み体験レッスンは、通常レッスンと同じSchedulerから前日18:00（Asia/Tokyo）にリマインド対象になります。`trial_lesson_reminder_deliveries` がキュー登録・成功・失敗・試行回数を保存し、体験申込みごとの重複配信を防ぎます。
+
+体験完了後、申込者は安全なURLから入会申込みへ進みます。入会申込みは `admission_applications` に保存し、承認前は正式な生徒として扱いません。管理者が承認すると、1つのDBトランザクションで次を作成します。
+
+- `users`: 生徒権限のログインアカウント
+- `student_profiles`: 連絡先と生徒番号
+- `lesson_enrollments`: コース、regular/flex、standard/junior、月回数、時間、講師、会場、開始日
+
+同じメールアドレスのユーザーが存在する場合は、役割や在籍状態にかかわらず自動変換を停止します。勝手に既存アカウントへ紐付けたり、別アカウントを作成したりしません。承認後はLaravelの期限付き・一度限りのパスワードリセットtokenを発行し、パスワード自体をメールに記載せず、本人が初回パスワードを設定します。
+
+入会画面の料金目安は `LessonPricingService` と適用日付き料金履歴を使用します。料金表にない回数は「要相談」とし、入会金・無料キャンペーンも `pricing_settings` の現在設定を参照します。体験時の年齢情報から料金区分を自動確定せず、入会申込みで `standard` / `junior` を選び、管理者が承認時に確認します。
+
+公開フォームではCSRF、メールアドレスとIPを組み合わせたrate limit、honeypot、入力長・形式検証、機微情報キーワード検知を使用します。パスワード、カード番号、銀行口座番号は入力項目として持ちません。プライバシー同意日時とポリシーバージョンを各申込みに保存します。設定値は次の環境変数で変更できます。
+
+```dotenv
+MUSAKO_PRIVACY_POLICY_VERSION=2026-09-01
+MUSAKO_PRIVACY_POLICY_URL=/privacy
+TRIAL_FORM_RATE_LIMIT=5
+ADMISSION_FORM_RATE_LIMIT=3
+```
+
+運用は、スタッフ画面の「体験」で申込みを承認・却下し、実施後に完了または欠席を登録します。「入会」で入会内容を確認し、管理者が承認または却下します。先生は入会申込みを閲覧できますが、生徒アカウントへの変換は管理者だけが実行できます。
+
 ## テスト
 
 ```bash
@@ -276,6 +312,10 @@ WindowsではWSL2のUbuntu内で同等の手順を実行してください。
 - `price_rates`: 通常料金、フレックス加算、スタジオ代の区分・月回数・適用日付き履歴
 - `pricing_settings`: 料金表示モード、入会金、キャンペーン、注意書き、公式URLの適用日付き履歴
 - `lesson_slots`: 先生が公開する日時枠
+- `trial_lesson_requests`: 公開体験申込みと安全な操作tokenのハッシュ、状態別日時、プライバシー同意
+- `trial_lesson_request_events`: 体験申込みの状態変更履歴
+- `trial_lesson_reminder_deliveries`: 体験前日リマインダーの重複防止・配送履歴
+- `admission_applications`: 入会申込み、契約希望、審査、生徒変換先の紐付け
 - `reservation_requests`: 生徒の申請、先生・管理者の審査、取消履歴、レッスン権利月、実施日時、上限超過承認履歴、承認時のスタジオ代
 - `lesson_reminder_deliveries`: 予約リマインダーの対象日、キュー登録、送信成功・失敗、試行回数。予約ごとに一意
 - `attendance_notices`: 予約ごとのお休み・遅刻連絡。重複登録せず更新履歴日時を保持
