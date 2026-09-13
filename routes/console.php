@@ -25,3 +25,9 @@ Schedule::command('regular-schedules:generate-next-month')
     ->timezone('Asia/Tokyo')
     ->withoutOverlapping(30)
     ->onOneServer();
+
+Schedule::command('billing:generate-next-month')
+    ->everyMinute()
+    ->timezone('Asia/Tokyo')
+    ->withoutOverlapping(30)
+    ->onOneServer();

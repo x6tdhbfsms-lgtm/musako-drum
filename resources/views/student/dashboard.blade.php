@@ -7,6 +7,8 @@
 </div>
 @if ($errors->any())<div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>@endif
 
+<a href="{{ route('student.invoices.index') }}" class="mt-5 flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm"><span class="min-w-0"><strong class="block">ご請求・お支払い</strong><span class="text-xs text-stone-600">月ごとの請求額、支払期限、入金状況を確認</span></span><span class="shrink-0 text-amber-700">→</span></a>
+
 @if ($monthlySummary)
 <section class="mt-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm" aria-labelledby="monthly-summary-title">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

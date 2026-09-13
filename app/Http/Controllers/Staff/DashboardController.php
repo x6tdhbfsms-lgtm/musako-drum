@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Staff;
 
 use App\Enums\AdmissionApplicationStatus;
 use App\Enums\ApplicationStatus;
+use App\Enums\InvoicePaymentStatus;
+use App\Enums\MonthlyInvoiceStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\TrialLessonStatus;
 use App\Enums\UserRole;
@@ -15,6 +17,7 @@ use App\Models\ContractChangeRequest;
 use App\Models\Inquiry;
 use App\Models\LessonSlot;
 use App\Models\MembershipStatusRequest;
+use App\Models\MonthlyInvoice;
 use App\Models\PaymentMethodChangeRequest;
 use App\Models\PersonalInformationChangeRequest;
 use App\Models\RegularScheduleBatch;
@@ -147,6 +150,10 @@ class DashboardController extends Controller
         $regularBatchScope = RegularScheduleBatch::query()
             ->whereDate('entitlement_month', $nextRegularMonth)
             ->when($user->role === UserRole::Teacher, fn ($query) => $query->whereHas('lessonEnrollment', fn ($enrollments) => $enrollments->where('teacher_profile_id', $teacherProfile?->id ?? 0)));
+        $currentBillingMonth = CarbonImmutable::now(config('app.timezone'))->startOfMonth();
+        $billingInvoices = $user->role === UserRole::Admin
+            ? MonthlyInvoice::query()->whereDate('billing_month', $currentBillingMonth)->get()
+            : collect();
 
         return view('staff.dashboard', [
             'pendingCount' => (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
@@ -177,6 +184,13 @@ class DashboardController extends Controller
             'nextRegularConflictCount' => (clone $regularScope)->where('status', 'conflict')->count(),
             'nextRegularConfirmedCount' => (clone $regularScope)->where('status', 'confirmed')->count(),
             'nextRegularWarningCount' => (clone $regularBatchScope)->whereNotNull('warning')->count(),
+            'billingSummary' => $user->role === UserRole::Admin ? [
+                'draft' => $billingInvoices->where('status', MonthlyInvoiceStatus::Draft)->count(),
+                'unpaid' => $billingInvoices->where('status', MonthlyInvoiceStatus::Confirmed)->where('payment_status', InvoicePaymentStatus::Unpaid)->count(),
+                'partial' => $billingInvoices->where('payment_status', InvoicePaymentStatus::PartiallyPaid)->count(),
+                'overdue' => $billingInvoices->filter->is_overdue->count(),
+                'outstanding' => $billingInvoices->where('status', MonthlyInvoiceStatus::Confirmed)->sum(fn ($invoice) => $invoice->remaining_amount),
+            ] : null,
         ]);
     }
 }

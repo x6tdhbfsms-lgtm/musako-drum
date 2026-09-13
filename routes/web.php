@@ -13,6 +13,7 @@ use App\Http\Controllers\Staff\DashboardController as StaffDashboardController;
 use App\Http\Controllers\Staff\InquiryController as StaffInquiryController;
 use App\Http\Controllers\Staff\LessonSlotController;
 use App\Http\Controllers\Staff\MembershipStatusRequestController as StaffMembershipStatusRequestController;
+use App\Http\Controllers\Staff\MonthlyInvoiceController as StaffMonthlyInvoiceController;
 use App\Http\Controllers\Staff\PaymentMethodChangeRequestController as StaffPaymentMethodChangeRequestController;
 use App\Http\Controllers\Staff\PersonalInformationChangeRequestController as StaffPersonalInformationChangeRequestController;
 use App\Http\Controllers\Staff\PricingSettingController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Student\ContractChangeRequestController as StudentContr
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\InquiryController as StudentInquiryController;
 use App\Http\Controllers\Student\MembershipStatusRequestController as StudentMembershipStatusRequestController;
+use App\Http\Controllers\Student\MonthlyInvoiceController as StudentMonthlyInvoiceController;
 use App\Http\Controllers\Student\PaymentMethodChangeRequestController as StudentPaymentMethodChangeRequestController;
 use App\Http\Controllers\Student\PersonalInformationChangeRequestController as StudentPersonalInformationChangeRequestController;
 use App\Http\Controllers\Student\ReservationDetailController as StudentReservationDetailController;
@@ -89,6 +91,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/inquiries', [StudentInquiryController::class, 'index'])->name('inquiries.index');
         Route::post('/inquiries', [StudentInquiryController::class, 'store'])->name('inquiries.store');
         Route::get('/inquiries/{inquiry}', [StudentInquiryController::class, 'show'])->name('inquiries.show');
+        Route::get('/invoices', [StudentMonthlyInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/{invoice}', [StudentMonthlyInvoiceController::class, 'show'])->name('invoices.show');
     });
 
     Route::prefix('staff')->name('staff.')->middleware('role:teacher,admin')->group(function () {
@@ -130,5 +134,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/admission-applications', [StaffAdmissionApplicationController::class, 'index'])->name('admission-applications.index');
         Route::get('/admission-applications/{admission_application}', [StaffAdmissionApplicationController::class, 'show'])->name('admission-applications.show');
         Route::patch('/admission-applications/{admission_application}', [StaffAdmissionApplicationController::class, 'update'])->name('admission-applications.update');
+        Route::get('/invoices', [StaffMonthlyInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/{invoice}', [StaffMonthlyInvoiceController::class, 'show'])->name('invoices.show');
+        Route::middleware('role:admin')->group(function () {
+            Route::post('/invoices/generate', [StaffMonthlyInvoiceController::class, 'generate'])->name('invoices.generate');
+            Route::post('/invoices/{invoice}/adjustments', [StaffMonthlyInvoiceController::class, 'addAdjustment'])->name('invoices.adjustments.store');
+            Route::post('/invoices/{invoice}/confirm', [StaffMonthlyInvoiceController::class, 'confirm'])->name('invoices.confirm');
+            Route::post('/invoices/{invoice}/cancel', [StaffMonthlyInvoiceController::class, 'cancel'])->name('invoices.cancel');
+            Route::post('/invoices/{invoice}/payments', [StaffMonthlyInvoiceController::class, 'registerPayment'])->name('invoices.payments.store');
+            Route::patch('/billing-settings', [StaffMonthlyInvoiceController::class, 'updateSettings'])->name('billing-settings.update');
+        });
     });
 });
