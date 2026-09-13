@@ -9,11 +9,14 @@ use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\TransferRequest;
 use App\Models\User;
+use App\Services\LessonPricingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ReviewTransferRequest
 {
+    public function __construct(private readonly LessonPricingService $lessonPricing) {}
+
     public function handle(
         TransferRequest $transferRequest,
         User $reviewer,
@@ -65,12 +68,22 @@ class ReviewTransferRequest
                 throw ValidationException::withMessages(['transfer_request' => '生徒は振替先の枠にすでに予約履歴があります。']);
             }
 
+            $studioFeeAmount = $originalReservation->studio_fee_amount;
+            $studioFeePricedOn = $originalReservation->studio_fee_priced_on;
+            if ($studioFeeAmount === null && $originalReservation->lessonEnrollment !== null) {
+                $quote = $this->lessonPricing->forEnrollment($originalReservation->lessonEnrollment, $originalReservation->lessonSlot->starts_at);
+                $studioFeeAmount = $quote->studioFeePerLesson;
+                $studioFeePricedOn = $originalReservation->lessonSlot->starts_at->toDateString();
+            }
+
             $resultingReservation = ReservationRequest::create([
                 'student_profile_id' => $lockedTransfer->student_profile_id,
                 'lesson_slot_id' => $requestedSlot->id,
                 'lesson_enrollment_id' => $originalReservation->lesson_enrollment_id,
                 'lesson_entitlement_month' => ($originalReservation->lesson_entitlement_month
                     ?? $originalReservation->lessonSlot->starts_at->startOfMonth())->toDateString(),
+                'studio_fee_amount' => $studioFeeAmount,
+                'studio_fee_priced_on' => $studioFeePricedOn,
                 'status' => ReservationStatus::Approved,
                 'requested_at' => $lockedTransfer->requested_at,
                 'reviewed_by_user_id' => $reviewer->id,
@@ -83,6 +96,8 @@ class ReviewTransferRequest
                 'status' => ReservationStatus::Cancelled,
                 'cancelled_at' => now(),
                 'cancellation_reason' => '振替申請が承認されました。',
+                'studio_fee_amount' => null,
+                'studio_fee_priced_on' => null,
             ]);
 
             $lockedTransfer->update([

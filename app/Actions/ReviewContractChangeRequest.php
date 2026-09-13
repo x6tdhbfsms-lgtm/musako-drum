@@ -57,7 +57,7 @@ class ReviewContractChangeRequest
         $previousEnd = $enrollment->ends_on?->toDateString();
         $enrollment->update(['ends_on' => $effectiveOn->subDay()->toDateString()]);
         $attributes = Arr::only($enrollment->getAttributes(), [
-            'student_profile_id', 'course_id', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time',
+            'student_profile_id', 'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time',
             'monthly_lesson_limit', 'lesson_minutes', 'payment_method', 'status',
         ]);
         $attributes = array_merge($attributes, $request->after_values, [
@@ -80,6 +80,8 @@ class ReviewContractChangeRequest
         LessonEnrollment::create([
             'student_profile_id' => $request->student_profile_id,
             'course_id' => $course->id,
+            'lesson_type' => $base?->lesson_type,
+            'pricing_category' => $base?->pricing_category,
             'teacher_profile_id' => $base?->teacher_profile_id,
             'venue_id' => $base?->venue_id,
             'weekday' => $base?->weekday,

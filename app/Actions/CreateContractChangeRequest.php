@@ -53,6 +53,10 @@ class CreateContractChangeRequest
                 ContractChangeType::VenueChange => [
                     'venue_id' => Venue::query()->where('is_active', true)->findOrFail($data['venue_id'])->id,
                 ],
+                ContractChangeType::LessonType => $data['lesson_type'] === 'flex'
+                    ? ['lesson_type' => 'flex', 'weekday' => null, 'starts_at_time' => null]
+                    : Arr::only($data, ['lesson_type', 'weekday', 'starts_at_time']),
+                ContractChangeType::PricingCategory => Arr::only($data, ['pricing_category']),
             };
 
             return ContractChangeRequest::create([
@@ -73,7 +77,7 @@ class CreateContractChangeRequest
     private function snapshot(LessonEnrollment $enrollment): array
     {
         return Arr::only($enrollment->getAttributes(), [
-            'course_id', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time',
+            'course_id', 'lesson_type', 'pricing_category', 'teacher_profile_id', 'venue_id', 'weekday', 'starts_at_time',
             'monthly_lesson_limit', 'lesson_minutes', 'payment_method', 'status', 'starts_on', 'ends_on',
         ]);
     }

@@ -16,7 +16,7 @@ class ReservationRequest extends Model
 
     protected $fillable = [
         'student_profile_id', 'lesson_slot_id', 'lesson_enrollment_id', 'status', 'requested_at',
-        'lesson_entitlement_month', 'reviewed_by_user_id', 'reviewed_at', 'student_note', 'staff_note',
+        'lesson_entitlement_month', 'studio_fee_amount', 'studio_fee_priced_on', 'reviewed_by_user_id', 'reviewed_at', 'student_note', 'staff_note',
         'cancelled_at', 'cancellation_reason', 'completed_at', 'monthly_limit_overridden_at',
         'monthly_limit_overridden_by_user_id', 'monthly_limit_override_reason',
     ];
@@ -26,6 +26,8 @@ class ReservationRequest extends Model
         return [
             'status' => ReservationStatus::class,
             'lesson_entitlement_month' => 'date',
+            'studio_fee_amount' => 'integer',
+            'studio_fee_priced_on' => 'date',
             'requested_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'cancelled_at' => 'datetime',

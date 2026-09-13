@@ -10,6 +10,8 @@ enum ContractChangeType: string
     case CourseChange = 'course_change';
     case CourseAdd = 'course_add';
     case VenueChange = 'venue_change';
+    case LessonType = 'lesson_type';
+    case PricingCategory = 'pricing_category';
 
     public function label(): string
     {
@@ -20,6 +22,8 @@ enum ContractChangeType: string
             self::CourseChange => 'コース変更',
             self::CourseAdd => 'コース追加',
             self::VenueChange => '会場変更',
+            self::LessonType => 'レギュラー／フレックス変更',
+            self::PricingCategory => '一般／ジュニア区分変更',
         };
     }
 }

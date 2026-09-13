@@ -3,6 +3,8 @@
 namespace Database\Factories;
 
 use App\Enums\EnrollmentStatus;
+use App\Enums\LessonType;
+use App\Enums\PricingCategory;
 use App\Models\Course;
 use App\Models\LessonEnrollment;
 use App\Models\StudentProfile;
@@ -23,6 +25,8 @@ class LessonEnrollmentFactory extends Factory
         return [
             'student_profile_id' => StudentProfile::factory(),
             'course_id' => Course::factory(),
+            'lesson_type' => LessonType::Regular,
+            'pricing_category' => PricingCategory::Standard,
             'monthly_lesson_limit' => 4,
             'lesson_minutes' => 60,
             'status' => EnrollmentStatus::Active,

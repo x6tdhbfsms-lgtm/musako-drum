@@ -8,6 +8,7 @@ use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Services\LessonPricingService;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewReservationRequest
 {
-    public function __construct(private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage) {}
+    public function __construct(
+        private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage,
+        private readonly LessonPricingService $lessonPricing,
+    ) {}
 
     public function handle(
         ReservationRequest $reservationRequest,
@@ -63,6 +67,14 @@ class ReviewReservationRequest
                             'monthly_limit_override_reason' => $overrideReason,
                         ]);
                     }
+                }
+
+                if ($enrollment?->student_profile_id === $lockedStudent->id) {
+                    $quote = $this->lessonPricing->forEnrollment($enrollment, $lockedSlot->starts_at);
+                    $lockedReservation->forceFill([
+                        'studio_fee_amount' => $quote->studioFeePerLesson,
+                        'studio_fee_priced_on' => $lockedSlot->starts_at->toDateString(),
+                    ]);
                 }
             }
 
