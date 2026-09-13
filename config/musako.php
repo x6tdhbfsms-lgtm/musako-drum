@@ -15,4 +15,10 @@ return [
         'queue' => env('MUSAKO_NOTIFICATION_QUEUE', 'mail'),
         'lesson_reminder_time' => env('LESSON_REMINDER_TIME', '18:00'),
     ],
+
+    'regular_schedule' => [
+        'automatic_generation_enabled' => env('REGULAR_SCHEDULE_AUTOMATIC_GENERATION', true),
+        'generation_day' => (int) env('REGULAR_SCHEDULE_GENERATION_DAY', 20),
+        'scheduler_time' => env('REGULAR_SCHEDULE_GENERATION_TIME', '00:20'),
+    ],
 ];

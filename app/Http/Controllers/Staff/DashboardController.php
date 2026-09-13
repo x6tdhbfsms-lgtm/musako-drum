@@ -17,6 +17,8 @@ use App\Models\LessonSlot;
 use App\Models\MembershipStatusRequest;
 use App\Models\PaymentMethodChangeRequest;
 use App\Models\PersonalInformationChangeRequest;
+use App\Models\RegularScheduleBatch;
+use App\Models\RegularScheduleOccurrence;
 use App\Models\ReservationRequest;
 use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
@@ -138,6 +140,13 @@ class DashboardController extends Controller
             ->orderBy(LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'trial_lesson_requests.lesson_slot_id'))
             ->limit(8)
             ->get();
+        $nextRegularMonth = CarbonImmutable::now(config('app.timezone'))->addMonth()->startOfMonth();
+        $regularScope = RegularScheduleOccurrence::query()
+            ->whereDate('lesson_entitlement_month', $nextRegularMonth)
+            ->when($user->role === UserRole::Teacher, fn ($query) => $query->where('teacher_profile_id', $teacherProfile?->id ?? 0));
+        $regularBatchScope = RegularScheduleBatch::query()
+            ->whereDate('entitlement_month', $nextRegularMonth)
+            ->when($user->role === UserRole::Teacher, fn ($query) => $query->whereHas('lessonEnrollment', fn ($enrollments) => $enrollments->where('teacher_profile_id', $teacherProfile?->id ?? 0)));
 
         return view('staff.dashboard', [
             'pendingCount' => (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
@@ -163,6 +172,11 @@ class DashboardController extends Controller
             'teacherFilterId' => $teacherFilterId,
             'venueFilterId' => $venueFilterId,
             'reservationStatus' => $reservationStatus,
+            'nextRegularMonth' => $nextRegularMonth,
+            'nextRegularDraftCount' => (clone $regularScope)->where('status', 'draft')->count(),
+            'nextRegularConflictCount' => (clone $regularScope)->where('status', 'conflict')->count(),
+            'nextRegularConfirmedCount' => (clone $regularScope)->where('status', 'confirmed')->count(),
+            'nextRegularWarningCount' => (clone $regularBatchScope)->whereNotNull('warning')->count(),
         ]);
     }
 }

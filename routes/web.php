@@ -17,6 +17,7 @@ use App\Http\Controllers\Staff\PaymentMethodChangeRequestController as StaffPaym
 use App\Http\Controllers\Staff\PersonalInformationChangeRequestController as StaffPersonalInformationChangeRequestController;
 use App\Http\Controllers\Staff\PricingSettingController;
 use App\Http\Controllers\Staff\ProcedureRequestController;
+use App\Http\Controllers\Staff\RegularScheduleController;
 use App\Http\Controllers\Staff\ReservationDetailController as StaffReservationDetailController;
 use App\Http\Controllers\Staff\ReservationReviewController;
 use App\Http\Controllers\Staff\StudentController as StaffStudentController;
@@ -93,6 +94,13 @@ Route::middleware('auth')->group(function () {
     Route::prefix('staff')->name('staff.')->middleware('role:teacher,admin')->group(function () {
         Route::get('/dashboard', StaffDashboardController::class)->name('dashboard');
         Route::resource('lesson-slots', LessonSlotController::class)->except('show');
+        Route::get('/regular-schedules', [RegularScheduleController::class, 'index'])->name('regular-schedules.index');
+        Route::post('/regular-schedules/generate', [RegularScheduleController::class, 'generate'])->name('regular-schedules.generate');
+        Route::patch('/regular-schedules/occurrences/{regular_schedule_occurrence}', [RegularScheduleController::class, 'updateOccurrence'])->name('regular-schedules.occurrences.update');
+        Route::patch('/regular-schedules/occurrences/{regular_schedule_occurrence}/status', [RegularScheduleController::class, 'changeStatus'])->name('regular-schedules.occurrences.status');
+        Route::post('/regular-schedules/confirm', [RegularScheduleController::class, 'confirm'])->name('regular-schedules.confirm');
+        Route::patch('/regular-schedules/enrollments/{lesson_enrollment}/pattern', [RegularScheduleController::class, 'updatePattern'])->name('regular-schedules.pattern.update');
+        Route::patch('/regular-schedules/settings', [RegularScheduleController::class, 'updateSettings'])->name('regular-schedules.settings.update');
         Route::get('/reservations', [ReservationReviewController::class, 'index'])->name('reservations.index');
         Route::get('/reservations/{reservation_request}', StaffReservationDetailController::class)->name('reservations.show');
         Route::patch('/reservations/{reservation_request}', [ReservationReviewController::class, 'update'])->name('reservations.update');

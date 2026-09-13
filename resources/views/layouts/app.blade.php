@@ -28,6 +28,7 @@
                     @else
                         <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">カレンダー</a>
                         <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン枠</a>
+                        <a href="{{ route('staff.regular-schedules.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">定期予定</a>
                         <a href="{{ route('staff.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">申請管理</a>
                         <a href="{{ route('staff.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
                         <a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>

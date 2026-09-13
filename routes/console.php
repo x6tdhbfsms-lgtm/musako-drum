@@ -19,3 +19,9 @@ Schedule::command('lesson-reminders:send')
     ->timezone('Asia/Tokyo')
     ->withoutOverlapping(10)
     ->onOneServer();
+
+Schedule::command('regular-schedules:generate-next-month')
+    ->dailyAt((string) config('musako.regular_schedule.scheduler_time'))
+    ->timezone('Asia/Tokyo')
+    ->withoutOverlapping(30)
+    ->onOneServer();
