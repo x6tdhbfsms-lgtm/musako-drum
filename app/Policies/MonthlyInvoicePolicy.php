@@ -21,7 +21,7 @@ class MonthlyInvoicePolicy
         }
 
         return $user->role === UserRole::Student
-            && $invoice->status === MonthlyInvoiceStatus::Confirmed
+            && in_array($invoice->status, [MonthlyInvoiceStatus::Confirmed, MonthlyInvoiceStatus::Cancelled], true)
             && $invoice->student_profile_id === $user->studentProfile?->id;
     }
 

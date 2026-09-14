@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Enums\MonthlyInvoiceStatus;
 use App\Http\Controllers\Controller;
 use App\Models\MonthlyInvoice;
 use Illuminate\Contracts\View\View;
@@ -14,7 +15,7 @@ class MonthlyInvoiceController extends Controller
     {
         Gate::authorize('viewAny', MonthlyInvoice::class);
         $invoices = MonthlyInvoice::query()
-            ->published()
+            ->whereIn('status', [MonthlyInvoiceStatus::Confirmed, MonthlyInvoiceStatus::Cancelled])
             ->whereBelongsTo($request->user()->studentProfile, 'studentProfile')
             ->latest('billing_month')
             ->paginate(24);

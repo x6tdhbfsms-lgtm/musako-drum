@@ -6,14 +6,17 @@ use App\Enums\MonthlyInvoiceStatus;
 use App\Models\MonthlyInvoice;
 use App\Models\MonthlyInvoiceAudit;
 use App\Models\User;
+use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CancelMonthlyInvoice
 {
+    public function __construct(private readonly MusakoNotificationService $notifications) {}
+
     public function handle(MonthlyInvoice $invoice, User $actor, string $reason): MonthlyInvoice
     {
-        return DB::transaction(function () use ($invoice, $actor, $reason): MonthlyInvoice {
+        $cancelled = DB::transaction(function () use ($invoice, $actor, $reason): MonthlyInvoice {
             $locked = MonthlyInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
             if ($locked->status !== MonthlyInvoiceStatus::Confirmed || $locked->paymentRecords()->exists()) {
                 throw ValidationException::withMessages(['invoice' => '入金済み、または確定状態ではない請求は取り消せません。']);
@@ -36,5 +39,8 @@ class CancelMonthlyInvoice
 
             return $locked->refresh();
         }, 3);
+        $this->notifications->monthlyInvoiceCancelled($cancelled);
+
+        return $cancelled;
     }
 }

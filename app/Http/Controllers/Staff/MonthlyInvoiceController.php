@@ -6,6 +6,7 @@ use App\Actions\AddInvoiceAdjustment;
 use App\Actions\CancelMonthlyInvoice;
 use App\Actions\ConfirmMonthlyInvoice;
 use App\Actions\RegisterInvoicePayment;
+use App\Actions\ReissueMonthlyInvoice;
 use App\Enums\InvoicePaymentStatus;
 use App\Enums\MonthlyInvoiceStatus;
 use App\Enums\PaymentMethod;
@@ -118,6 +119,15 @@ class MonthlyInvoiceController extends Controller
         $action->handle($invoice, $request->user(), $data['reason']);
 
         return back()->with('success', '請求を履歴付きで取り消しました。');
+    }
+
+    public function reissue(Request $request, MonthlyInvoice $invoice, ReissueMonthlyInvoice $action): RedirectResponse
+    {
+        Gate::authorize('manage', MonthlyInvoice::class);
+        $data = $request->validate(['reason' => ['required', 'string', 'max:2000']]);
+        $draft = $action->handle($invoice, $request->user(), $data['reason']);
+
+        return redirect()->route('staff.invoices.show', $draft)->with('success', '再発行先の請求を開きました。明細を確認してから確定してください。');
     }
 
     public function registerPayment(RegisterInvoicePaymentRequest $request, MonthlyInvoice $invoice, RegisterInvoicePayment $action): RedirectResponse

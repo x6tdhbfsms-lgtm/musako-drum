@@ -30,6 +30,7 @@ use App\Notifications\ContractChangeApplicationNotification;
 use App\Notifications\InitialPasswordSetupNotification;
 use App\Notifications\InquiryNotification;
 use App\Notifications\MembershipStatusApplicationNotification;
+use App\Notifications\MonthlyInvoiceCancelledNotification;
 use App\Notifications\MonthlyInvoiceConfirmedNotification;
 use App\Notifications\MonthlyInvoicePaidNotification;
 use App\Notifications\PaymentMethodChangeApplicationNotification;
@@ -110,6 +111,16 @@ class MusakoNotificationService
         $signature = hash('sha256', implode('|', [$invoice->invoice_number, $invoice->total_amount, $invoice->due_on?->toDateString()]));
         if ($this->recordInvoiceDelivery($invoice, 'confirmed', $signature)) {
             $this->sendToStudent($invoice->studentProfile->user, new MonthlyInvoiceConfirmedNotification($invoice));
+        }
+    }
+
+    public function monthlyInvoiceCancelled(MonthlyInvoice $invoice): void
+    {
+        if (! BillingSetting::current()->invoice_notifications_enabled) {
+            return;
+        }
+        if ($this->recordInvoiceDelivery($invoice, 'cancelled', hash('sha256', (string) $invoice->id))) {
+            $this->sendToStudent($invoice->studentProfile->user, new MonthlyInvoiceCancelledNotification($invoice));
         }
     }
 

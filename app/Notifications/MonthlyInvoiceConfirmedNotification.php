@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\MonthlyInvoiceStatus;
 use App\Enums\NotificationCategory;
 use App\Models\MonthlyInvoice;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -9,6 +10,11 @@ use Illuminate\Notifications\Messages\MailMessage;
 class MonthlyInvoiceConfirmedNotification extends Concerns\QueuedMusakoNotification
 {
     public function __construct(public MonthlyInvoice $invoice) {}
+
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        return $this->invoice->fresh()?->status === MonthlyInvoiceStatus::Confirmed;
+    }
 
     public function category(): NotificationCategory
     {

@@ -18,7 +18,7 @@ class MonthlyInvoice extends Model
         'warnings', 'requires_review', 'has_manual_adjustments', 'base_lesson_fee', 'flex_surcharge', 'lesson_fee_total',
         'studio_fee_total', 'subtotal', 'adjustments_total', 'total_amount', 'paid_amount', 'generated_at',
         'generated_by_user_id', 'confirmed_at', 'confirmed_by_user_id', 'cancelled_at', 'cancelled_by_user_id',
-        'cancellation_reason',
+        'cancellation_reason', 'reissued_from_invoice_id', 'reissued_at', 'reissued_by_user_id', 'reissue_reason',
     ];
 
     protected function casts(): array
@@ -37,12 +37,23 @@ class MonthlyInvoice extends Model
             'generated_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'reissued_at' => 'datetime',
         ];
     }
 
     public function studentProfile(): BelongsTo
     {
         return $this->belongsTo(StudentProfile::class);
+    }
+
+    public function reissuedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reissued_from_invoice_id');
+    }
+
+    public function reissues(): HasMany
+    {
+        return $this->hasMany(self::class, 'reissued_from_invoice_id');
     }
 
     public function items(): HasMany
@@ -72,6 +83,10 @@ class MonthlyInvoice extends Model
 
     public function getRemainingAmountAttribute(): int
     {
+        if ($this->status === MonthlyInvoiceStatus::Cancelled) {
+            return 0;
+        }
+
         return max(0, (int) $this->total_amount - (int) $this->paid_amount);
     }
 

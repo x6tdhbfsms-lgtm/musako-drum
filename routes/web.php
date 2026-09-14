@@ -141,6 +141,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/invoices/{invoice}/adjustments', [StaffMonthlyInvoiceController::class, 'addAdjustment'])->name('invoices.adjustments.store');
             Route::post('/invoices/{invoice}/confirm', [StaffMonthlyInvoiceController::class, 'confirm'])->name('invoices.confirm');
             Route::post('/invoices/{invoice}/cancel', [StaffMonthlyInvoiceController::class, 'cancel'])->name('invoices.cancel');
+            Route::post('/invoices/{invoice}/reissue', [StaffMonthlyInvoiceController::class, 'reissue'])->name('invoices.reissue');
             Route::post('/invoices/{invoice}/payments', [StaffMonthlyInvoiceController::class, 'registerPayment'])->name('invoices.payments.store');
             Route::patch('/billing-settings', [StaffMonthlyInvoiceController::class, 'updateSettings'])->name('billing-settings.update');
         });

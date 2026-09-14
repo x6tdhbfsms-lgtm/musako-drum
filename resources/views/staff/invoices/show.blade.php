@@ -1,6 +1,18 @@
 @extends('layouts.app')
 @section('title', '請求詳細 | MUSAKO')
 @section('content')
+@if ($invoice->reissued_from_invoice_id)
+<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">再発行請求：<a class="underline" href="{{ route('staff.invoices.show', $invoice->reissued_from_invoice_id) }}">元の取消済み請求を確認</a><p class="mt-2 break-words">理由：{{ $invoice->reissue_reason }} · {{ $invoice->reissued_at?->format('Y/n/j H:i') }}</p></div>
+@endif
+@if ($canManage && $invoice->status === \App\Enums\MonthlyInvoiceStatus::Cancelled)
+<form method="post" action="{{ route('staff.invoices.reissue', $invoice) }}" class="mb-5 rounded-xl border border-stone-200 bg-white p-5">
+@csrf
+<h2 class="font-bold">取消済み請求を再発行</h2>
+<p class="mt-2 text-sm">元の請求と履歴を残し、対象月の契約・料金から新しい下書きを作成します。元の手動調整はコピーしません。</p>
+<label class="mt-3 block text-sm">再発行理由<textarea name="reason" required maxlength="2000" class="mt-2 block min-h-24 w-full rounded-xl border-stone-300">{{ old('reason') }}</textarea></label>
+<button class="mt-3 min-h-11 rounded-xl bg-emerald-700 px-5 text-white">再発行の下書きを開く</button>
+</form>
+@endif
 <a href="{{ route('staff.invoices.index', ['month' => $invoice->billing_month->format('Y-m')]) }}" class="text-sm font-semibold text-amber-700">← 請求一覧</a>
 <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-sm font-semibold tracking-widest text-amber-700">INVOICE</p><h1 class="text-2xl font-bold sm:text-4xl">{{ $invoice->studentProfile->user->name }}さん</h1><p class="mt-1 text-sm text-stone-500">{{ $invoice->billing_month->format('Y年n月') }} · {{ $invoice->invoice_number ?? '下書き' }}</p></div><div class="rounded-2xl bg-stone-900 px-6 py-4 text-white"><span class="text-xs text-stone-300">請求額</span><strong class="block text-3xl">¥{{ number_format($invoice->total_amount) }}</strong><span class="text-xs">残額 ¥{{ number_format($invoice->remaining_amount) }}</span></div></div>
 @if ($errors->any())<div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>@endif

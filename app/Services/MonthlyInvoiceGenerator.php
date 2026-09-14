@@ -49,11 +49,22 @@ class MonthlyInvoiceGenerator
         $month = $month->startOfMonth();
 
         return DB::transaction(function () use ($student, $month, $actor): ?MonthlyInvoice {
+            StudentProfile::query()->lockForUpdate()->findOrFail($student->id);
             $invoice = MonthlyInvoice::query()
                 ->whereBelongsTo($student)
                 ->whereDate('billing_month', $month)
+                ->where('status', '!=', MonthlyInvoiceStatus::Cancelled)
                 ->lockForUpdate()
                 ->first();
+
+            if ($invoice === null) {
+                $cancelled = MonthlyInvoice::query()->whereBelongsTo($student)
+                    ->whereDate('billing_month', $month)->where('status', MonthlyInvoiceStatus::Cancelled)
+                    ->latest('id')->first();
+                if ($cancelled !== null) {
+                    return $cancelled;
+                }
+            }
 
             if ($invoice !== null && ($invoice->status !== MonthlyInvoiceStatus::Draft || $invoice->has_manual_adjustments)) {
                 return $invoice;
