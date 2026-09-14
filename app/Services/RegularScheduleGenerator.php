@@ -19,6 +19,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RegularScheduleGenerator
 {
@@ -111,6 +112,16 @@ class RegularScheduleGenerator
                 }
             }
             $selected = $selected->sortBy('date')->take($expected);
+
+            $selectedKeys = $selected->map(fn ($candidate) => $candidate['version']->id.'-week-'.$candidate['week'])->all();
+            if ($batch->occurrences()
+                ->whereIn('status', [RegularScheduleOccurrenceStatus::Draft, RegularScheduleOccurrenceStatus::Conflict])
+                ->whereNotIn('source_key', $selectedKeys)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'regular_schedule' => '変更前の週パターンの未確定予定が残っています。予定を確認し、不要な候補をスキップしてから再生成してください。',
+                ]);
+            }
 
             foreach ($selected as $candidate) {
                 /** @var LessonEnrollment $version */
@@ -209,12 +220,15 @@ class RegularScheduleGenerator
             return true;
         }
 
-        return MembershipStatusRequest::query()
+        $latest = MembershipStatusRequest::query()
             ->where('student_profile_id', $enrollment->student_profile_id)
             ->where('status', ApplicationStatus::Approved)
-            ->whereIn('type', [MembershipRequestType::Pause->value, MembershipRequestType::Withdraw->value])
             ->whereDate('effective_on', '<=', $date)
-            ->exists();
+            ->orderByDesc('effective_on')
+            ->orderByDesc('id')
+            ->first();
+
+        return $latest !== null && $latest->type !== MembershipRequestType::Resume;
     }
 
     private function rootEnrollmentId(LessonEnrollment $enrollment): int

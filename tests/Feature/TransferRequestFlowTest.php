@@ -210,6 +210,6 @@ class TransferRequestFlowTest extends TestCase
             ->for($teacher ?? TeacherProfile::factory()->create())
             ->create(['starts_at' => $starts, 'ends_at' => $starts->addHour()]);
 
-        return ReservationRequest::factory()->for($student)->for($slot)->create(['status' => ReservationStatus::Approved]);
+        return ReservationRequest::factory()->for($student)->for($slot)->create(['status' => ReservationStatus::Approved, 'studio_fee_amount' => 1610, 'studio_fee_priced_on' => $starts->toDateString()]);
     }
 }

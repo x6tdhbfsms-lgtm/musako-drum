@@ -72,13 +72,10 @@ class ReviewReservationRequest
                     }
                 }
 
-                if ($enrollment?->student_profile_id === $lockedStudent->id) {
-                    $quote = $this->lessonPricing->forEnrollment($enrollment, $lockedSlot->starts_at);
-                    $lockedReservation->forceFill([
-                        'studio_fee_amount' => $quote->studioFeePerLesson,
-                        'studio_fee_priced_on' => $lockedSlot->starts_at->toDateString(),
-                    ]);
-                }
+                $lockedReservation->forceFill([
+                    'studio_fee_amount' => $this->lessonPricing->requiredStudioFee($lockedSlot->starts_at),
+                    'studio_fee_priced_on' => $lockedSlot->starts_at->toDateString(),
+                ]);
             }
 
             $lockedReservation->update([

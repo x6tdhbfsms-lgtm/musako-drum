@@ -11,12 +11,15 @@ use App\Models\LessonSlot;
 use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\Venue;
+use App\Services\LessonSlotCapacityService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class LessonSlotController extends Controller
 {
@@ -92,7 +95,7 @@ class LessonSlotController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateLessonSlotRequest $request, LessonSlot $lessonSlot): RedirectResponse
+    public function update(UpdateLessonSlotRequest $request, LessonSlot $lessonSlot, LessonSlotCapacityService $capacity): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -100,7 +103,16 @@ class LessonSlotController extends Controller
         $attributes['teacher_profile_id'] = $user->role === UserRole::Admin
             ? $request->integer('teacher_profile_id')
             : $user->teacherProfile->id;
-        $lessonSlot->update($attributes);
+        DB::transaction(function () use ($lessonSlot, $attributes, $capacity): void {
+            $lockedSlot = LessonSlot::query()->lockForUpdate()->findOrFail($lessonSlot->id);
+            $reserved = $capacity->approvedReservationCount($lockedSlot) + $capacity->activeTrialCount($lockedSlot);
+            if ((int) $attributes['capacity'] < $reserved) {
+                throw ValidationException::withMessages([
+                    'capacity' => '予約状況が更新されています。現在の予約数より定員を少なくできません。画面を再読み込みしてください。',
+                ]);
+            }
+            $lockedSlot->update($attributes);
+        });
 
         return redirect()->route('staff.lesson-slots.index')->with('success', 'レッスン枠を更新しました。');
     }

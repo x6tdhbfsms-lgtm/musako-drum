@@ -7,12 +7,14 @@ use App\Enums\ApplicationStatus;
 use App\Enums\EnrollmentStatus;
 use App\Enums\LessonType;
 use App\Enums\MembershipRequestType;
+use App\Enums\PriceRateKind;
 use App\Enums\RegularScheduleOccurrenceStatus;
 use App\Enums\ReservationStatus;
 use App\Models\Course;
 use App\Models\LessonEnrollment;
 use App\Models\LessonSlot;
 use App\Models\MembershipStatusRequest;
+use App\Models\PriceRate;
 use App\Models\RegularScheduleAudit;
 use App\Models\RegularScheduleBatch;
 use App\Models\RegularScheduleNotificationDelivery;
@@ -28,6 +30,7 @@ use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class RegularScheduleManagementTest extends TestCase
@@ -83,6 +86,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_confirmation_creates_an_approved_reservation_with_entitlement_and_monthly_notification(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         Notification::fake();
         $teacher = TeacherProfile::factory()->create();
         $enrollment = $this->regularEnrollment($teacher, 2, [1, 3]);
@@ -96,6 +100,8 @@ class RegularScheduleManagementTest extends TestCase
         $this->assertSame(ReservationStatus::Approved, $reservation->status);
         $this->assertSame('2026-10-01', $reservation->lesson_entitlement_month->toDateString());
         $this->assertNotNull($reservation->regular_schedule_occurrence_id);
+        $this->assertSame(1610, $reservation->studio_fee_amount);
+        $this->assertSame($reservation->lessonSlot->starts_at->toDateString(), $reservation->studio_fee_priced_on->toDateString());
         $this->assertSame($admin->id, $reservation->reviewed_by_user_id);
         $summary = app(MonthlyLessonUsageCalculator::class)->calculate($enrollment->studentProfile, CarbonImmutable::parse('2026-10-01'));
         $this->assertSame(2, $summary->used);
@@ -103,8 +109,26 @@ class RegularScheduleManagementTest extends TestCase
         Notification::assertSentTo($enrollment->studentProfile->user, RegularScheduleConfirmedNotification::class, 1);
     }
 
+    public function test_missing_studio_rate_leaves_schedule_unconfirmed(): void
+    {
+        $this->travelTo('2026-09-13 10:00:00');
+        $teacher = TeacherProfile::factory()->create();
+        $this->regularEnrollment($teacher, 1, [1]);
+        $batch = app(RegularScheduleGenerator::class)->generateMonth(CarbonImmutable::parse('2026-10-01'))->first();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('staff.regular-schedules.confirm'), [
+            'occurrence_ids' => $batch->occurrences->modelKeys(),
+        ])->assertSessionHasErrors('studio_fee');
+
+        $this->assertDatabaseCount('reservation_requests', 0);
+        $this->assertDatabaseCount('lesson_slots', 0);
+        $this->assertNull($batch->occurrences->first()->fresh()->reservation_request_id);
+    }
+
     public function test_notification_is_deduplicated_for_the_same_confirmed_schedule_signature(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         Notification::fake();
         $teacher = TeacherProfile::factory()->create();
         $enrollment = $this->regularEnrollment($teacher, 1, [1]);
@@ -213,6 +237,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_draft_can_be_edited_but_confirmed_occurrence_cannot_be_directly_edited(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $teacher = TeacherProfile::factory()->create();
         $enrollment = $this->regularEnrollment($teacher, 1, [1]);
         $occurrence = app(RegularScheduleGenerator::class)->generateMonth(CarbonImmutable::parse('2026-10-01'))->first()->occurrences->first();
@@ -258,6 +283,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_confirmed_occurrence_cancellation_keeps_reservation_history_without_usage(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $teacher = TeacherProfile::factory()->create();
         $enrollment = $this->regularEnrollment($teacher, 1, [1]);
         $occurrence = app(RegularScheduleGenerator::class)->generateMonth(CarbonImmutable::parse('2026-10-01'))->first()->occurrences->first();
@@ -274,6 +300,62 @@ class RegularScheduleManagementTest extends TestCase
         $this->assertSame('教室休講日', $reservation->cancellation_reason);
         $this->assertSame(0, app(MonthlyLessonUsageCalculator::class)->calculate($enrollment->studentProfile, CarbonImmutable::parse('2026-10-01'))->used);
         $this->assertDatabaseHas('regular_schedule_audits', ['regular_schedule_occurrence_id' => $occurrence->id, 'action' => 'cancelled']);
+    }
+
+    public function test_pattern_change_cannot_silently_append_to_old_drafts(): void
+    {
+        $this->travelTo('2026-09-13 10:00:00');
+        $enrollment = $this->regularEnrollment(TeacherProfile::factory()->create(), 2, [1, 3]);
+        $generator = app(RegularScheduleGenerator::class);
+        $generator->generateMonth(CarbonImmutable::parse('2026-10-01'));
+        $enrollment->update(['regular_week_numbers' => [2, 4]]);
+
+        try {
+            $generator->generateMonth(CarbonImmutable::parse('2026-10-01'));
+            $this->fail('Old drafts must require staff review.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('regular_schedule', $exception->errors());
+        }
+        $this->assertDatabaseCount('regular_schedule_occurrences', 2);
+        $this->assertSame([1, 3], RegularScheduleOccurrence::query()->orderBy('week_number')->pluck('week_number')->all());
+
+        RegularScheduleOccurrence::query()->update(['status' => RegularScheduleOccurrenceStatus::Skipped]);
+        $batch = $generator->generateMonth(CarbonImmutable::parse('2026-10-01'))->sole();
+        $this->assertSame(2, $batch->generated_count);
+        $this->assertSame([2, 4], $batch->occurrences->where('status', RegularScheduleOccurrenceStatus::Draft)->pluck('week_number')->values()->all());
+    }
+
+    public function test_resumed_student_receives_regular_candidates_after_a_past_pause(): void
+    {
+        $this->travelTo('2026-09-13 10:00:00');
+        $enrollment = $this->regularEnrollment(TeacherProfile::factory()->create(), 2, [1, 3]);
+        MembershipStatusRequest::factory()->create([
+            'student_profile_id' => $enrollment->student_profile_id, 'type' => MembershipRequestType::Pause,
+            'status' => ApplicationStatus::Approved, 'effective_on' => '2026-08-01',
+        ]);
+        MembershipStatusRequest::factory()->create([
+            'student_profile_id' => $enrollment->student_profile_id, 'type' => MembershipRequestType::Resume,
+            'status' => ApplicationStatus::Approved, 'effective_on' => '2026-09-01',
+        ]);
+
+        $batch = app(RegularScheduleGenerator::class)->generateMonth(CarbonImmutable::parse('2026-10-01'))->sole();
+
+        $this->assertSame(2, $batch->generated_count);
+        $this->assertSame([3, 17], $batch->occurrences->sortBy('starts_at')->map(fn ($item) => $item->starts_at->day)->values()->all());
+    }
+
+    public function test_past_regular_candidate_cannot_create_a_reservation(): void
+    {
+        $this->travelTo('2026-11-01 10:00:00');
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
+        $this->regularEnrollment(TeacherProfile::factory()->create(), 1, [1]);
+        $batch = app(RegularScheduleGenerator::class)->generateMonth(CarbonImmutable::parse('2026-10-01'))->sole();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('staff.regular-schedules.confirm'), [
+            'occurrence_ids' => $batch->occurrences->modelKeys(),
+        ])->assertSessionHasErrors('occurrences');
+        $this->assertDatabaseCount('reservation_requests', 0);
     }
 
     private function regularEnrollment(TeacherProfile $teacher, int $count, array $weeks, array $overrides = []): LessonEnrollment

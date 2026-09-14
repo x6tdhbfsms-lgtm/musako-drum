@@ -9,11 +9,24 @@ use App\Models\LessonEnrollment;
 use App\Models\PriceRate;
 use App\Support\LessonPriceQuote;
 use Carbon\CarbonImmutable;
+use Illuminate\Validation\ValidationException;
 
 class LessonPricingService
 {
     /** @var array<string, int|null> */
     private array $amountCache = [];
+
+    public function requiredStudioFee(mixed $date): int
+    {
+        $amount = $this->amountOn(PriceRateKind::StudioPerLesson, CarbonImmutable::parse($date, config('app.timezone')));
+        if ($amount === null) {
+            throw ValidationException::withMessages([
+                'studio_fee' => 'レッスン日に適用されるスタジオ料金が未設定です。管理者が料金履歴を確認してから再度承認してください。',
+            ]);
+        }
+
+        return $amount;
+    }
 
     public function forEnrollment(LessonEnrollment $enrollment, mixed $date): LessonPriceQuote
     {

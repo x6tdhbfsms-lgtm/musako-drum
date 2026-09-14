@@ -54,6 +54,9 @@ class ConfirmRegularScheduleOccurrences
                 }
 
                 $reasons = $this->conflicts->detect($occurrence);
+                if (! $occurrence->starts_at->isFuture()) {
+                    $reasons[] = '開始時刻を過ぎた予定は確定できません。';
+                }
                 if ($reasons !== []) {
                     $occurrence->update(['status' => RegularScheduleOccurrenceStatus::Conflict, 'conflict_reasons' => $reasons]);
                     if ($skipConflicts) {
@@ -93,7 +96,7 @@ class ConfirmRegularScheduleOccurrences
                     throw ValidationException::withMessages(['occurrences' => $occurrence->starts_at->format('n/j H:i').' は満席になったため確定できません。']);
                 }
 
-                $quote = $this->pricing->forEnrollment($occurrence->lessonEnrollment, $occurrence->starts_at);
+                $studioFee = $this->pricing->requiredStudioFee($occurrence->starts_at);
                 ReservationRequest::query()->create([
                     'student_profile_id' => $occurrence->student_profile_id,
                     'lesson_slot_id' => $slot->id,
@@ -102,7 +105,7 @@ class ConfirmRegularScheduleOccurrences
                     'status' => ReservationStatus::Approved,
                     'requested_at' => now(),
                     'lesson_entitlement_month' => $occurrence->lesson_entitlement_month,
-                    'studio_fee_amount' => $quote->studioFeePerLesson,
+                    'studio_fee_amount' => $studioFee,
                     'studio_fee_priced_on' => $occurrence->starts_at->toDateString(),
                     'reviewed_by_user_id' => $actor->id,
                     'reviewed_at' => now(),

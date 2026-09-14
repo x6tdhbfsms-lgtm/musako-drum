@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PriceRateKind;
 use App\Enums\ReservationStatus;
 use App\Models\LessonSlot;
+use App\Models\PriceRate;
 use App\Models\ReservationRequest;
 use App\Models\TeacherProfile;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -15,6 +17,7 @@ class StaffReservationReviewTest extends TestCase
 
     public function test_teacher_can_approve_a_pending_request_for_their_slot(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $teacher = TeacherProfile::factory()->create();
         $slot = LessonSlot::factory()->for($teacher)->create();
         $reservation = ReservationRequest::factory()->for($slot)->create();

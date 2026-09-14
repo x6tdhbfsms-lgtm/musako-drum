@@ -59,7 +59,7 @@ cp .env.example .env
 ./vendor/bin/sail up -d
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate --seed
-./vendor/bin/sail npm install
+./vendor/bin/sail npm ci
 ./vendor/bin/sail npm run build
 ```
 
@@ -101,7 +101,45 @@ DBデータも消す `sail down -v` は、必要性を確認せず実行しな�
 ./vendor/bin/sail artisan queue:restart
 ```
 
-現在の通知対象は次のとおりです。
+### 本番のworker常駐と監視
+
+現在の Compose は開発用で、Web、MySQL、Mailpitだけを起動します。Webコンテナ内のSupervisorはWebプロセスを管理していますが、Queue workerは起動しません。本番環境は未確定のため、環境に合わせて次のいずれかで常駐させてください。
+
+- VM・サーバー：Supervisorまたはsystemdで以下のコマンドを管理し、起動時の自動開始・異常終了時の自動再起動を有効化します。実行ユーザーはアプリ専用ユーザー、作業ディレクトリはリリース先に設定します。
+- Docker：Webと同じリリース・設定・DB・キャッシュを使う専用workerサービスを用意し、以下をメインプロセスとして起動します。再起動ポリシーと正常終了の猶予を設定します。Webコンテナでの手動起動だけに依存しないでください。
+- 管理サービス：常駐workerの設定で同じコマンドと環境変数を指定し、自動再起動を有効化します。
+
+```bash
+php artisan queue:work database --queue=mail,default --sleep=3 --tries=3 --timeout=30 --max-time=3600
+```
+
+上記は現在の database 接続の例です。接続方式を変更する場合はコマンドも合わせます。現在の retry_after は90秒で、通知のtimeoutは30秒です。retry_afterをtimeoutより長く保ち、終了猶予は少なくとも60秒を確保します。デプロイ後は `php artisan queue:restart` を実行し、プロセス管理側がworkerを再起動したことを確認します。
+
+稼働確認はプロセスの存在だけでなく、jobsの件数・最古の待ち時間、`php artisan queue:failed`、Laravelログ、送信先の受信結果で行います。少量でも長時間滞留したら異常として担当者へ通知する監視を本番環境に設定してください。失敗ジョブは原因・通知内容・送信済みかを確認してから対象UUIDだけ `php artisan queue:retry <UUID>` で再試行します。滞留や失敗を隠す一括削除は行いません。
+
+Mailpitはローカル確認専用です。本番SMTP設定と外部送信の開始は別途確認します。検証にはexample.test宛てと専用Queueを使い、既存mail Queueを誤って消化しないでください。
+
+参考：[Laravel Queue運用](https://laravel.com/framework/docs/13.x/queues#supervisor-configuration)
+
+### OSを切り替える場合のフロントエンド依存
+
+MacとSail（Linux）でnode_modulesを共有すると、rolldown等のOS・CPU別ネイティブ依存が一致せずビルドできなくなることがあります。ビルドする環境を選び、その環境で `npm ci` → `npm run build` を実行してください。コミット済みlockファイルには各環境のoptional dependenciesが含まれます。復旧のためにpackage.jsonやlockファイルを削除する必要はありません。
+
+### スタジオ料金の記録がない旧予約
+
+通常予約承認・定期レッスン確定は、レッスン日に有効な料金がないと処理を止めます。振替は元予約の料金記録を引き継ぎ、記録がなければ処理を止めます。未設定を0円や現在料金で補完しません。
+
+旧予約は、予約日時・承認履歴・当時の料金表や案内を管理者が照合し、金額の根拠を確定してから修復対象を決めてください。請求下書きは修復後に再生成・再確認します。手動調整済み下書きは自動再生成されないため個別確認が必要です。確定済み請求は自動変更せず、根拠と訂正方法を管理者が確認します。
+
+### 本番切替前の確認
+
+`APP_ENV=production`、`APP_DEBUG=false`、HTTPSのAPP_URL、`SESSION_SECURE_COOKIE=true` と適切なプロキシ設定を確認してください。DBバックアップと復元を検証してから、リリース時に未適用migrationを確認・適用します。特に入金二重送信防止には `2026_09_13_220000_add_idempotency_key_to_payment_records_table` が必要です。コード配備だけでは有効になりません。
+
+Schedulerの毎分実行、workerの再起動と常駐監視、本番SMTP、バックアップ復元は本番環境で別途検証します。現在は取消済み請求を同じ月に再発行する機能がないため、請求訂正の運用を決めるまでは本番の請求運用を開始しないでください。取消や既存請求の削除で回避しないでください。
+
+定期予定は過去の候補を確定できません。週パターン変更後に旧候補が残っている場合は再生成を止めます。候補を確認して不要な旧予定をスキップした後、再生成してください。確定済み予定や手動編集を自動削除しません。
+
+### 通知対象
 
 - 予約申請：担当講師、管理者
 - 予約承認・却下：申請した生徒

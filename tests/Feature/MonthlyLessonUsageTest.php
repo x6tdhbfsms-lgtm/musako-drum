@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Enums\ApplicationStatus;
 use App\Enums\AttendanceNoticeType;
 use App\Enums\EnrollmentStatus;
+use App\Enums\PriceRateKind;
 use App\Enums\ReservationStatus;
 use App\Models\AttendanceNotice;
 use App\Models\Course;
 use App\Models\LessonEnrollment;
 use App\Models\LessonSlot;
+use App\Models\PriceRate;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\TeacherProfile;
@@ -89,6 +91,7 @@ class MonthlyLessonUsageTest extends TestCase
         $teacher = TeacherProfile::factory()->create();
         [$student, $course, $enrollment] = $this->studentWithEnrollment(2, $teacher);
         $original = $this->reservation($student, $course, $enrollment, '2026-09-20 10:00:00', ReservationStatus::Approved, $teacher);
+        $original->update(['studio_fee_amount' => 1610, 'studio_fee_priced_on' => '2026-09-20']);
         $target = $this->slot($course, '2026-10-05 10:00:00', $teacher);
         $transfer = TransferRequest::factory()->create([
             'student_profile_id' => $student->id,
@@ -150,6 +153,7 @@ class MonthlyLessonUsageTest extends TestCase
 
     public function test_staff_override_is_required_and_audited_for_an_over_limit_approval(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $this->travelTo('2026-09-01 09:00:00');
         $teacher = TeacherProfile::factory()->create();
         [$student, $course, $enrollment] = $this->studentWithEnrollment(2, $teacher);

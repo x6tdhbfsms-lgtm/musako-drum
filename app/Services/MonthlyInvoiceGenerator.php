@@ -189,6 +189,15 @@ class MonthlyInvoiceGenerator
                 $warnings[] = "スタジオ代の保存がない承認済み予約が{$missingStudioFeeCount}件あります。請求前に予約を確認してください。";
             }
 
+            $missingMonthCount = $student->reservationRequests()
+                ->where('status', ReservationStatus::Approved)
+                ->whereNull('lesson_entitlement_month')
+                ->whereHas('lessonSlot', fn ($query) => $query->whereBetween('starts_at', [$month, $month->endOfMonth()]))
+                ->count();
+            if ($missingMonthCount > 0) {
+                $warnings[] = "対象月が未設定の旧予約が{$missingMonthCount}件あります。料金記録と請求対象月を管理者が確認してください。";
+            }
+
             $invoice->update([
                 'payment_method' => $paymentMethod,
                 'due_on' => $setting->dueDateFor($month)->toDateString(),

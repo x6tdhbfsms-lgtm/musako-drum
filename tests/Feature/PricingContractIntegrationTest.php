@@ -155,6 +155,48 @@ class PricingContractIntegrationTest extends TestCase
         $this->assertSame('2026-09-20', $reservation->fresh()->studio_fee_priced_on->toDateString());
     }
 
+    public function test_missing_studio_rate_blocks_approval_without_saving_zero(): void
+    {
+        $this->travelTo('2026-09-13 10:00:00');
+        [$student, $enrollment, $teacher] = $this->studentWithEnrollment();
+        $slot = $this->slot($enrollment, $teacher, '2026-09-20 10:00:00');
+        $reservation = ReservationRequest::factory()->for($student)->for($slot)->for($enrollment)->create();
+
+        $this->actingAs($teacher->user)->patch(route('staff.reservations.update', $reservation), [
+            'decision' => ReservationStatus::Approved->value,
+        ])->assertSessionHasErrors('studio_fee');
+
+        $this->assertSame(ReservationStatus::Pending, $reservation->fresh()->status);
+        $this->assertNull($reservation->fresh()->studio_fee_amount);
+        $this->assertNull($reservation->fresh()->reviewed_at);
+    }
+
+    public function test_missing_original_snapshot_blocks_transfer_even_when_current_prices_exist(): void
+    {
+        $this->travelTo('2026-09-13 10:00:00');
+        $this->seed();
+        [$student, $enrollment, $teacher] = $this->studentWithEnrollment();
+        $originalSlot = $this->slot($enrollment, $teacher, '2026-09-20 10:00:00');
+        $target = $this->slot($enrollment, $teacher, '2026-10-05 10:00:00');
+        $original = ReservationRequest::factory()->for($student)->for($originalSlot)->for($enrollment)->create([
+            'status' => ReservationStatus::Approved,
+        ]);
+        $transfer = TransferRequest::factory()->create([
+            'student_profile_id' => $student->id,
+            'original_reservation_request_id' => $original->id,
+            'requested_lesson_slot_id' => $target->id,
+        ]);
+
+        $this->actingAs($teacher->user)->patch(route('staff.transfer-requests.update', $transfer), [
+            'decision' => ApplicationStatus::Approved->value,
+        ])->assertSessionHasErrors('transfer_request');
+
+        $this->assertSame(ReservationStatus::Approved, $original->fresh()->status);
+        $this->assertNull($original->fresh()->studio_fee_amount);
+        $this->assertNull($transfer->fresh()->resulting_reservation_request_id);
+        $this->assertSame(0, $target->reservationRequests()->count());
+    }
+
     /** @return array{StudentProfile, LessonEnrollment, TeacherProfile} */
     private function studentWithEnrollment(): array
     {

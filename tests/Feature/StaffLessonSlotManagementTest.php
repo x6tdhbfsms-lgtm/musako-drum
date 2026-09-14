@@ -10,6 +10,7 @@ use App\Models\ReservationRequest;
 use App\Models\TeacherProfile;
 use App\Models\Venue;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class StaffLessonSlotManagementTest extends TestCase
@@ -42,6 +43,32 @@ class StaffLessonSlotManagementTest extends TestCase
             'capacity' => 2,
             'status' => LessonSlotStatus::Open->value,
         ]);
+    }
+
+    public function test_capacity_rechecks_reservations_added_after_form_validation(): void
+    {
+        $this->travelTo('2026-09-13 10:00:00');
+        $teacher = TeacherProfile::factory()->create();
+        $slot = LessonSlot::factory()->for($teacher)->create([
+            'capacity' => 2, 'starts_at' => '2026-09-20 14:00:00', 'ends_at' => '2026-09-20 15:00:00',
+        ]);
+        ReservationRequest::factory()->for($slot)->create(['status' => ReservationStatus::Approved]);
+        $pending = ReservationRequest::factory()->for($slot)->create();
+        $interleaved = false;
+        DB::listen(function ($query) use (&$interleaved, $pending): void {
+            if (! $interleaved && str_contains($query->sql, 'count(*)') && str_contains($query->sql, 'trial_lesson_requests')) {
+                $interleaved = true;
+                $pending->update(['status' => ReservationStatus::Approved]);
+            }
+        });
+
+        $this->actingAs($teacher->user)->put(route('staff.lesson-slots.update', $slot), [
+            'capacity' => 1, 'status' => 'open', 'starts_at' => '2026-09-20 14:00:00', 'ends_at' => '2026-09-20 15:00:00',
+        ])->assertSessionHasErrors('capacity');
+
+        $this->assertTrue($interleaved);
+        $this->assertSame(2, $slot->fresh()->capacity);
+        $this->assertSame(2, $slot->reservationRequests()->where('status', ReservationStatus::Approved)->count());
     }
 
     public function test_teacher_cannot_edit_another_teachers_slot(): void

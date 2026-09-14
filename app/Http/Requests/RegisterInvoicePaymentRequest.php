@@ -18,7 +18,7 @@ class RegisterInvoicePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'idempotency_key' => ['nullable', 'string', 'max:64', 'alpha_dash'],
+            'idempotency_key' => ['required', 'string', 'max:64', 'alpha_dash'],
             'amount' => ['required', 'integer', 'min:1'],
             'paid_on' => ['required', 'date'],
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
@@ -26,6 +26,11 @@ class RegisterInvoicePaymentRequest extends FormRequest
             'external_payment_reference' => ['nullable', 'string', 'max:191'],
             'notes' => ['nullable', 'string', 'max:2000', 'not_regex:/(?:カード番号|口座番号|暗証番号|CVV|セキュリティコード)/u'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['idempotency_key.required' => '画面が古いため登録できません。再読み込みしてから入金を登録してください。'];
     }
 
     public function after(): array

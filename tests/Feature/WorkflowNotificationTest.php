@@ -17,6 +17,7 @@ use App\Enums\InquiryCategory;
 use App\Enums\InquiryStatus;
 use App\Enums\MembershipRequestType;
 use App\Enums\PaymentMethod;
+use App\Enums\PriceRateKind;
 use App\Enums\ReservationStatus;
 use App\Models\Course;
 use App\Models\Inquiry;
@@ -24,6 +25,7 @@ use App\Models\LessonEnrollment;
 use App\Models\LessonSlot;
 use App\Models\PaymentMethodChangeRequest;
 use App\Models\PersonalInformationChangeRequest;
+use App\Models\PriceRate;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\TeacherProfile;
@@ -50,6 +52,7 @@ class WorkflowNotificationTest extends TestCase
 
     public function test_reservation_submission_approval_rejection_and_cancellation_notify_the_correct_recipients(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $this->travelTo('2026-09-13 10:00:00');
         [$student, $teacher, $admin, $enrollment, $slot] = $this->lessonContext();
         Notification::fake();
@@ -89,7 +92,7 @@ class WorkflowNotificationTest extends TestCase
     {
         $this->travelTo('2026-09-13 10:00:00');
         [$student, $teacher, $admin, $enrollment, $slot] = $this->lessonContext();
-        $reservation = ReservationRequest::factory()->for($student)->for($slot)->for($enrollment)->create(['status' => ReservationStatus::Approved]);
+        $reservation = ReservationRequest::factory()->for($student)->for($slot)->for($enrollment)->create(['status' => ReservationStatus::Approved, 'studio_fee_amount' => 1610, 'studio_fee_priced_on' => $slot->starts_at->toDateString()]);
         Notification::fake();
 
         $this->actingAs($student->user)->put(route('student.attendance-notices.store', $reservation), [

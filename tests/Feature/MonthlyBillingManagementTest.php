@@ -33,6 +33,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -254,6 +255,46 @@ class MonthlyBillingManagementTest extends TestCase
         $this->assertDatabaseCount('payment_records', 2);
     }
 
+    public function test_legacy_reservation_without_fee_or_month_requires_invoice_review(): void
+    {
+        $this->seed();
+        [$student, $enrollment] = $this->studentWithEnrollment();
+        $slot = LessonSlot::factory()->create(['starts_at' => '2026-10-10 14:00:00', 'ends_at' => '2026-10-10 15:00:00']);
+        ReservationRequest::factory()->for($student)->for($enrollment)->for($slot)->create([
+            'status' => ReservationStatus::Approved,
+            'lesson_entitlement_month' => null,
+            'studio_fee_amount' => null,
+        ]);
+        $admin = User::factory()->admin()->create();
+        $invoice = app(MonthlyInvoiceGenerator::class)->generate('2026-10', $admin)->sole();
+
+        $this->assertTrue($invoice->requires_review);
+        $this->assertStringContainsString('対象月が未設定の旧予約', implode(' ', $invoice->warnings));
+        $this->actingAs($admin)->post(route('staff.invoices.confirm', $invoice))->assertSessionHasErrors();
+        $this->assertSame(MonthlyInvoiceStatus::Draft, $invoice->fresh()->status);
+    }
+
+    public function test_payment_form_repeated_submission_records_cash_once(): void
+    {
+        $this->seed();
+        $this->studentWithEnrollment();
+        $admin = User::factory()->admin()->create();
+        $invoice = app(MonthlyInvoiceGenerator::class)->generate('2026-10', $admin)->sole();
+        app(ConfirmMonthlyInvoice::class)->handle($invoice, $admin);
+        $page = $this->actingAs($admin)->get(route('staff.invoices.show', $invoice))->assertOk();
+        preg_match('/name="idempotency_key" value="([^"]+)"/', $page->getContent(), $matches);
+        $this->assertNotEmpty($matches[1] ?? null);
+        $data = [...$this->paymentData(5000, ''), 'idempotency_key' => $matches[1]];
+        $withoutKey = $data;
+        unset($withoutKey['idempotency_key']);
+        $this->post(route('staff.invoices.payments.store', $invoice), $withoutKey)->assertSessionHasErrors('idempotency_key');
+        $this->assertSame(0, $invoice->paymentRecords()->count());
+        $this->post(route('staff.invoices.payments.store', $invoice), $data)->assertSessionHasNoErrors();
+        $this->post(route('staff.invoices.payments.store', $invoice), $data)->assertSessionHasNoErrors();
+        $this->assertSame(5000, $invoice->fresh()->paid_amount);
+        $this->assertSame(1, $invoice->paymentRecords()->count());
+    }
+
     public function test_overpayment_is_rejected_inside_locked_payment_flow(): void
     {
         Notification::fake();
@@ -400,6 +441,7 @@ class MonthlyBillingManagementTest extends TestCase
     private function paymentData(int $amount, string $reference): array
     {
         return [
+            'idempotency_key' => Str::uuid()->toString(),
             'amount' => $amount,
             'paid_on' => '2026-09-30',
             'payment_method' => PaymentMethod::BankTransfer->value,

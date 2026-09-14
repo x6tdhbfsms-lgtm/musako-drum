@@ -9,7 +9,6 @@ use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\TransferRequest;
 use App\Models\User;
-use App\Services\LessonPricingService;
 use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +17,6 @@ use Illuminate\Validation\ValidationException;
 class ReviewTransferRequest
 {
     public function __construct(
-        private readonly LessonPricingService $lessonPricing,
         private readonly LessonSlotCapacityService $capacity,
         private readonly MusakoNotificationService $notifications,
     ) {}
@@ -76,10 +74,10 @@ class ReviewTransferRequest
 
             $studioFeeAmount = $originalReservation->studio_fee_amount;
             $studioFeePricedOn = $originalReservation->studio_fee_priced_on;
-            if ($studioFeeAmount === null && $originalReservation->lessonEnrollment !== null) {
-                $quote = $this->lessonPricing->forEnrollment($originalReservation->lessonEnrollment, $originalReservation->lessonSlot->starts_at);
-                $studioFeeAmount = $quote->studioFeePerLesson;
-                $studioFeePricedOn = $originalReservation->lessonSlot->starts_at->toDateString();
+            if ($studioFeeAmount === null || $studioFeePricedOn === null) {
+                throw ValidationException::withMessages([
+                    'transfer_request' => '元予約のスタジオ料金記録が未設定です。管理者が当時の料金と履歴を確認するまで振替を承認できません。',
+                ]);
             }
 
             $resultingReservation = ReservationRequest::create([
