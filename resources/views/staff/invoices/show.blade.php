@@ -9,7 +9,7 @@
 @csrf
 <h2 class="font-bold">取消済み請求を再発行</h2>
 <p class="mt-2 text-sm">元の請求と履歴を残し、対象月の契約・料金から新しい下書きを作成します。元の手動調整はコピーしません。</p>
-<label class="mt-3 block text-sm">再発行理由<textarea name="reason" required maxlength="2000" class="mt-2 block min-h-24 w-full rounded-xl border-stone-300">{{ old('reason') }}</textarea></label>
+<label class="mt-3 block text-sm">再発行理由<label class="text-sm">未確定の振替費用・講師都合の月謝を確認する場合のみ、振替番号を入力（自動明細以外の未確定分を金額欄に入力。追加なしは0円）<input type="number" name="transfer_request_id" min="1" class="mt-1 min-h-11 w-full rounded-xl border-stone-300"></label><textarea name="reason" required maxlength="2000" class="mt-2 block min-h-24 w-full rounded-xl border-stone-300">{{ old('reason') }}</textarea></label>
 <button class="mt-3 min-h-11 rounded-xl bg-emerald-700 px-5 text-white">再発行の下書きを開く</button>
 </form>
 @endif

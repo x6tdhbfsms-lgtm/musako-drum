@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Models\Venue;
 use App\Notifications\RegularScheduleConfirmedNotification;
 use App\Services\RegularScheduleGenerator;
+use App\Services\TeacherBookingAvailability;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -36,6 +37,36 @@ use Tests\TestCase;
 class RegularScheduleManagementTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_unconfigured_week_patterns_default_to_alternate_weeks_or_first_four(): void
+    {
+        $teacher = TeacherProfile::factory()->create();
+        $two = $this->regularEnrollment($teacher, 2, [], ['regular_week_numbers' => null]);
+        $four = $this->regularEnrollment($teacher, 4, [], ['starts_at_time' => '17:00', 'regular_week_numbers' => null]);
+        $generator = app(RegularScheduleGenerator::class);
+        $generator->generateMonth(CarbonImmutable::parse('2026-10-01'));
+        $generator->generateMonth(CarbonImmutable::parse('2026-10-01'));
+        $this->assertSame([1, 3], RegularScheduleOccurrence::where('lesson_enrollment_id', $two->id)->orderBy('week_number')->pluck('week_number')->all());
+        $this->assertSame([1, 2, 3, 4], RegularScheduleOccurrence::where('lesson_enrollment_id', $four->id)->orderBy('week_number')->pluck('week_number')->all());
+    }
+
+    public function test_draft_blocks_calendar_and_booking_until_confirmed_or_skipped(): void
+    {
+        $this->travelTo('2026-09-01 10:00:00');
+        $teacher = TeacherProfile::factory()->create();
+        $otherTeacher = TeacherProfile::factory()->create();
+        $enrollment = $this->regularEnrollment($teacher, 2, [1, 3]);
+        $occurrence = app(RegularScheduleGenerator::class)->generateMonth(CarbonImmutable::parse('2026-10-01'))->first()->occurrences->first();
+        $candidate = new LessonSlot($occurrence->only(['teacher_profile_id', 'venue_id', 'course_id', 'starts_at', 'ends_at']));
+        $availability = app(TeacherBookingAvailability::class);
+        $this->assertNotEmpty($availability->reasons(collect([$candidate])));
+        $this->actingAs($teacher->user)->get(route('staff.dashboard', ['date' => $occurrence->starts_at->format('Y-m-d')]))
+            ->assertOk()->assertSee('定期・仮押さえ')->assertSee($enrollment->studentProfile->user->name);
+        $this->actingAs($otherTeacher->user)->get(route('staff.dashboard', ['date' => $occurrence->starts_at->format('Y-m-d')]))
+            ->assertOk()->assertDontSee($enrollment->studentProfile->user->name);
+        $occurrence->update(['status' => RegularScheduleOccurrenceStatus::Skipped]);
+        $this->assertSame([], $availability->reasons(collect([$candidate])));
+    }
 
     public function test_regular_contracts_generate_configured_week_patterns_for_monthly_counts_one_to_four(): void
     {
@@ -86,6 +117,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_confirmation_creates_an_approved_reservation_with_entitlement_and_monthly_notification(): void
     {
+        $this->travelTo('2026-09-01 10:00:00');
         PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         Notification::fake();
         $teacher = TeacherProfile::factory()->create();
@@ -128,6 +160,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_notification_is_deduplicated_for_the_same_confirmed_schedule_signature(): void
     {
+        $this->travelTo('2026-09-01 10:00:00');
         PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         Notification::fake();
         $teacher = TeacherProfile::factory()->create();
@@ -237,6 +270,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_draft_can_be_edited_but_confirmed_occurrence_cannot_be_directly_edited(): void
     {
+        $this->travelTo('2026-09-01 10:00:00');
         PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $teacher = TeacherProfile::factory()->create();
         $enrollment = $this->regularEnrollment($teacher, 1, [1]);
@@ -283,6 +317,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_confirmed_occurrence_cancellation_keeps_reservation_history_without_usage(): void
     {
+        $this->travelTo('2026-09-01 10:00:00');
         PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $teacher = TeacherProfile::factory()->create();
         $enrollment = $this->regularEnrollment($teacher, 1, [1]);

@@ -24,7 +24,7 @@ class ContractChangeRequestFlowTest extends TestCase
 
     public function test_student_can_submit_a_schedule_change_without_changing_the_current_contract(): void
     {
-        $this->travelTo('2026-09-12 10:00:00');
+        $this->travelTo('2026-09-10 10:00:00');
         [$student, $enrollment] = $this->studentWithEnrollment();
 
         $this->actingAs($student->user)->post(route('student.contract-change-requests.store'), [
@@ -103,7 +103,7 @@ class ContractChangeRequestFlowTest extends TestCase
 
     public function test_approved_course_and_venue_changes_create_successive_contract_history(): void
     {
-        $this->travelTo('2026-09-12 10:00:00');
+        $this->travelTo('2026-09-10 10:00:00');
         [$student, $enrollment] = $this->studentWithEnrollment();
         $newCourse = Course::factory()->create(['name' => 'グループレッスン']);
         $newVenue = Venue::factory()->create(['name' => '武蔵小金井第二会場']);
@@ -139,7 +139,7 @@ class ContractChangeRequestFlowTest extends TestCase
 
     public function test_approved_course_addition_preserves_the_existing_contract(): void
     {
-        $this->travelTo('2026-09-12 10:00:00');
+        $this->travelTo('2026-09-10 10:00:00');
         [$student, $enrollment] = $this->studentWithEnrollment();
         $additionalCourse = Course::factory()->create(['default_monthly_lessons' => 2, 'default_lesson_minutes' => 45]);
         $request = ContractChangeRequest::create([
@@ -166,7 +166,7 @@ class ContractChangeRequestFlowTest extends TestCase
 
     public function test_approval_creates_a_future_contract_version_and_keeps_existing_reservation_unchanged(): void
     {
-        $this->travelTo('2026-09-12 10:00:00');
+        $this->travelTo('2026-09-10 10:00:00');
         [$student, $enrollment, $teacher, $venue] = $this->studentWithEnrollment();
         $slot = LessonSlot::factory()->for($teacher)->for($venue)->for($enrollment->course)->create([
             'starts_at' => '2026-10-10 18:00:00',

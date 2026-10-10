@@ -28,6 +28,7 @@ use App\Models\TransferRequest;
 use App\Models\TrialLessonRequest;
 use App\Models\User;
 use App\Models\Venue;
+use App\Services\LessonOperatingHours;
 use App\Support\CalendarRange;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -37,7 +38,7 @@ class DashboardController extends Controller
     public function __invoke(StaffCalendarRequest $request): View
     {
         $validated = $request->validated();
-        $calendarView = $validated['view'] ?? 'month';
+        $calendarView = $validated['view'] ?? 'week';
         $focus = CarbonImmutable::createFromFormat(
             '!Y-m-d',
             $validated['date'] ?? now()->format('Y-m-d'),
@@ -76,9 +77,21 @@ class DashboardController extends Controller
             ->whereBetween('starts_at', [$calendarRange->start, $calendarRange->end])
             ->orderBy('starts_at')
             ->get();
-        $calendarSlotsByDay = $calendarSlots->groupBy(fn (LessonSlot $slot): string => $slot->starts_at->format('Y-m-d'));
-        $firstTimelineHour = min(8, (int) ($calendarSlots->min(fn (LessonSlot $slot): int => $slot->starts_at->hour) ?? 8));
-        $lastTimelineHour = max(22, (int) ($calendarSlots->max(fn (LessonSlot $slot): int => $slot->starts_at->hour) ?? 22));
+        $regularBlocks = RegularScheduleOccurrence::query()
+            ->with(['studentProfile.user', 'teacherProfile', 'venue'])
+            ->whereIn('status', ['draft', 'conflict'])
+            ->whereBetween('starts_at', [$calendarRange->start, $calendarRange->end])
+            ->when($reservationStatus !== null, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($user->role === UserRole::Teacher && $teacherFilterId === null, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($teacherFilterId !== null, fn ($query) => $query->where('teacher_profile_id', $teacherFilterId))
+            ->when($venueFilterId !== null, fn ($query) => $query->where('venue_id', $venueFilterId))
+            ->get();
+        $calendarSlots = $calendarSlots->toBase()->concat($regularBlocks)->sortBy('starts_at')->values();
+        $calendarSlotsByDay = $calendarSlots->groupBy(fn ($slot): string => $slot->starts_at->format('Y-m-d'));
+        [$openingHour, $closingHour] = $calendarView === 'day'
+            ? LessonOperatingHours::hours($calendarRange->focus) : [10, 21];
+        $firstTimelineHour = min($openingHour, (int) ($calendarSlots->min(fn ($slot): int => $slot->starts_at->hour) ?? $openingHour));
+        $lastTimelineHour = max($closingHour - 1, (int) ($calendarSlots->max(fn ($slot): int => $slot->starts_at->hour) ?? ($closingHour - 1)));
 
         $reservations = ReservationRequest::query()
             ->when(

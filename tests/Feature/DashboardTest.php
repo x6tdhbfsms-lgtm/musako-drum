@@ -43,7 +43,7 @@ class DashboardTest extends TestCase
             ->create();
 
         $this->actingAs($teacher->user)
-            ->get(route('staff.dashboard'))
+            ->get(route('staff.dashboard', ['date' => $ownReservation->lessonSlot->starts_at->format('Y-m-d')]))
             ->assertOk()
             ->assertSee($ownReservation->studentProfile->user->name)
             ->assertSee('承認待ち');

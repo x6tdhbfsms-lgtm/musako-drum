@@ -143,6 +143,7 @@ class WorkflowNotificationTest extends TestCase
 
     public function test_membership_contract_personal_payment_and_inquiry_events_notify_the_expected_users(): void
     {
+        $this->travelTo('2026-09-10 10:00:00');
         [$student, $teacher, $admin, $enrollment] = $this->lessonContext();
         Notification::fake();
 

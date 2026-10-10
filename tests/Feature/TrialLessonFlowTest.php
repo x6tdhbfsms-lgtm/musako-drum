@@ -21,6 +21,7 @@ class TrialLessonFlowTest extends TestCase
 
     public function test_guest_can_view_public_trial_page_and_submit_an_application(): void
     {
+        $this->travelTo('2026-09-10 12:00:00');
         Notification::fake();
         $slot = LessonSlot::factory()->forTrials()->create(['starts_at' => now()->addDays(3), 'ends_at' => now()->addDays(3)->addHour()]);
         $admin = User::factory()->admin()->create();

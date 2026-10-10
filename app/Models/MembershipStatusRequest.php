@@ -24,6 +24,8 @@ class MembershipStatusRequest extends Model
         'reviewed_at',
         'staff_note',
         'previous_enrollment_statuses',
+        'released_schedule_snapshot',
+        'schedule_released_at',
         'applied_at',
     ];
 
@@ -36,6 +38,8 @@ class MembershipStatusRequest extends Model
             'requested_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'previous_enrollment_statuses' => 'array',
+            'released_schedule_snapshot' => 'array',
+            'schedule_released_at' => 'datetime',
             'applied_at' => 'datetime',
         ];
     }

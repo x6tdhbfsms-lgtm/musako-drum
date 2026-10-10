@@ -8,6 +8,7 @@ use App\Models\LessonSlot;
 use App\Models\TrialLessonRequest;
 use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
+use App\Services\TeacherBookingAvailability;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 class CreateTrialLessonRequest
 {
     public function __construct(
+        private readonly TeacherBookingAvailability $availability,
         private readonly LessonSlotCapacityService $capacity,
         private readonly MusakoNotificationService $notifications,
     ) {}
@@ -29,6 +31,7 @@ class CreateTrialLessonRequest
 
         $trialLessonRequest = DB::transaction(function () use ($attributes, $token, $email): TrialLessonRequest {
             $lessonSlot = LessonSlot::query()->lockForUpdate()->findOrFail($attributes['lesson_slot_id']);
+            $this->availability->assertAvailable($lessonSlot, 'lesson_slot_id');
 
             if ($lessonSlot->status !== LessonSlotStatus::Open
                 || ! $lessonSlot->starts_at->isFuture()

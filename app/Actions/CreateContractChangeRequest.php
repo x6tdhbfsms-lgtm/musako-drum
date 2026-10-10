@@ -10,13 +10,14 @@ use App\Models\LessonEnrollment;
 use App\Models\StudentProfile;
 use App\Models\Venue;
 use App\Services\MusakoNotificationService;
+use App\Services\SchoolProcedureDeadline;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateContractChangeRequest
 {
-    public function __construct(private readonly MusakoNotificationService $notifications) {}
+    public function __construct(private readonly MusakoNotificationService $notifications, private readonly SchoolProcedureDeadline $deadline) {}
 
     public function handle(StudentProfile $studentProfile, array $data): ContractChangeRequest
     {
@@ -43,6 +44,10 @@ class CreateContractChangeRequest
                 ->exists();
             if ($hasDuplicate) {
                 throw ValidationException::withMessages(['type' => '同じ内容の承認待ち申請があります。']);
+            }
+
+            if (in_array($type, [ContractChangeType::Schedule, ContractChangeType::MonthlyLessons], true)) {
+                $this->deadline->assertInTime($data['effective_on']);
             }
 
             $beforeValues = $enrollment === null ? null : $this->snapshot($enrollment);

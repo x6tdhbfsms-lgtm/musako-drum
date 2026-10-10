@@ -11,7 +11,9 @@ use App\Models\LessonSlot;
 use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\Venue;
+use App\Services\LessonOperatingHours;
 use App\Services\LessonSlotCapacityService;
+use App\Services\TeacherBookingAvailability;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -68,7 +70,7 @@ class LessonSlotController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreLessonSlotRequest $request): RedirectResponse
+    public function store(StoreLessonSlotRequest $request, TeacherBookingAvailability $availability): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -77,7 +79,16 @@ class LessonSlotController extends Controller
             ? $request->integer('teacher_profile_id')
             : $user->teacherProfile->id;
 
-        LessonSlot::create($attributes);
+        $candidate = new LessonSlot($attributes);
+        LessonOperatingHours::assertAllowed($candidate->starts_at, $candidate->ends_at);
+        $reason = $availability->timingReason($candidate);
+        if ($reason !== null) {
+            throw ValidationException::withMessages(['starts_at' => $reason]);
+        }
+        DB::transaction(function () use ($attributes, $availability): void {
+            $slot = LessonSlot::create($attributes);
+            $availability->assertAvailable($slot, 'starts_at');
+        }, 3);
 
         return redirect()->route('staff.lesson-slots.index')->with('success', 'レッスン枠を作成しました。');
     }
@@ -95,7 +106,7 @@ class LessonSlotController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateLessonSlotRequest $request, LessonSlot $lessonSlot, LessonSlotCapacityService $capacity): RedirectResponse
+    public function update(UpdateLessonSlotRequest $request, LessonSlot $lessonSlot, LessonSlotCapacityService $capacity, TeacherBookingAvailability $availability): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -103,7 +114,7 @@ class LessonSlotController extends Controller
         $attributes['teacher_profile_id'] = $user->role === UserRole::Admin
             ? $request->integer('teacher_profile_id')
             : $user->teacherProfile->id;
-        DB::transaction(function () use ($lessonSlot, $attributes, $capacity): void {
+        DB::transaction(function () use ($lessonSlot, $attributes, $capacity, $availability): void {
             $lockedSlot = LessonSlot::query()->lockForUpdate()->findOrFail($lessonSlot->id);
             $reserved = $capacity->approvedReservationCount($lockedSlot) + $capacity->activeTrialCount($lockedSlot);
             if ((int) $attributes['capacity'] < $reserved) {
@@ -111,8 +122,20 @@ class LessonSlotController extends Controller
                     'capacity' => '予約状況が更新されています。現在の予約数より定員を少なくできません。画面を再読み込みしてください。',
                 ]);
             }
-            $lockedSlot->update($attributes);
-        });
+            $lockedSlot->fill($attributes);
+            $lockedSlot->unsetRelation('venue');
+            $reason = $availability->timingReason($lockedSlot, $lockedSlot->isDirty(['starts_at', 'ends_at']));
+            if ($reason !== null) {
+                throw ValidationException::withMessages(['starts_at' => $reason]);
+            }
+            if ($lockedSlot->isDirty(['starts_at', 'ends_at'])) {
+                LessonOperatingHours::assertAllowed($lockedSlot->starts_at, $lockedSlot->ends_at);
+            }
+            if ($lockedSlot->isDirty(['teacher_profile_id', 'venue_id', 'starts_at', 'ends_at'])) {
+                $availability->assertAvailable($lockedSlot, 'starts_at');
+            }
+            $lockedSlot->save();
+        }, 3);
 
         return redirect()->route('staff.lesson-slots.index')->with('success', 'レッスン枠を更新しました。');
     }

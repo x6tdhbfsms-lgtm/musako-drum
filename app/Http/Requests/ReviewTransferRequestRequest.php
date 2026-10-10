@@ -31,6 +31,7 @@ class ReviewTransferRequestRequest extends FormRequest
         return [
             'decision' => ['required', Rule::in([ApplicationStatus::Approved->value, ApplicationStatus::Rejected->value])],
             'staff_note' => ['nullable', 'string', 'max:1000'],
+            'cause' => ['sometimes', Rule::in(['student', 'teacher', 'emergency'])],
         ];
     }
 }

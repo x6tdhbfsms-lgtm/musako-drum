@@ -35,5 +35,6 @@
 
     @if ($setting?->lesson_pricing_url || $setting?->studio_pricing_url)<div class="mt-7 flex flex-col gap-3 sm:flex-row">@if ($setting->lesson_pricing_url)<a href="{{ $setting->lesson_pricing_url }}" rel="noopener noreferrer" target="_blank" class="inline-flex min-h-12 items-center justify-center rounded-xl bg-stone-900 px-5 text-sm font-bold text-white">最新のレッスン料金を確認 ↗</a>@endif @if ($setting->studio_pricing_url)<a href="{{ $setting->studio_pricing_url }}" rel="noopener noreferrer" target="_blank" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-stone-300 bg-white px-5 text-sm font-bold">最新のスタジオ料金を確認 ↗</a>@endif</div>@endif
     <p class="mt-6 text-xs leading-6 text-stone-500">表示金額はすべて税込の目安です。契約内容や利用回数により異なる場合があります。</p>
+@include('public._electronic-drum-course')
 </div>
 @endsection

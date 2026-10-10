@@ -13,7 +13,11 @@ class TransferApplicationNotification extends QueuedMusakoNotification
     public function __construct(
         public TransferRequest $transferRequest,
         public ApplicationStatus $eventStatus,
-    ) {}
+    ) {
+        $this->undated = $transferRequest->requested_lesson_slot_id === null;
+    }
+
+    public bool $undated = false;
 
     public function category(): NotificationCategory
     {
@@ -36,12 +40,12 @@ class TransferApplicationNotification extends QueuedMusakoNotification
         $mail = (new MailMessage)
             ->subject(match ($this->eventStatus) {
                 ApplicationStatus::Pending => '【MUSAKOドラム教室】新しい振替申請があります',
-                ApplicationStatus::Approved => '【MUSAKOドラム教室】振替が確定しました',
+                ApplicationStatus::Approved => $this->undated ? '【MUSAKOドラム教室】振替の日程保留が承認されました' : '【MUSAKOドラム教室】振替が確定しました',
                 ApplicationStatus::Rejected => '【MUSAKOドラム教室】振替申請の結果',
             })
             ->greeting(match ($this->eventStatus) {
                 ApplicationStatus::Pending => '新しい振替申請があります',
-                ApplicationStatus::Approved => '振替が確定しました',
+                ApplicationStatus::Approved => $this->undated ? '振替の日程保留が承認されました' : '振替が確定しました',
                 ApplicationStatus::Rejected => '振替申請は却下されました',
             });
 
@@ -51,8 +55,12 @@ class TransferApplicationNotification extends QueuedMusakoNotification
 
         $mail->line('元レッスン')
             ->lines($this->lessonDetails($this->transferRequest->originalReservationRequest->lessonSlot))
-            ->line($approved ? '新しいレッスン' : '希望した振替先')
-            ->lines($this->lessonDetails($this->transferRequest->requestedLessonSlot));
+            ->line($approved ? '新しいレッスン' : '希望した振替先');
+        if ($this->undated) {
+            $mail->line('日程未定（保留）。日程が決まり次第、先生が登録します。');
+        } else {
+            $mail->lines($this->lessonDetails($this->transferRequest->requestedLessonSlot));
+        }
 
         if ($this->eventStatus === ApplicationStatus::Rejected && filled($this->transferRequest->staff_note)) {
             $mail->line('却下理由：'.$this->transferRequest->staff_note);

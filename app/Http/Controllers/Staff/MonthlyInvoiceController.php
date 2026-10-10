@@ -96,10 +96,11 @@ class MonthlyInvoiceController extends Controller
         Gate::authorize('manage', MonthlyInvoice::class);
         $data = $request->validate([
             'description' => ['required', 'string', 'max:255'],
-            'amount' => ['required', 'integer', 'not_in:0', 'between:-1000000,1000000'],
+            'transfer_request_id' => ['nullable', 'integer', 'min:1'],
+            'amount' => ['required', 'integer', 'between:-1000000,1000000'],
             'reason' => ['required', 'string', 'max:2000'],
         ]);
-        $action->handle($invoice, $request->user(), (int) $data['amount'], $data['reason'], $data['description']);
+        $action->handle($invoice, $request->user(), (int) $data['amount'], $data['reason'], $data['description'], isset($data['transfer_request_id']) ? (int) $data['transfer_request_id'] : null);
 
         return back()->with('success', '調整明細を追加しました。');
     }
@@ -143,7 +144,7 @@ class MonthlyInvoiceController extends Controller
         $data = $request->validate([
             'generation_day' => ['required', 'integer', 'between:1,28'],
             'generation_time' => ['required', 'date_format:H:i'],
-            'due_rule' => ['required', Rule::in(['previous_month_end', 'billing_month_day'])],
+            'due_rule' => ['required', Rule::in(['previous_month_end', 'billing_month_day', 'billing_month_end'])],
             'due_day' => ['nullable', 'integer', 'between:1,28', 'required_if:due_rule,billing_month_day'],
         ]);
         BillingSetting::current()->update([

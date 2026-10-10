@@ -19,7 +19,7 @@ class TrialLessonRequest extends Model
         'public_reference', 'access_token_hash', 'active_slot_key', 'lesson_slot_id', 'name', 'name_kana', 'email',
         'email_normalized', 'phone', 'age_group', 'drum_experience', 'consultation', 'status',
         'privacy_policy_version', 'privacy_consented_at', 'requested_at', 'processed_by_user_id', 'processed_at',
-        'rejection_reason', 'approved_at', 'rejected_at', 'cancelled_at', 'completed_at', 'no_show_at', 'converted_at',
+        'cancellation_fee_amount', 'rejection_reason', 'approved_at', 'rejected_at', 'cancelled_at', 'completed_at', 'no_show_at', 'converted_at',
     ];
 
     protected $hidden = ['access_token_hash', 'active_slot_key', 'email_normalized'];
@@ -27,6 +27,7 @@ class TrialLessonRequest extends Model
     protected function casts(): array
     {
         return [
+            'cancellation_fee_amount' => 'integer',
             'status' => TrialLessonStatus::class,
             'privacy_consented_at' => 'datetime',
             'requested_at' => 'datetime',

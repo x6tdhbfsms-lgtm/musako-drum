@@ -8,10 +8,12 @@ use App\Http\Requests\StorePriceRateRequest;
 use App\Http\Requests\StorePricingSettingRequest;
 use App\Models\PriceRate;
 use App\Models\PricingSetting;
+use App\Models\Venue;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PricingSettingController extends Controller
@@ -33,11 +35,24 @@ class PricingSettingController extends Controller
 
         return view('staff.pricing-settings.index', [
             'rates' => $rates,
+            'venues' => Venue::query()->orderBy('id')->get(),
             'currentRateIds' => $currentRateIds,
             'settings' => $settings,
             'currentSettingId' => $currentSettingId,
             'canManage' => $request->user()->role === UserRole::Admin,
         ]);
+    }
+
+    public function updateVenue(Request $request, Venue $venue): RedirectResponse
+    {
+        abort_unless($request->user()->role === UserRole::Admin, 403);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'lesson_room_type' => ['required', Rule::in(['studio34', 'music_room'])],
+        ]);
+        $venue->update($data);
+
+        return back()->with('success', '会場名と規約区分を保存しました。今後の予約・振替確定に適用します。');
     }
 
     public function storeRate(StorePriceRateRequest $request): RedirectResponse

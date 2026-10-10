@@ -13,6 +13,7 @@ use App\Models\LessonEnrollment;
 use App\Models\MonthlyInvoice;
 use App\Models\MonthlyInvoiceAudit;
 use App\Models\StudentProfile;
+use App\Models\TransferRequest;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -189,6 +190,48 @@ class MonthlyInvoiceGenerator
                     'source_id' => $reservation->id,
                     'pricing_snapshot' => ['studio_fee_amount' => (int) $reservation->studio_fee_amount, 'studio_fee_priced_on' => $reservation->studio_fee_priced_on?->toDateString()],
                 ]);
+            }
+
+            $transfers = TransferRequest::query()
+                ->where('student_profile_id', $student->id)->where('status', ApplicationStatus::Approved)
+                ->where('terms_snapshot->billing_month', $month->toDateString())
+                ->whereNotNull('terms_snapshot')->get();
+            $labels = [
+                'studio_cancellation' => 'studio34 キャンセル料',
+                'late_transfer' => '直前振替料金',
+                'excess_lesson' => '振替上限超過 レッスン料金',
+                'excess_surcharge' => '振替上限超過 加算',
+            ];
+            foreach ($transfers as $transfer) {
+                $snapshot = $transfer->terms_snapshot;
+                if ($transfer->isAwaitingSchedule() && isset($snapshot['deferred_studio_fee_amount'])) {
+                    $invoice->items()->create([
+                        'type' => InvoiceItemType::StudioFee,
+                        'description' => 'スタジオ使用料（日程保留中・振替#'.$transfer->id.'）',
+                        'unit_amount' => $snapshot['deferred_studio_fee_amount'],
+                        'amount' => $snapshot['deferred_studio_fee_amount'],
+                        'source_type' => TransferRequest::class, 'source_id' => $transfer->id,
+                        'pricing_snapshot' => ['studio_fee_amount' => $snapshot['deferred_studio_fee_amount'], 'studio_fee_priced_on' => $snapshot['deferred_studio_fee_priced_on']],
+                    ]);
+                }
+                if ($snapshot['requires_review'] ?? true) {
+                    $warnings[] = ($snapshot['lesson_settlement_review'] ?? false)
+                        ? '振替#'.$transfer->id.'は講師都合です。月謝が実施分のみになるよう確認し、差額または0円の確認明細を追加してください。'
+                        : '振替#'.$transfer->id.'の会場区分・追加料金が未確定です。料金を確認して手動明細を追加してください。';
+                }
+                foreach ($labels as $key => $label) {
+                    $amount = $snapshot['components'][$key] ?? null;
+                    if ($amount === null || $amount <= 0) {
+                        continue;
+                    }
+                    $invoice->items()->create([
+                        'type' => InvoiceItemType::Other,
+                        'description' => $label.'（振替#'.$transfer->id.'）',
+                        'unit_amount' => $amount, 'amount' => $amount,
+                        'source_type' => TransferRequest::class, 'source_id' => $transfer->id,
+                        'pricing_snapshot' => [...$snapshot, 'component' => $key],
+                    ]);
+                }
             }
 
             $missingStudioFeeCount = $student->reservationRequests()

@@ -55,7 +55,7 @@ class NotificationRecipientResolver
 
         return $this->admins()
             ->push($transferRequest->originalReservationRequest->lessonSlot->teacherProfile?->user)
-            ->push($transferRequest->requestedLessonSlot->teacherProfile?->user)
+            ->push($transferRequest->requestedLessonSlot?->teacherProfile?->user)
             ->filter(fn (?User $user): bool => $user?->account_status === AccountStatus::Active)
             ->unique('id')
             ->values();

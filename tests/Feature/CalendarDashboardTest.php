@@ -59,14 +59,49 @@ class CalendarDashboardTest extends TestCase
             ->get(route('student.dashboard', ['month' => '2026-09']))
             ->assertOk()
             ->assertSee('レッスンカレンダー')
-            ->assertSee(route('student.reservations.store', $available), escape: false)
+            ->assertDontSee(route('student.reservations.store', $available), escape: false)
+            ->assertDontSee(route('student.membership-status-requests.index', ['type' => 'pause']), escape: false)
+            ->assertDontSee(route('student.membership-status-requests.index', ['type' => 'withdraw']), escape: false)
+            ->assertViewHas('nextReservation', fn ($next) => $next->is($approved))
             ->assertViewHas('calendarEntriesByDay', function (Collection $days): bool {
                 $statuses = $days->flatten(1)->pluck('status');
 
-                return collect(StudentCalendarStatus::cases())->every(fn (StudentCalendarStatus $status): bool => $statuses->contains($status));
+                return $statuses->count() === 8
+                    && ! $statuses->contains(StudentCalendarStatus::Available)
+                    && ! $statuses->contains(StudentCalendarStatus::Full)
+                    && $statuses->contains(StudentCalendarStatus::TransferPending)
+                    && $statuses->contains(StudentCalendarStatus::TransferApproved);
             });
 
         $this->assertSame(ReservationStatus::Pending, $pending->fresh()->status);
+    }
+
+    public function test_student_without_profile_has_no_calendar_entries(): void
+    {
+        $this->travelTo('2026-09-01 09:00:00');
+        $this->slot(TeacherProfile::factory()->create(), '2026-09-10 10:00:00');
+        $this->actingAs(User::factory()->create())
+            ->get(route('student.dashboard'))
+            ->assertOk()
+            ->assertViewHas('calendarEntriesByDay', fn (Collection $days): bool => $days->isEmpty())
+            ->assertViewHas('nextReservation', null);
+    }
+
+    public function test_default_staff_week_shows_all_nine_daily_lessons(): void
+    {
+        $this->travelTo('2026-09-10 09:00:00');
+        $teacher = TeacherProfile::factory()->create();
+        $names = [];
+        foreach (range(10, 18) as $hour) {
+            $name = '９コマ確認'.$hour;
+            $student = StudentProfile::factory()->create(['user_id' => User::factory()->create(['name' => $name])]);
+            $this->reservation($student, $teacher, '2026-09-10 '.$hour.':00:00', ReservationStatus::Approved);
+            $names[] = $name;
+        }
+        $response = $this->actingAs($teacher->user)->get(route('staff.dashboard'))->assertOk()->assertViewHas('calendarView', 'week');
+        foreach ($names as $name) {
+            $response->assertSee($name);
+        }
     }
 
     public function test_student_reservation_detail_exposes_actions_and_forbids_another_student(): void
@@ -158,6 +193,7 @@ class CalendarDashboardTest extends TestCase
             ->get(route('staff.reservations.show', $reservation))
             ->assertOk()
             ->assertSee('予約を確認')
+            ->assertSee(route('staff.dashboard', ['view' => 'week', 'date' => $reservation->lessonSlot->starts_at->format('Y-m-d')]), escape: true)
             ->assertSee($reservation->studentProfile->user->name);
 
         $this->actingAs($otherTeacher->user)
@@ -174,7 +210,13 @@ class CalendarDashboardTest extends TestCase
             ->get(route('staff.lesson-slots.create', ['starts_at' => '2026-09-10T10:00']))
             ->assertOk()
             ->assertSee('value="2026-09-10T10:00"', escape: false)
-            ->assertSee('value="2026-09-10T11:00"', escape: false);
+            ->assertSee('value="2026-09-10T11:00"', escape: false)
+            ->assertSee(route('staff.dashboard', ['view' => 'week', 'date' => '2026-09-10']), escape: true);
+
+        $slot = $this->slot($teacher, '2026-09-10 10:00:00');
+        $this->get(route('staff.lesson-slots.edit', $slot))
+            ->assertOk()
+            ->assertSee(route('staff.dashboard', ['view' => 'week', 'date' => '2026-09-10']), escape: true);
     }
 
     public function test_staff_calendar_rejects_an_unknown_view_and_status_filter(): void

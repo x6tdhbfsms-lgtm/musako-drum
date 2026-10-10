@@ -10,12 +10,22 @@ use App\Models\RegularScheduleOccurrence;
 
 class RegularScheduleConflictDetector
 {
-    public function __construct(private readonly LessonSlotCapacityService $capacity) {}
+    public function __construct(
+        private readonly LessonSlotCapacityService $capacity,
+        private readonly TeacherBookingAvailability $availability,
+    ) {}
 
     /** @return list<string> */
     public function detect(RegularScheduleOccurrence $occurrence): array
     {
-        $reasons = [];
+        $candidate = new LessonSlot($occurrence->only(['teacher_profile_id', 'venue_id', 'course_id', 'starts_at', 'ends_at']));
+        $reasons = array_values($this->availability->reasons(collect([$candidate]), exceptOccurrenceId: $occurrence->id));
+
+        $eligibility = app(StudentLessonEligibility::class)->reason($occurrence->studentProfile, $candidate, $occurrence->lessonEnrollment);
+        if ($eligibility !== null) {
+            $reasons[] = $eligibility;
+        }
+
         $overlap = fn ($query) => $query
             ->where('starts_at', '<', $occurrence->ends_at)
             ->where('ends_at', '>', $occurrence->starts_at);
@@ -79,6 +89,19 @@ class RegularScheduleConflictDetector
             ->exists();
         if ($draftConflict) {
             $reasons[] = '別のレギュラー予定と時間が重複しています。';
+        }
+
+        $travelConflict = RegularScheduleOccurrence::query()
+            ->whereKeyNot($occurrence->id)
+            ->whereIn('status', [RegularScheduleOccurrenceStatus::Draft, RegularScheduleOccurrenceStatus::Conflict, RegularScheduleOccurrenceStatus::Confirmed])
+            ->where('teacher_profile_id', $occurrence->teacher_profile_id)
+            ->when($occurrence->venue_id !== null, fn ($query) => $query
+                ->where(fn ($query) => $query->whereNull('venue_id')->orWhere('venue_id', '!=', $occurrence->venue_id)))
+            ->where('starts_at', '<', $occurrence->ends_at->copy()->addMinutes(TeacherBookingAvailability::TRAVEL_MINUTES))
+            ->where('ends_at', '>', $occurrence->starts_at->copy()->subMinutes(TeacherBookingAvailability::TRAVEL_MINUTES))
+            ->exists();
+        if ($travelConflict) {
+            $reasons[] = TeacherBookingAvailability::TRAVEL_MESSAGE;
         }
 
         return array_values(array_unique($reasons));

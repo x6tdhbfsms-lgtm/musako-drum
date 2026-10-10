@@ -154,6 +154,62 @@ class AdmissionApplicationFlowTest extends TestCase
         ])->assertSessionHasErrors('email');
     }
 
+    public function test_admin_direct_registration_creates_account_and_contract_without_trial_link(): void
+    {
+        Notification::fake();
+        $this->seed();
+        $admin = User::factory()->admin()->create();
+        $payload = $this->validPayload(TrialLessonRequest::factory()->create());
+        $payload['course_id'] = Course::where('code', 'INDIVIDUAL-60')->sole()->id;
+        $payload['venue_id'] = Venue::where('code', 'MUSAKO')->sole()->id;
+        $payload['email'] = ' New.Student@Example.com ';
+        $this->actingAs($admin)->get(route('staff.admission-applications.create'))->assertOk()->assertSee('新規生徒登録');
+        $response = $this->post(route('staff.admission-applications.store'), $payload)->assertSessionHasNoErrors();
+        $application = AdmissionApplication::sole();
+        $this->assertNull($application->trial_lesson_request_id);
+        $this->assertSame(AdmissionApplicationStatus::Approved, $application->status);
+        $this->assertSame('new.student@example.com', $application->convertedUser->email);
+        $this->assertSame(2, (int) $application->convertedLessonEnrollment->monthly_lesson_limit);
+        $response->assertRedirectToRoute('staff.students.show', $application->converted_student_profile_id);
+        Notification::assertSentOnDemand(InitialPasswordSetupNotification::class);
+        $this->post(route('staff.admission-applications.store'), $payload)->assertSessionHasErrors('email');
+        $this->assertDatabaseCount('admission_applications', 1);
+    }
+
+    public function test_direct_registration_required_fields_have_japanese_labels(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('staff.admission-applications.store'), [])
+            ->assertSessionHasErrors([
+                'teacher_profile_id' => '講師を入力・選択してください。',
+                'venue_id' => '会場を入力・選択してください。',
+                'name' => '氏名を入力・選択してください。',
+            ]);
+    }
+
+    public function test_non_admin_cannot_directly_register_students(): void
+    {
+        foreach ([User::factory()->create(), TeacherProfile::factory()->create()->user] as $user) {
+            $this->actingAs($user)->get(route('staff.admission-applications.create'))->assertForbidden();
+            $this->post(route('staff.admission-applications.store'), [])->assertForbidden();
+        }
+    }
+
+    public function test_direct_registration_rejects_course_duration_venue_and_junior_mismatch(): void
+    {
+        Notification::fake();
+        $this->seed();
+        $payload = $this->validPayload(TrialLessonRequest::factory()->create());
+        $payload['course_id'] = Course::where('code', 'DEMO-ELECTRONIC-30')->sole()->id;
+        $payload['venue_id'] = Venue::where('code', 'MUSAKO')->sole()->id;
+        $payload['pricing_category'] = 'junior';
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('staff.admission-applications.store'), $payload)
+            ->assertSessionHasErrors(['lesson_minutes', 'venue_id', 'pricing_category']);
+        $this->assertDatabaseCount('admission_applications', 0);
+        Notification::assertNothingSent();
+    }
+
     /** @return array<string, mixed> */
     private function validPayload(TrialLessonRequest $trial): array
     {

@@ -9,12 +9,13 @@ use App\Http\Requests\StoreTrialLessonRequest;
 use App\Models\LessonSlot;
 use App\Models\TrialLessonRequest;
 use App\Services\LessonSlotCapacityService;
+use App\Services\TeacherBookingAvailability;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
 class PublicTrialLessonController extends Controller
 {
-    public function index(LessonSlotCapacityService $capacity): View
+    public function index(LessonSlotCapacityService $capacity, TeacherBookingAvailability $availability): View
     {
         $lessonSlots = LessonSlot::query()
             ->with(['teacherProfile', 'venue', 'course'])
@@ -26,6 +27,8 @@ class PublicTrialLessonController extends Controller
             ->get()
             ->filter(fn (LessonSlot $slot): bool => $capacity->availableForTrialApplication($slot) > 0)
             ->values();
+
+        $lessonSlots = $availability->availableSlots($lessonSlots);
 
         return view('public.trial-lessons.index', compact('lessonSlots'));
     }

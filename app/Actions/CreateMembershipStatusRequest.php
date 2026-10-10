@@ -8,13 +8,14 @@ use App\Enums\MembershipRequestType;
 use App\Models\MembershipStatusRequest;
 use App\Models\StudentProfile;
 use App\Services\MusakoNotificationService;
+use App\Services\SchoolProcedureDeadline;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateMembershipStatusRequest
 {
-    public function __construct(private readonly MusakoNotificationService $notifications) {}
+    public function __construct(private readonly MusakoNotificationService $notifications, private readonly SchoolProcedureDeadline $deadline) {}
 
     public function handle(
         StudentProfile $studentProfile,
@@ -53,6 +54,10 @@ class CreateMembershipStatusRequest
                 };
 
                 throw ValidationException::withMessages(['type' => $message]);
+            }
+
+            if ($type !== MembershipRequestType::Resume) {
+                $this->deadline->assertInTime($effectiveOn);
             }
 
             return MembershipStatusRequest::create([

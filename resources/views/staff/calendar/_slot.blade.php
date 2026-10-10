@@ -1,7 +1,29 @@
+@if ($slot instanceof \App\Models\RegularScheduleOccurrence)
+    <a href="{{ route('staff.regular-schedules.index', ['month' => $slot->lesson_entitlement_month->format('Y-m')]) }}" class="block min-w-0 rounded-lg border-l-4 border p-2 text-xs {{ $slot->status->value === 'conflict' ? 'border-red-300 bg-red-50 text-red-900' : 'border-violet-300 bg-violet-50 text-violet-900' }}">
+        <strong class="block tabular-nums">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong>
+        <span class="mt-1 block truncate">{{ $slot->studentProfile->user->name }}</span>
+        <span class="block truncate">{{ $slot->venue?->name ?? '会場未定' }}</span>
+        <span class="mt-1 block font-bold">{{ $slot->status->value === 'conflict' ? '定期・要調整' : '定期・仮押さえ' }} →</span>
+    </a>
+@else
 @php
     $slotLabel = ['open' => '受付中', 'closed' => '予約不可', 'cancelled' => '休講'][$slot->status->value];
     $slotStyle = ['open' => 'border-stone-200 bg-white', 'closed' => 'border-stone-300 bg-stone-100', 'cancelled' => 'border-red-200 bg-red-50'][$slot->status->value];
 @endphp
+@if ($compact ?? false)
+<article class="min-w-0 rounded-lg border-l-4 border border-stone-200 {{ $slot->venue?->termsRoomType() === 'music_room' ? 'border-l-sky-500 bg-sky-50' : 'border-l-amber-500 bg-amber-50' }} p-2 text-xs">
+    <a href="{{ route('staff.lesson-slots.edit', $slot) }}" class="block font-bold tabular-nums">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</a>
+    <p class="mt-0.5 truncate text-[11px] text-stone-600" title="{{ $slot->venue?->name }}">{{ $slot->venue?->name ?? '会場未定' }}</p>
+    @forelse ($slot->reservationRequests as $reservation)
+        <a href="{{ route('staff.reservations.show', $reservation) }}" class="mt-1 block rounded bg-white/80 px-1.5 py-1 hover:bg-white">
+            <strong class="block truncate" title="{{ $reservation->studentProfile->user->name }}">{{ $reservation->studentProfile->user->name }}</strong>
+            <span class="text-[10px] {{ $reservation->status->value === 'pending' ? 'text-amber-800' : 'text-stone-600' }}">{{ ['pending' => '承認待ち', 'approved' => '確定', 'rejected' => '却下', 'cancelled' => 'キャンセル'][$reservation->status->value] }}@if ($reservation->transferRequests->isNotEmpty() || $reservation->resultingTransferRequest) · 振替@endif @if ($reservation->attendanceNotice) · {{ $reservation->attendanceNotice->type->value === 'absence' ? '欠席' : '遅刻' }}@endif</span>
+        </a>
+    @empty
+        <p class="mt-1 text-[11px] text-stone-500">{{ $slotLabel }} · 予約なし</p>
+    @endforelse
+</article>
+@else
 <article class="min-w-0 rounded-xl border {{ $slotStyle }} {{ ($compact ?? false) ? 'p-2 text-[11px]' : 'p-4 text-sm shadow-sm' }}">
     <div class="flex items-start justify-between gap-2"><div class="min-w-0"><strong class="block {{ ($compact ?? false) ? '' : 'text-base' }}">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong><span class="block truncate text-stone-600">{{ $slot->course?->name ?? 'コース未指定' }}</span></div><a href="{{ route('staff.lesson-slots.edit', $slot) }}" class="shrink-0 font-semibold text-stone-500" aria-label="レッスン枠を編集">編集</a></div>
     @unless ($compact ?? false)<p class="mt-1 text-xs text-stone-500">{{ $slot->teacherProfile->display_name }} · {{ $slot->venue?->name ?? '会場未定' }} · {{ $slotLabel }}</p>@endunless
@@ -14,3 +36,7 @@
         @endforelse
     </div>
 </article>
+
+@endif
+
+@endif

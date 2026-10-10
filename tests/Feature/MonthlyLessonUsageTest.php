@@ -55,7 +55,7 @@ class MonthlyLessonUsageTest extends TestCase
         [$student, $course, $enrollment] = $this->studentWithEnrollment(2);
         $this->reservation($student, $course, $enrollment, '2026-09-10 10:00:00', ReservationStatus::Approved);
         $this->reservation($student, $course, $enrollment, '2026-09-17 10:00:00', ReservationStatus::Pending);
-        $target = $this->slot($course, '2026-09-24 10:00:00');
+        $target = $this->slot($course, '2026-09-24 14:00:00');
 
         $this->actingAs($student->user)
             ->post(route('student.reservations.store', $target))
@@ -71,7 +71,7 @@ class MonthlyLessonUsageTest extends TestCase
     {
         $this->travelTo('2026-09-01 09:00:00');
         [$student, $course] = $this->studentWithEnrollment(4);
-        $target = $this->slot($course, '2026-09-24 10:00:00');
+        $target = $this->slot($course, '2026-09-24 14:00:00');
 
         $this->actingAs($student->user)
             ->post(route('student.reservations.store', $target))
@@ -92,7 +92,7 @@ class MonthlyLessonUsageTest extends TestCase
         [$student, $course, $enrollment] = $this->studentWithEnrollment(2, $teacher);
         $original = $this->reservation($student, $course, $enrollment, '2026-09-20 10:00:00', ReservationStatus::Approved, $teacher);
         $original->update(['studio_fee_amount' => 1610, 'studio_fee_priced_on' => '2026-09-20']);
-        $target = $this->slot($course, '2026-10-05 10:00:00', $teacher);
+        $target = $this->slot($course, '2026-10-05 14:00:00', $teacher);
         $transfer = TransferRequest::factory()->create([
             'student_profile_id' => $student->id,
             'original_reservation_request_id' => $original->id,
@@ -159,7 +159,7 @@ class MonthlyLessonUsageTest extends TestCase
         [$student, $course, $enrollment] = $this->studentWithEnrollment(2, $teacher);
         $this->reservation($student, $course, $enrollment, '2026-09-10 10:00:00', ReservationStatus::Approved, $teacher);
         $this->reservation($student, $course, $enrollment, '2026-09-17 10:00:00', ReservationStatus::Approved, $teacher);
-        $pending = $this->reservation($student, $course, $enrollment, '2026-09-24 10:00:00', ReservationStatus::Pending, $teacher);
+        $pending = $this->reservation($student, $course, $enrollment, '2026-09-24 14:00:00', ReservationStatus::Pending, $teacher);
 
         $this->actingAs($teacher->user)
             ->patch(route('staff.reservations.update', $pending), ['decision' => ReservationStatus::Approved->value])

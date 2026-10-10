@@ -10,6 +10,8 @@ use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Services\MusakoNotificationService;
+use App\Services\StudentLessonEligibility;
+use App\Services\TeacherBookingAvailability;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +20,7 @@ use Illuminate\Validation\ValidationException;
 class CreateReservationRequest
 {
     public function __construct(
+        private readonly TeacherBookingAvailability $availability,
         private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage,
         private readonly MusakoNotificationService $notifications,
     ) {}
@@ -27,6 +30,7 @@ class CreateReservationRequest
         $reservationRequest = DB::transaction(function () use ($studentProfile, $lessonSlot, $studentNote): ReservationRequest {
             $lockedStudent = StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
             $lockedSlot = LessonSlot::query()->lockForUpdate()->findOrFail($lessonSlot->id);
+            $this->availability->assertAvailable($lockedSlot, 'lesson_slot');
 
             if ($lockedSlot->status !== LessonSlotStatus::Open || ! $lockedSlot->starts_at->isFuture()) {
                 throw ValidationException::withMessages(['lesson_slot' => 'この枠は現在予約できません。']);
@@ -58,6 +62,8 @@ class CreateReservationRequest
                     'lesson_slot' => '対象日時に有効な在籍契約がないため予約できません。',
                 ]);
             }
+
+            app(StudentLessonEligibility::class)->assertEligible($lockedStudent, $lockedSlot, 'lesson_slot', $enrollment);
 
             $entitlementMonth = CarbonImmutable::instance($lockedSlot->starts_at)->startOfMonth();
             if ($enrollment->monthly_lesson_limit !== null) {

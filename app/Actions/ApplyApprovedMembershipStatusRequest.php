@@ -6,11 +6,14 @@ use App\Enums\ApplicationStatus;
 use App\Enums\EnrollmentStatus;
 use App\Enums\MembershipRequestType;
 use App\Models\MembershipStatusRequest;
+use App\Services\PausedScheduleRelease;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ApplyApprovedMembershipStatusRequest
 {
+    public function __construct(private readonly PausedScheduleRelease $scheduleRelease) {}
+
     public function handle(MembershipStatusRequest $membershipStatusRequest): MembershipStatusRequest
     {
         return DB::transaction(function () use ($membershipStatusRequest): MembershipStatusRequest {
@@ -22,6 +25,10 @@ class ApplyApprovedMembershipStatusRequest
 
             if ($lockedRequest->effective_on->greaterThan(today())) {
                 return $lockedRequest;
+            }
+
+            if ($lockedRequest->type === MembershipRequestType::Resume) {
+                $this->scheduleRelease->release($lockedRequest->studentProfile);
             }
 
             $eligibleStatuses = match ($lockedRequest->type) {

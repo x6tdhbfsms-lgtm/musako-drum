@@ -18,6 +18,7 @@ use App\Services\LessonPricingService;
 use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
 use App\Services\RegularScheduleConflictDetector;
+use App\Services\TeacherBookingAvailability;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -27,6 +28,7 @@ use Illuminate\Validation\ValidationException;
 class ConfirmRegularScheduleOccurrences
 {
     public function __construct(
+        private readonly TeacherBookingAvailability $availability,
         private readonly RegularScheduleConflictDetector $conflicts,
         private readonly MonthlyLessonUsageCalculator $monthlyUsage,
         private readonly LessonPricingService $pricing,
@@ -92,11 +94,12 @@ class ConfirmRegularScheduleOccurrences
                     ]);
                 }
                 $slot = LessonSlot::query()->lockForUpdate()->findOrFail($slot->id);
+                $this->availability->assertAvailable($slot, 'occurrences', exceptOccurrenceId: $occurrence->id);
                 if (! $this->capacity->hasCapacity($slot)) {
                     throw ValidationException::withMessages(['occurrences' => $occurrence->starts_at->format('n/j H:i').' は満席になったため確定できません。']);
                 }
 
-                $studioFee = $this->pricing->requiredStudioFee($occurrence->starts_at);
+                $studioFee = $this->pricing->requiredStudioFeeForSlot($slot);
                 ReservationRequest::query()->create([
                     'student_profile_id' => $occurrence->student_profile_id,
                     'lesson_slot_id' => $slot->id,

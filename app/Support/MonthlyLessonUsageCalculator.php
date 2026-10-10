@@ -47,7 +47,13 @@ class MonthlyLessonUsageCalculator
             $category = 'rejected';
             $countsTowardLimit = false;
 
-            if ($reservation->status === ReservationStatus::Cancelled) {
+            if ($reservation->transferRequests->contains(fn ($transfer) => $transfer->isAwaitingSchedule())) {
+                $used++;
+                $transferScheduled++;
+                $countsTowardLimit = true;
+                $isTransfer = true;
+                $category = 'deferred';
+            } elseif ($reservation->status === ReservationStatus::Cancelled) {
                 $cancelled++;
                 $category = 'cancelled';
             } elseif ($reservation->status === ReservationStatus::Pending) {

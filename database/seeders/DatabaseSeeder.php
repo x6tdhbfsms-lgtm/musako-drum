@@ -22,15 +22,33 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         Course::query()->updateOrCreate(['code' => 'INDIVIDUAL-60'], [
-            'name' => '個人レッスン60分',
+            'name' => 'studio34（60分）',
             'lesson_type' => 'individual',
             'default_lesson_minutes' => 60,
             'default_monthly_lessons' => 2,
             'default_capacity' => 1,
         ]);
 
+        foreach ([30 => 'DEMO-ELECTRONIC-30', 45 => 'DEMO-ELECTRONIC-45', 60 => 'ELECTRONIC-60'] as $minutes => $code) {
+            Course::query()->firstOrCreate(['code' => $code], [
+                'name' => '電子ドラムコース（'.$minutes.'分）',
+                'lesson_type' => 'individual',
+                'default_lesson_minutes' => $minutes,
+                'default_monthly_lessons' => 2,
+                'default_capacity' => 1,
+                'is_active' => true,
+            ]);
+        }
+
         Venue::query()->firstOrCreate(['code' => 'MUSAKO'], [
-            'name' => 'MUSAKOドラム教室',
+            'name' => 'studio34',
+            'lesson_room_type' => 'studio34',
+            'timezone' => 'Asia/Tokyo',
+        ]);
+
+        Venue::query()->firstOrCreate(['code' => 'MUSAKO-MUSIC-ROOM'], [
+            'name' => '電子ドラムコース（別棟音楽室）',
+            'lesson_room_type' => 'music_room',
             'timezone' => 'Asia/Tokyo',
         ]);
 

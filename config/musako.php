@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'electronic_drum' => [
+        'lesson_fees' => [30 => 3500, 45 => 4250, 60 => 5000],
+        'room_fee' => 1000,
+    ],
+    'booking' => [
+        'studio_venue_codes' => ['STUDIO34'],
+    ],
+
     'privacy' => [
         'policy_version' => env('MUSAKO_PRIVACY_POLICY_VERSION', '2026-09-01'),
         'policy_url' => env('MUSAKO_PRIVACY_POLICY_URL', '/privacy'),

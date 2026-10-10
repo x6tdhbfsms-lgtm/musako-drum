@@ -22,16 +22,16 @@
                         <a href="{{ route('student.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">予約一覧</a>
                         <a href="{{ route('student.attendance-notices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">お休み・遅刻</a>
                         <a href="{{ route('student.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
-                        <a href="{{ route('student.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>
+                        <a href="{{ route('student.membership-status-requests.index', ['type' => 'resume']) }}" class="rounded-full px-3 py-2 hover:bg-stone-100">再開・申請履歴</a>
                         <a href="{{ route('student.contract-change-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
                         <a href="{{ route('student.invoices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">ご請求</a>
-                        <a href="{{ route('pricing') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">料金</a>
                     @else
                         <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">カレンダー</a>
                         <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン枠</a>
                         <a href="{{ route('staff.regular-schedules.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">定期予定</a>
                         <a href="{{ route('staff.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">申請管理</a>
                         <a href="{{ route('staff.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
+                        <a href="{{ route('staff.transfer-requests.deferred') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">保留レッスン</a>
                         <a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>
                         <a href="{{ route('staff.procedure-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
                         <a href="{{ route('staff.students.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">生徒</a>
@@ -44,7 +44,9 @@
                 </nav>
             @endauth
             @guest
+                @unless (request()->routeIs('login'))
                 <nav class="flex items-center gap-2 text-sm"><a href="{{ route('trial-lessons.index') }}" class="rounded-full bg-amber-400 px-4 py-2 font-bold">体験レッスン</a><a href="{{ route('pricing') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">料金</a><a href="{{ route('login') }}" class="rounded-full border border-stone-300 px-3 py-2">ログイン</a></nav>
+                @endunless
             @endguest
         </div>
     </header>

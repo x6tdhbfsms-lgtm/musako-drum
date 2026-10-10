@@ -24,7 +24,9 @@ class PublicAdmissionApplicationController extends Controller
         $trialLessonRequest = $this->authorizedTrial($reference, $token);
         $course = $trialLessonRequest->lessonSlot->course ?? Course::query()->where('is_active', true)->first();
         $count = $course?->default_monthly_lessons ?? 2;
-        $quote = $pricing->quote(CarbonImmutable::today(config('app.timezone')), LessonType::Regular, $count, PricingCategory::Standard);
+        $quote = $trialLessonRequest->lessonSlot->venue?->termsRoomType() === 'music_room' || str_contains($course?->code ?? '', 'ELECTRONIC-')
+            ? $pricing->electronicQuote((int) $course?->default_lesson_minutes, $count)
+            : $pricing->quote(CarbonImmutable::today(config('app.timezone')), LessonType::Regular, $count, PricingCategory::Standard);
 
         return view('public.admissions.create', [
             'trialLessonRequest' => $trialLessonRequest,

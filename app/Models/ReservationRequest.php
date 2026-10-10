@@ -91,6 +91,6 @@ class ReservationRequest extends Model
         return CarbonImmutable::instance($this->lessonSlot->starts_at)
             ->setTimezone(config('app.timezone'))
             ->subDay()
-            ->setTime(19, 0);
+            ->setTime(12, 0);
     }
 }

@@ -62,9 +62,9 @@ class ReservationRequestPolicy
 
     public function requestTransfer(User $user, ReservationRequest $reservationRequest): bool
     {
-        return $this->belongsToStudent($user, $reservationRequest)
+        return ($this->belongsToStudent($user, $reservationRequest) || $this->update($user, $reservationRequest))
             && $reservationRequest->status === ReservationStatus::Approved
-            && $reservationRequest->lessonSlot->starts_at->isFuture();
+            && ($reservationRequest->lessonSlot->starts_at->isFuture() || $this->update($user, $reservationRequest));
     }
 
     /**

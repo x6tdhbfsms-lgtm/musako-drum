@@ -83,7 +83,7 @@ class PricingContractIntegrationTest extends TestCase
         $this->seed();
         [$student, $enrollment, $teacher] = $this->studentWithEnrollment();
         $originalSlot = $this->slot($enrollment, $teacher, '2026-09-20 10:00:00');
-        $targetSlot = $this->slot($enrollment, $teacher, '2026-10-05 10:00:00');
+        $targetSlot = $this->slot($enrollment, $teacher, '2026-10-05 14:00:00');
         $original = ReservationRequest::factory()->for($student)->for($originalSlot)->for($enrollment, 'lessonEnrollment')->create([
             'status' => ReservationStatus::Approved,
             'studio_fee_amount' => 1610,
@@ -121,7 +121,7 @@ class PricingContractIntegrationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_student_dashboard_shows_current_contract_and_estimated_monthly_price(): void
+    public function test_student_dashboard_hides_pricing_promotions_but_keeps_invoices(): void
     {
         $this->travelTo('2026-09-13 10:00:00');
         $this->seed();
@@ -130,10 +130,9 @@ class PricingContractIntegrationTest extends TestCase
         $this->actingAs($student->user)
             ->get(route('student.dashboard', ['month' => '2026-09']))
             ->assertOk()
-            ->assertSee('レギュラーレッスン・一般')
-            ->assertSee('¥11,000')
-            ->assertSee('¥1,610')
-            ->assertSee('¥14,220');
+            ->assertDontSee('現在の料金目安')
+            ->assertDontSee('料金ページを見る')
+            ->assertSee('ご請求・お支払い');
     }
 
     public function test_reservation_approval_snapshots_the_studio_fee_effective_on_the_lesson_date(): void
@@ -177,7 +176,7 @@ class PricingContractIntegrationTest extends TestCase
         $this->seed();
         [$student, $enrollment, $teacher] = $this->studentWithEnrollment();
         $originalSlot = $this->slot($enrollment, $teacher, '2026-09-20 10:00:00');
-        $target = $this->slot($enrollment, $teacher, '2026-10-05 10:00:00');
+        $target = $this->slot($enrollment, $teacher, '2026-10-05 14:00:00');
         $original = ReservationRequest::factory()->for($student)->for($originalSlot)->for($enrollment)->create([
             'status' => ReservationStatus::Approved,
         ]);

@@ -12,6 +12,7 @@ use App\Models\LessonSlot;
 use App\Models\PricingSetting;
 use App\Models\User;
 use App\Services\LessonPricingService;
+use App\Services\TeacherBookingAvailability;
 use App\Support\CalendarRange;
 use App\Support\MonthlyLessonUsageCalculator;
 use App\Support\StudentLessonSlotState;
@@ -26,6 +27,7 @@ class DashboardController extends Controller
         StudentLessonSlotState $lessonSlotState,
         MonthlyLessonUsageCalculator $monthlyLessonUsage,
         LessonPricingService $pricingService,
+        TeacherBookingAvailability $availability,
     ): View {
         $validated = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
@@ -48,6 +50,17 @@ class DashboardController extends Controller
         $user = $request->user();
         $studentProfile = $user->studentProfile;
         $lessonSlots = LessonSlot::query()
+            ->where(function ($query) use ($studentProfile): void {
+                if ($studentProfile === null) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->whereHas('reservationRequests', fn ($reservations) => $reservations->whereBelongsTo($studentProfile, 'studentProfile'))
+                    ->orWhereHas('requestedTransferRequests', fn ($transfers) => $transfers
+                        ->whereBelongsTo($studentProfile, 'studentProfile')
+                        ->where('status', ApplicationStatus::Pending));
+            })
             ->with(['teacherProfile', 'venue', 'course'])
             ->with([
                 'reservationRequests' => function ($query) use ($studentProfile): void {
@@ -75,8 +88,9 @@ class DashboardController extends Controller
             ->orderBy('starts_at')
             ->get();
         $monthlySummary = $studentProfile === null ? null : $monthlyLessonUsage->calculate($studentProfile, $month);
+        $bookingReasons = $availability->reasons($lessonSlots);
         $calendarEntriesByDay = $lessonSlots
-            ->map(function (LessonSlot $lessonSlot) use ($lessonSlotState, $studentProfile, $monthlySummary, $month): array {
+            ->map(function (LessonSlot $lessonSlot) use ($lessonSlotState, $studentProfile, $monthlySummary, $month, $bookingReasons): array {
                 $entry = [
                     'slot' => $lessonSlot,
                     ...$lessonSlotState->resolve($lessonSlot, $studentProfile),
@@ -88,6 +102,11 @@ class DashboardController extends Controller
                     && $monthlySummary->remaining === 0) {
                     $entry['status'] = StudentCalendarStatus::Unavailable;
                     $entry['unavailable_reason'] = '今月の予約可能回数を使い切っています';
+                }
+
+                if ($entry['status'] === StudentCalendarStatus::Available && isset($bookingReasons[$lessonSlot->id])) {
+                    $entry['status'] = StudentCalendarStatus::Unavailable;
+                    $entry['unavailable_reason'] = $bookingReasons[$lessonSlot->id];
                 }
 
                 return $entry;

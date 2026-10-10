@@ -73,7 +73,7 @@ class TransferRequestPolicy
         return $teacherProfileId !== null
             && in_array($teacherProfileId, [
                 $transferRequest->originalReservationRequest->lessonSlot->teacher_profile_id,
-                $transferRequest->requestedLessonSlot->teacher_profile_id,
+                $transferRequest->requestedLessonSlot?->teacher_profile_id,
             ], true);
     }
 }

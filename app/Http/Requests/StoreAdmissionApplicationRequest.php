@@ -52,10 +52,34 @@ class StoreAdmissionApplicationRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'required' => ':attributeを入力・選択してください。',
+            'email' => ':attributeを正しいメールアドレスで入力してください。',
+            'string' => ':attributeは文字で入力してください。',
+            'integer' => ':attributeは整数で入力してください。',
+            'max.string' => ':attributeは:max文字以内で入力してください。',
+            'between.numeric' => ':attributeは:min〜:maxの範囲で入力してください。',
+            'exists' => ':attributeを有効な選択肢から選択してください。',
+            'enum' => ':attributeを有効な選択肢から選択してください。',
+            'date' => ':attributeを正しい日付で入力してください。',
+            'date_format' => ':attributeを指定された形式（:format）で入力してください。',
+            'after_or_equal' => ':attributeは本日以降の日付を選択してください。',
+            'regex' => ':attributeの入力形式を確認してください。',
             'privacy_accepted.accepted' => 'プライバシーポリシーへの同意が必要です。',
             'notes.not_regex' => '備考にカード番号・口座番号などの機微情報は入力しないでください。',
             'weekday.required' => 'レギュラー契約では固定曜日を選択してください。',
             'starts_at_time.required' => 'レギュラー契約では固定時間を入力してください。',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'name' => '氏名', 'name_kana' => 'フリガナ', 'email' => 'メールアドレス',
+            'phone' => '電話番号', 'postal_code' => '郵便番号', 'address' => '住所',
+            'course_id' => 'コース', 'lesson_type' => '契約タイプ', 'pricing_category' => '料金区分',
+            'monthly_lesson_count' => '月回数', 'lesson_minutes' => '1回の時間',
+            'venue_id' => '会場', 'teacher_profile_id' => '講師', 'preferred_start_date' => '開始日',
+            'weekday' => '固定曜日', 'starts_at_time' => '固定時間', 'notes' => '備考',
         ];
     }
 

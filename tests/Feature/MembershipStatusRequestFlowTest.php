@@ -18,7 +18,7 @@ class MembershipStatusRequestFlowTest extends TestCase
 
     public function test_active_student_can_submit_a_pause_request(): void
     {
-        $this->travelTo('2026-09-12 10:00:00');
+        $this->travelTo('2026-09-10 10:00:00');
         $student = StudentProfile::factory()->create();
         LessonEnrollment::factory()->for($student)->create(['status' => EnrollmentStatus::Active]);
 
@@ -94,7 +94,7 @@ class MembershipStatusRequestFlowTest extends TestCase
 
     public function test_effective_date_cannot_be_in_the_past(): void
     {
-        $this->travelTo('2026-09-12 10:00:00');
+        $this->travelTo('2026-09-10 10:00:00');
         $student = StudentProfile::factory()->create();
         LessonEnrollment::factory()->for($student)->create(['status' => EnrollmentStatus::Active]);
 
@@ -134,7 +134,7 @@ class MembershipStatusRequestFlowTest extends TestCase
 
     public function test_future_approved_request_is_applied_by_the_due_date_command(): void
     {
-        $this->travelTo('2026-09-12 10:00:00');
+        $this->travelTo('2026-09-10 10:00:00');
         $student = StudentProfile::factory()->create();
         $enrollment = LessonEnrollment::factory()->for($student)->create(['status' => EnrollmentStatus::Active]);
         $membershipRequest = MembershipStatusRequest::factory()->for($student)->create([

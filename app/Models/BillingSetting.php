@@ -34,7 +34,7 @@ class BillingSetting extends Model
             'auto_generate_enabled' => true,
             'generation_day' => 25,
             'generation_time' => '02:00',
-            'due_rule' => 'previous_month_end',
+            'due_rule' => 'billing_month_end',
             'invoice_notifications_enabled' => true,
             'payment_notifications_enabled' => true,
         ]);
@@ -42,6 +42,10 @@ class BillingSetting extends Model
 
     public function dueDateFor(CarbonImmutable $billingMonth): CarbonImmutable
     {
+        if ($this->due_rule === 'billing_month_end') {
+            return $billingMonth->endOfMonth();
+        }
+
         if ($this->due_rule === 'billing_month_day') {
             return $billingMonth->day(min((int) ($this->due_day ?: 10), $billingMonth->daysInMonth));
         }

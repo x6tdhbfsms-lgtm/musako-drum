@@ -9,6 +9,7 @@ use App\Enums\TrialLessonStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LessonSlot;
 use App\Models\User;
+use App\Services\TeacherBookingAvailability;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
@@ -20,7 +21,7 @@ class AvailableLessonSlotController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, MonthlyLessonUsageCalculator $monthlyLessonUsage): View
+    public function __invoke(Request $request, MonthlyLessonUsageCalculator $monthlyLessonUsage, TeacherBookingAvailability $availability): View
     {
         $validated = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
         $month = CarbonImmutable::createFromFormat('!Y-m', $validated['month'] ?? now()->format('Y-m'))->startOfMonth();
@@ -38,6 +39,8 @@ class AvailableLessonSlotController extends Controller
             ->where('starts_at', '<', $month->addMonth())
             ->orderBy('starts_at')
             ->get();
+
+        $lessonSlots = $availability->availableSlots($lessonSlots);
 
         $requestedSlotIds = $user->studentProfile === null
             ? collect()

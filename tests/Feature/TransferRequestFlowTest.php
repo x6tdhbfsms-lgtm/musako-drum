@@ -11,15 +11,57 @@ use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class TransferRequestFlowTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    public function test_student_can_choose_uncreated_time_within_one_month_and_busy_time_is_rejected(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-09-10 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-09-20 14:00:00');
+        $before = LessonSlot::count();
+        $this->actingAs($student->user)->get(route('student.transfer-requests.create', $original))
+            ->assertOk()->assertViewHas('availableSlots', fn ($slots) => $slots->isNotEmpty()
+                && $slots->every(fn ($slot) => $slot->starts_at->lte(today()->addMonthNoOverflow()->endOfDay())));
+        $this->assertSame($before, LessonSlot::count());
+        $this->post(route('student.transfer-requests.store', $original), ['requested_starts_at' => '2026-10-11 14:00'])
+            ->assertSessionHasErrors('requested_starts_at');
+        $this->post(route('student.transfer-requests.store', $original), ['requested_starts_at' => '2026-09-20 14:00'])
+            ->assertSessionHasErrors('requested_starts_at');
+        $this->assertSame($before, LessonSlot::count());
+        $this->post(route('student.transfer-requests.store', $original), ['requested_starts_at' => '2026-09-21 14:00'])
+            ->assertSessionHasNoErrors()->assertRedirectToRoute('student.transfer-requests.index');
+        $transfer = TransferRequest::sole();
+        $this->assertSame('2026-09-21 14:00', $transfer->requestedLessonSlot->starts_at->format('Y-m-d H:i'));
+        $this->assertSame($original->lessonSlot->teacher_profile_id, $transfer->requestedLessonSlot->teacher_profile_id);
+        $this->assertSame($before + 1, LessonSlot::count());
+    }
+
+    public function test_special_transfer_requires_a_reason_with_a_readable_message(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-10-05 21:55:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-10-13 13:00:00');
+        $payload = ['requested_starts_at' => '2026-10-14 15:00', 'special_handling' => '1'];
+        $this->actingAs($student->user)
+            ->post(route('student.transfer-requests.store', $original), $payload)
+            ->assertSessionHasErrors(['reason' => '特例を希望する場合は、理由を入力してください。通常の振替は特例のチェックを外して申請できます。']);
+        $this->assertDatabaseCount('transfer_requests', 0);
+        $payload['reason'] = '公共交通機関の事故による特例希望';
+        $this->post(route('student.transfer-requests.store', $original), $payload)
+            ->assertSessionHasNoErrors()->assertRedirectToRoute('student.transfer-requests.index');
+        $this->assertDatabaseCount('transfer_requests', 1);
+    }
+
     public function test_student_can_request_a_transfer_at_the_previous_day_deadline(): void
     {
-        $this->travelTo('2026-09-10 19:00:00');
+        $this->travelTo('2026-09-10 12:00:00');
         $student = StudentProfile::factory()->create();
         $original = $this->approvedReservation($student, '2026-09-11 14:00:00');
         $target = LessonSlot::factory()->create(['starts_at' => '2026-09-15 14:00:00', 'ends_at' => '2026-09-15 15:00:00']);
@@ -47,7 +89,7 @@ class TransferRequestFlowTest extends TestCase
 
     public function test_student_cannot_request_a_transfer_after_the_previous_day_deadline(): void
     {
-        $this->travelTo('2026-09-10 19:00:01');
+        $this->travelTo('2026-09-10 12:00:01');
         $student = StudentProfile::factory()->create();
         $original = $this->approvedReservation($student, '2026-09-11 14:00:00');
         $target = LessonSlot::factory()->create(['starts_at' => '2026-09-15 14:00:00', 'ends_at' => '2026-09-15 15:00:00']);
@@ -55,7 +97,7 @@ class TransferRequestFlowTest extends TestCase
         $this->actingAs($student->user)
             ->post(route('student.transfer-requests.store', $original), ['requested_lesson_slot_id' => $target->id])
             ->assertSessionHasErrors([
-                'reservation' => '振替申請期限（前日19:00）を過ぎています。',
+                'reservation' => '振替申請期限（前日12:00）を過ぎています。',
             ]);
 
         $this->assertDatabaseCount('transfer_requests', 0);
@@ -63,7 +105,7 @@ class TransferRequestFlowTest extends TestCase
 
     public function test_duplicate_pending_transfer_request_is_rejected(): void
     {
-        $this->travelTo('2026-09-10 18:00:00');
+        $this->travelTo('2026-09-10 11:00:00');
         $student = StudentProfile::factory()->create();
         $original = $this->approvedReservation($student, '2026-09-11 14:00:00');
         $firstTarget = LessonSlot::factory()->create(['starts_at' => '2026-09-15 14:00:00', 'ends_at' => '2026-09-15 15:00:00']);
@@ -94,7 +136,7 @@ class TransferRequestFlowTest extends TestCase
 
     public function test_approval_cancels_the_original_and_creates_an_approved_target_reservation(): void
     {
-        $this->travelTo('2026-09-10 18:00:00');
+        $this->travelTo('2026-09-10 11:00:00');
         $teacher = TeacherProfile::factory()->create();
         $student = StudentProfile::factory()->create();
         $original = $this->approvedReservation($student, '2026-09-12 14:00:00', $teacher);

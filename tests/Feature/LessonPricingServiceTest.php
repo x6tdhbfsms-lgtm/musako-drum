@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Enums\LessonType;
 use App\Enums\PriceRateKind;
 use App\Enums\PricingCategory;
+use App\Models\LessonEnrollment;
 use App\Models\PriceRate;
+use App\Models\Venue;
 use App\Services\LessonPricingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -15,6 +17,28 @@ use Tests\TestCase;
 class LessonPricingServiceTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_electronic_prices_use_duration_without_junior_discount(): void
+    {
+        $this->seed();
+        foreach ([30 => 3500, 45 => 4250, 60 => 5000] as $minutes => $unit) {
+            foreach ([1, 2, 3, 4] as $count) {
+                $enrollment = LessonEnrollment::factory()->create([
+                    'venue_id' => Venue::where('code', 'MUSAKO-MUSIC-ROOM')->sole()->id,
+                    'lesson_minutes' => $minutes,
+                    'monthly_lesson_limit' => $count,
+                    'pricing_category' => PricingCategory::Junior,
+                ]);
+                $quote = app(LessonPricingService::class)->forEnrollment($enrollment, '2026-10-01');
+                $this->assertSame($unit * $count, $quote->lessonFeeTotal);
+                $this->assertSame(($unit + 1000) * $count, $quote->estimatedMonthlyTotal);
+                $this->assertSame(0, $quote->flexSurcharge);
+            }
+        }
+        $quote = app(LessonPricingService::class)->electronicQuote(20, 2);
+        $this->assertTrue($quote->isConsultationRequired);
+        $this->assertNull($quote->estimatedMonthlyTotal);
+    }
 
     #[DataProvider('supportedPriceCases')]
     public function test_calculates_supported_lesson_and_studio_prices(

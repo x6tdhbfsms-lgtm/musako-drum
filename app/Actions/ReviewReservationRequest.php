@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Services\LessonPricingService;
 use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
+use App\Services\StudentLessonEligibility;
+use App\Services\TeacherBookingAvailability;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,7 @@ use Illuminate\Validation\ValidationException;
 class ReviewReservationRequest
 {
     public function __construct(
+        private readonly TeacherBookingAvailability $availability,
         private readonly MonthlyLessonUsageCalculator $monthlyLessonUsage,
         private readonly LessonPricingService $lessonPricing,
         private readonly LessonSlotCapacityService $capacity,
@@ -43,6 +46,7 @@ class ReviewReservationRequest
             }
 
             if ($decision === ReservationStatus::Approved) {
+                $this->availability->assertAvailable($lockedSlot, 'reservation');
                 if ($lockedSlot->status !== LessonSlotStatus::Open || ! $lockedSlot->starts_at->isFuture()) {
                     throw ValidationException::withMessages(['reservation' => '受付中の未来の枠だけ承認できます。']);
                 }
@@ -52,6 +56,7 @@ class ReviewReservationRequest
                 }
 
                 $enrollment = $lockedReservation->lessonEnrollment;
+                app(StudentLessonEligibility::class)->assertEligible($lockedStudent, $lockedSlot, 'reservation', $enrollment, $lockedReservation->id);
                 if ($enrollment?->student_profile_id === $lockedStudent->id && $enrollment->monthly_lesson_limit !== null) {
                     $entitlementMonth = CarbonImmutable::instance(
                         $lockedReservation->lesson_entitlement_month ?? $lockedSlot->starts_at,
@@ -73,7 +78,7 @@ class ReviewReservationRequest
                 }
 
                 $lockedReservation->forceFill([
-                    'studio_fee_amount' => $this->lessonPricing->requiredStudioFee($lockedSlot->starts_at),
+                    'studio_fee_amount' => $this->lessonPricing->requiredStudioFeeForSlot($lockedSlot),
                     'studio_fee_priced_on' => $lockedSlot->starts_at->toDateString(),
                 ]);
             }

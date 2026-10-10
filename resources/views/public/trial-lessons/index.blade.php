@@ -21,5 +21,6 @@
         <label class="flex items-start gap-3 rounded-xl bg-stone-50 p-4 text-sm"><input type="checkbox" name="privacy_accepted" value="1" required class="mt-1"><span><a href="{{ config('musako.privacy.policy_url') }}" target="_blank" class="font-bold underline">プライバシーポリシー</a>に同意します。</span></label>
         <button @disabled($lessonSlots->isEmpty()) class="min-h-12 w-full rounded-xl bg-amber-400 px-6 font-bold text-stone-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:bg-stone-300">体験レッスンを申し込む</button>
     </form>
+@include('public._electronic-drum-course')
 </div>
 @endsection

@@ -24,7 +24,10 @@ class ReservationRequestFactory extends Factory
         return [
             'student_profile_id' => StudentProfile::factory(),
             'lesson_slot_id' => LessonSlot::factory(),
-            'lesson_enrollment_id' => LessonEnrollment::factory(),
+            'lesson_enrollment_id' => fn (array $attributes) => LessonEnrollment::factory()->create([
+                'student_profile_id' => $attributes['student_profile_id'],
+                'course_id' => LessonSlot::findOrFail($attributes['lesson_slot_id'])->course_id,
+            ])->id,
             'status' => ReservationStatus::Pending,
             'requested_at' => now(),
         ];

@@ -108,7 +108,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/reservations', [ReservationReviewController::class, 'index'])->name('reservations.index');
         Route::get('/reservations/{reservation_request}', StaffReservationDetailController::class)->name('reservations.show');
         Route::patch('/reservations/{reservation_request}', [ReservationReviewController::class, 'update'])->name('reservations.update');
+        Route::get('/reservations/{reservation_request}/transfer-request', [StudentTransferRequestController::class, 'create'])->name('transfer-requests.create');
+        Route::post('/reservations/{reservation_request}/transfer-request', [StudentTransferRequestController::class, 'store'])->name('transfer-requests.store');
         Route::get('/transfer-requests', [StaffTransferRequestController::class, 'index'])->name('transfer-requests.index');
+        Route::get('/transfer-requests/deferred', [StaffTransferRequestController::class, 'index'])->name('transfer-requests.deferred');
+        Route::post('/transfer-requests/{transfer_request}/schedule', [StaffTransferRequestController::class, 'schedule'])->name('transfer-requests.schedule');
         Route::get('/transfer-requests/{transfer_request}', [StaffTransferRequestController::class, 'show'])->name('transfer-requests.show');
         Route::patch('/transfer-requests/{transfer_request}', [StaffTransferRequestController::class, 'update'])->name('transfer-requests.update');
         Route::get('/membership-status-requests', [StaffMembershipStatusRequestController::class, 'index'])->name('membership-status-requests.index');
@@ -126,12 +130,15 @@ Route::middleware('auth')->group(function () {
         Route::patch('/inquiries/{inquiry}', [StaffInquiryController::class, 'update'])->name('inquiries.update');
         Route::resource('students', StaffStudentController::class)->only(['index', 'show']);
         Route::get('/pricing-settings', [PricingSettingController::class, 'index'])->name('pricing-settings.index');
+        Route::patch('/pricing-settings/venues/{venue}', [PricingSettingController::class, 'updateVenue'])->name('pricing-settings.venues.update');
         Route::post('/pricing-settings/rates', [PricingSettingController::class, 'storeRate'])->name('pricing-settings.rates.store');
         Route::post('/pricing-settings/configuration', [PricingSettingController::class, 'storeSetting'])->name('pricing-settings.configuration.store');
         Route::get('/trial-lessons', [StaffTrialLessonRequestController::class, 'index'])->name('trial-lessons.index');
         Route::get('/trial-lessons/{trial_lesson_request}', [StaffTrialLessonRequestController::class, 'show'])->name('trial-lessons.show');
         Route::patch('/trial-lessons/{trial_lesson_request}', [StaffTrialLessonRequestController::class, 'update'])->name('trial-lessons.update');
         Route::get('/admission-applications', [StaffAdmissionApplicationController::class, 'index'])->name('admission-applications.index');
+        Route::get('/admission-applications/create', [StaffAdmissionApplicationController::class, 'create'])->name('admission-applications.create');
+        Route::post('/admission-applications', [StaffAdmissionApplicationController::class, 'store'])->name('admission-applications.store');
         Route::get('/admission-applications/{admission_application}', [StaffAdmissionApplicationController::class, 'show'])->name('admission-applications.show');
         Route::patch('/admission-applications/{admission_application}', [StaffAdmissionApplicationController::class, 'update'])->name('admission-applications.update');
         Route::get('/invoices', [StaffMonthlyInvoiceController::class, 'index'])->name('invoices.index');

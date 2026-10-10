@@ -14,6 +14,7 @@ use App\Models\MembershipStatusRequest;
 use App\Models\RegularScheduleAudit;
 use App\Models\RegularScheduleBatch;
 use App\Models\RegularScheduleOccurrence;
+use App\Models\TeacherProfile;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -77,6 +78,7 @@ class RegularScheduleGenerator
         $month = $month->setTimezone(config('app.timezone'))->startOfMonth();
 
         return DB::transaction(function () use ($enrollment, $month, $actor, $versions): RegularScheduleBatch {
+            TeacherProfile::query()->lockForUpdate()->findOrFail($enrollment->teacher_profile_id);
             $enrollment = LessonEnrollment::query()->lockForUpdate()->findOrFail($enrollment->id);
             $versions = ($versions ?? collect([$enrollment]))->map(fn (LessonEnrollment $version) => LessonEnrollment::query()->lockForUpdate()->findOrFail($version->id));
             $expected = max(0, (int) $enrollment->monthly_lesson_limit);
@@ -194,7 +196,7 @@ class RegularScheduleGenerator
     /** @return list<int> */
     private function normalizedWeeks(LessonEnrollment $enrollment, int $expected): array
     {
-        $weeks = is_array($enrollment->regular_week_numbers) ? $enrollment->regular_week_numbers : range(1, $expected);
+        $weeks = $enrollment->regular_week_numbers ?: ($expected === 2 ? [1, 3] : ($expected > 0 ? range(1, min(4, $expected)) : []));
         $weeks = array_values(array_unique(array_map('intval', $weeks)));
         $weeks = array_values(array_filter($weeks, fn (int $week) => $week >= 1 && $week <= 5));
 
