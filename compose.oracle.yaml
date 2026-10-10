@@ -1,0 +1,207 @@
+# Standalone file. Do not merge with the development compose.yaml.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+x-app: &app
+  image: musako-oracle-app:${ORACLE_RELEASE:-trial}
+  platform: linux/arm64
+  build:
+    context: .
+    dockerfile: docker/oracle/Dockerfile
+    target: app
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 60s
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging: *logging
+  volumes:
+    - app-storage:/var/www/html/storage
+  networks: [backend]
+  environment: &app-env
+    APP_NAME: MUSAKOドラム教室（試験）
+    APP_ENV: production
+    APP_DEBUG: 'false'
+    APP_KEY: ${APP_KEY:?Generate an Oracle-only APP_KEY}
+    APP_URL: https://${ORACLE_DOMAIN:?Set a trial domain}
+    APP_TIMEZONE: Asia/Tokyo
+    APP_LOCALE: ja
+    APP_FALLBACK_LOCALE: ja
+    LOG_CHANNEL: daily
+    LOG_LEVEL: warning
+    LOG_DAILY_DAYS: '14'
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: '3306'
+    DB_DATABASE: musako_trial
+    DB_USERNAME: musako
+    DB_PASSWORD: ${ORACLE_DB_PASSWORD:?Generate a DB password}
+    SESSION_DRIVER: database
+    SESSION_ENCRYPT: 'true'
+    SESSION_SECURE_COOKIE: 'true'
+    SESSION_HTTP_ONLY: 'true'
+    SESSION_SAME_SITE: lax
+    CACHE_STORE: database
+    QUEUE_CONNECTION: database
+    FILESYSTEM_DISK: local
+    MAIL_MAILER: smtp
+    MAIL_HOST: mailpit
+    MAIL_PORT: '1025'
+    MAIL_FROM_ADDRESS: trial@example.invalid
+    MAIL_FROM_NAME: MUSAKO試験環境
+    MUSAKO_NOTIFICATION_QUEUE: mail
+  depends_on:
+    mysql: {condition: service_healthy}
+    mailpit: {condition: service_healthy}
+
+services:
+  app:
+    <<: *app
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD-SHELL, 'SCRIPT_NAME=/_fpm_ping SCRIPT_FILENAME=/_fpm_ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q pong']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  web:
+    image: musako-oracle-web:${ORACLE_RELEASE:-trial}
+    platform: linux/arm64
+    build:
+      context: .
+      dockerfile: docker/oracle/Dockerfile
+      target: web
+    restart: unless-stopped
+    mem_limit: 256m
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    logging: *logging
+    ports:
+      - '${ORACLE_BIND_IP:-0.0.0.0}:${ORACLE_HTTP_PORT:-80}:80'
+      - '${ORACLE_BIND_IP:-0.0.0.0}:${ORACLE_HTTPS_PORT:-443}:443'
+    environment:
+      ORACLE_DOMAIN: ${ORACLE_DOMAIN:?Set a trial domain}
+      ACME_EMAIL: ${ACME_EMAIL:?Set the certificate contact email}
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - app-storage:/var/www/html/storage:ro
+    networks: [edge, backend]
+    depends_on:
+      app: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:8080/up']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  queue:
+    <<: *app
+    mem_limit: 384m
+    command: [php, artisan, 'queue:work', database, '--queue=mail,default', '--sleep=3', '--tries=3', '--timeout=30', '--max-time=3600']
+    healthcheck:
+      test: [CMD-SHELL, 'ps -eo args | grep -q "[p]hp artisan queue:work"']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  scheduler:
+    <<: *app
+    mem_limit: 384m
+    command: [php, artisan, 'schedule:work', '--no-interaction']
+    healthcheck:
+      test: [CMD-SHELL, 'ps -eo args | grep -q "[p]hp artisan schedule:work"']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  mysql:
+    image: mysql:8.4@sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242
+    platform: linux/arm64
+    restart: unless-stopped
+    mem_limit: 2g
+    stop_grace_period: 90s
+    logging: *logging
+    environment:
+      MYSQL_DATABASE: musako_trial
+      MYSQL_USER: musako
+      MYSQL_PASSWORD: ${ORACLE_DB_PASSWORD:?Generate a DB password}
+      MYSQL_ROOT_PASSWORD: ${ORACLE_DB_ROOT_PASSWORD:?Generate a different root password}
+      MYSQL_ROOT_HOST: '%'
+      TZ: Asia/Tokyo
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci', '--max-connections=50', '--innodb-buffer-pool-size=536870912', '--binlog-expire-logs-seconds=604800', '--max-binlog-size=104857600']
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u "$$MYSQL_USER" "$$MYSQL_DATABASE" -Nse "SELECT 1" >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  mailpit:
+    image: axllent/mailpit:latest@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
+    platform: linux/arm64
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *logging
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: '500'
+      MP_MAX_AGE: 7d
+      MP_DISABLE_VERSION_CHECK: 'true'
+    volumes:
+      - mailpit-data:/data
+    networks: [backend]
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  backup:
+    image: mysql:8.4@sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242
+    platform: linux/arm64
+    restart: unless-stopped
+    init: true
+    mem_limit: 384m
+    logging: *logging
+    entrypoint: [bash, /opt/musako/backup.sh]
+    environment:
+      DB_DATABASE: musako_trial
+      MYSQL_PWD: ${ORACLE_DB_ROOT_PASSWORD:?Generate a different root password}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./docker/oracle/backup.sh:/opt/musako/backup.sh:ro
+      - db-backups:/backups
+    networks: [backend]
+    depends_on:
+      mysql: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, 'test -f /backups/.last-success && test $$(( $$(date +%s) - $$(stat -c %Y /backups/.last-success) )) -lt 93600']
+      interval: 5m
+      timeout: 5s
+      retries: 1
+      start_period: 120s
+
+networks:
+  edge: {}
+  backend:
+    internal: true
+
+volumes:
+  mysql-data: {}
+  app-storage: {}
+  caddy-data: {}
+  caddy-config: {}
+  mailpit-data: {}
+  db-backups: {}
