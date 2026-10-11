@@ -1,0 +1,19 @@
+{
+    admin localhost:2019
+    auto_https off
+}
+
+:80, :8080 {
+    @health {
+        path /up
+        method GET HEAD
+    }
+    handle @health {
+        root * /var/www/html/public
+        header -Server
+        php_fastcgi app:9000
+    }
+    handle {
+        respond "Trial setup in progress. HTTPS required before use." 503
+    }
+}

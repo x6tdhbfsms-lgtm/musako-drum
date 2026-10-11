@@ -486,4 +486,6 @@ WindowsではWSL2のUbuntu内で同等の手順を実行してください。
 
 ## Oracle Cloud試験運用
 
-既存の開発Composeはそのまま使用します。Oracle用は `compose.oracle.yaml` を単独で使い、`docker/oracle/compose.sh` から起動します。初期メールは内部Mailpit固定です。実際のVM作成前に [試験運用手順](docs/oracle-cloud-preparation.md) を確認してください。ドメイン・無料対象・SSH・バックアップの確認が必要で、GitHubへpushされるまではVM側から新構成を取得できません。
+既存の開発Composeはそのまま使用します。Oracle用は `compose.oracle.yaml` を単独で使い、`docker/oracle/compose.sh` から起動します。初期メールは内部Mailpit固定です。実際のVM作成前に [試験運用手順](docs/oracle-cloud-preparation.md) を確認してください。ドメイン・無料対象・SSH・バックアップの確認が必要で、GitHubから取得できるのはpush済みの変更だけです。未pushの構成を配置する場合は、対象ファイルを確認して別途転送します。
+
+E2 Micro（x86_64／RAM 1GB）での暫定起動は [Micro試験手順](docs/oracle-micro-trial.md) を参照し、`docker/oracle/micro.sh` を使用します。HTTPでは `/up` だけを公開し、ドメイン・HTTPS確定まで会員向け画面は利用できません。

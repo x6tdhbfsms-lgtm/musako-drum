@@ -1,0 +1,56 @@
+# Use with compose.oracle.yaml only. HTTP health-only bootstrap, no user access.
+x-micro-app: &micro-app
+  platform: linux/amd64
+  mem_limit: 160m
+  memswap_limit: 320m
+  depends_on: !override
+    mysql: {condition: service_healthy}
+  environment:
+    MAIL_MAILER: array
+  volumes:
+    - ./docker/oracle/micro-php.ini:/usr/local/etc/php/conf.d/zzz-micro.ini:ro
+    - ./docker/oracle/micro-fpm.conf:/usr/local/etc/php-fpm.d/zzz-micro.conf:ro
+
+services:
+  app:
+    <<: *micro-app
+  queue:
+    <<: *micro-app
+    mem_limit: 128m
+    memswap_limit: 256m
+  scheduler:
+    <<: *micro-app
+    mem_limit: 128m
+    memswap_limit: 256m
+  web:
+    platform: linux/amd64
+    mem_limit: 64m
+    memswap_limit: 128m
+    ports: !override
+      - '${ORACLE_BIND_IP:-0.0.0.0}:${ORACLE_HTTP_PORT:-80}:80'
+    volumes:
+      - ./docker/oracle/Caddyfile.micro:/etc/caddy/Caddyfile:ro
+  mysql:
+    platform: linux/amd64
+    mem_limit: 384m
+    memswap_limit: 768m
+    command: !override
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=20
+      - --innodb-buffer-pool-size=67108864
+      - --performance-schema=OFF
+      - --table-open-cache=128
+      - --table-definition-cache=400
+      - --temptable-max-ram=16777216
+      - --innodb-redo-log-capacity=33554432
+      - --binlog-expire-logs-seconds=259200
+      - --max-binlog-size=33554432
+  mailpit:
+    platform: linux/amd64
+    profiles: [mail-capture]
+  backup:
+    platform: linux/amd64
+    mem_limit: 96m
+    memswap_limit: 192m
+    profiles: [backup]
