@@ -20,6 +20,9 @@ x-app: &app
   logging: *logging
   volumes:
     - app-storage:/var/www/html/storage
+  # view:cache clears its directory; concurrent workers must not share it.
+  tmpfs:
+    - /var/www/html/storage/framework/views:uid=33,gid=33,mode=0770,size=16m
   networks: [backend]
   environment: &app-env
     APP_NAME: MUSAKOドラム教室（試験）

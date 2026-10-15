@@ -85,3 +85,13 @@ A1確保後は新VMで無料対象・ARM64・6GB以上のRAM・Dockerを確認�
 - VM再起動そのものは未実施。Docker active/enabledと各サービスunless-stoppedを確認する。起動後の実測メモリ・最終Git状態は完了報告を参照。
 
 既知のreservation ID2、料金表一意制約、休退会API、通常電子ドラム開始分制約は未変更。次工程はドメイン/DNS/HTTPS、その後に初期管理者・マスタ・試験データの方針確認。
+
+起動時の修正：app/queue/schedulerが共有のBlade cacheを同時に消去・生成すると、filemtimeエラーで一度再起動する競合を実機で確認した。compose.oracle.yamlのPHP共通設定で `storage/framework/views` をコンテナ別tmpfs（最大16MB、www-data所有）に分離する。uploads/ログ/その他storageは引き続き永続volumeを使用し、業務データは変更しない。
+
+## 2026-10-15 再確認
+
+キャッシュ分離後、app/schedulerは3日以上healthyで再起動0回、OOMなし。Queueはmax-time=3600による予定どおりの1時間ごとの終了・再起動を確認（90回）。pending jobs=0、failed_jobs=0。34 migration適用済み、users=0、reservations=0を維持。10月12・13・14日の日次backup成功。外部/up=200、/login=503。
+
+RAM使用541MiB/954MiB、利用可能412MiB、Swap使用332MiB/2GiB、disk使用6.7GB/45GB・空き38GB（確認時点）。公開Docker portは80のみ、MySQL公開なし。envはmode600・Git対象外。カーネルログにOOM該当なし。VM再起動試験・HTTPS設定・実データ登録は未実施。
+
+VMのGit HEADは基準39acddbを維持し、Oracleインフラ設定は作業ツリーの差分として配置している。Mac側ではインフラ変更をローカルcommitして保管し、GitHubへpushしていない。ドメイン確定まではHTTP healthだけを提供する。

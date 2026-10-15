@@ -182,7 +182,7 @@ docker/oracle/compose.sh up -d app queue scheduler web
 docker/oracle/compose.sh ps
 ```
 
-起動時に各PHPコンテナでconfig:cache、route:cache、view:cacheを実行する。public/storageのリンクはイメージ内に作成済み。storageは永続volume。コードはbind mountしない。migration・seedは起動時に自動実行しない。
+起動時に各PHPコンテナでconfig:cache、route:cache、view:cacheを実行する。public/storageのリンクはイメージ内に作成済み。storageは永続volume。ただし画面キャッシュ（storage/framework/views）は同時生成の競合を避けるため各PHPコンテナ専用tmpfsとする。コードはbind mountしない。migration・seedは起動時に自動実行しない。
 
 試験DBは空から開始する。既存会員・予約・8コマを勝手に移さない。初期マスタと初回管理者は、データ方針と対象を確認して別途設定する。既存の開発Seederにはデモ用定義もあるため、運用DBで一括seedしない。
 
