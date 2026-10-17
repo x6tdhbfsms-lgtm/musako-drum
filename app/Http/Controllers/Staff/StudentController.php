@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Staff;
 
-use App\Enums\LessonType;
-use App\Enums\ReservationStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Services\FlexInactivityWarning;
 use App\Services\LessonPricingService;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
@@ -40,6 +39,7 @@ class StudentController extends Controller
         StudentProfile $student,
         MonthlyLessonUsageCalculator $monthlyLessonUsage,
         LessonPricingService $pricingService,
+        FlexInactivityWarning $flexInactivityWarning,
     ): View {
         Gate::authorize('view', $student);
         $validated = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
@@ -68,11 +68,7 @@ class StudentController extends Controller
         $pricingQuotes = $currentEnrollments->mapWithKeys(
             fn ($enrollment): array => [$enrollment->id => $pricingService->forEnrollment($enrollment, today())],
         );
-        $hasInactiveFlexWarning = $currentEnrollments->contains('lesson_type', LessonType::Flex)
-            && ! $studentProfile->reservationRequests()
-                ->where('status', ReservationStatus::Approved)
-                ->whereHas('lessonSlot', fn ($slots) => $slots->where('starts_at', '>=', now()->subMonthsNoOverflow(2)))
-                ->exists();
+        $hasInactiveFlexWarning = $flexInactivityWarning->appliesTo($studentProfile);
 
         return view('staff.students.show', compact(
             'studentProfile',

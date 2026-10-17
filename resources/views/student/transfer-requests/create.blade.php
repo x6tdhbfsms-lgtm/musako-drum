@@ -29,7 +29,7 @@
         <section class="rounded-2xl border border-violet-200 bg-violet-50 p-4">
             <h2 class="font-bold text-violet-900">希望の日が空いていない・まだ日程が決まらない場合</h2>
             <p class="mt-2 text-sm text-stone-700">日付を選ばず保留を申請できます。先生の承認後に元の予約が外れ、日程保留中になります。翌月以降の日程も先生が後から設定できます。休会・退会月以降への繰越はできません。</p>
-            <button name="defer_schedule" value="1" class="mt-3 min-h-12 rounded-xl bg-violet-700 px-5 font-bold text-white">振替日を保留して申請する</button>
+            <button name="defer_schedule" value="1" formnovalidate class="mt-3 min-h-12 rounded-xl bg-violet-700 px-5 font-bold text-white">振替日を保留して申請する</button>
             <p class="mt-2 text-xs text-stone-600">期限・追加料金は先生が保留を承認した日時で判定します。理由・備考は下の欄に入力できます。</p>
         </section>
         <fieldset class="min-w-0">
