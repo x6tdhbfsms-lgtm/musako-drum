@@ -95,3 +95,30 @@ A1確保後は新VMで無料対象・ARM64・6GB以上のRAM・Dockerを確認�
 RAM使用541MiB/954MiB、利用可能412MiB、Swap使用332MiB/2GiB、disk使用6.7GB/45GB・空き38GB（確認時点）。公開Docker portは80のみ、MySQL公開なし。envはmode600・Git対象外。カーネルログにOOM該当なし。VM再起動試験・HTTPS設定・実データ登録は未実施。
 
 VMのGit HEADは基準39acddbを維持し、Oracleインフラ設定は作業ツリーの差分として配置している。Mac側ではインフラ変更をローカルcommitして保管し、GitHubへpushしていない。ドメイン確定まではHTTP healthだけを提供する。
+
+## HTTPS切替済み（2026-10-15）
+
+試験URL: `https://musako-drum.duckdns.org`。Aレコード: `168.110.53.73`。
+上記のHTTP限定状態からHTTPSへ切替済み。1GB/x86制限とメール破棄(array)は維持する。
+今後は `./docker/oracle/micro-https.sh ps` / `up -d --no-build` を使用する。
+このwrapperはbase → micro → micro.httpsの順で構成を重ねる。
+従来のmicro.shのみでwebを再作成するとHTTP health-onlyへ戻るため注意。
+構成検証は `./docker/oracle/micro-https.sh config --quiet`（秘密情報を出力しない）。
+
+VM専用.env.oracleのORACLE_DOMAINを変更し、app/queue/schedulerを再作成して
+APP_URL=https://musako-drum.duckdns.orgを反映した。秘密情報はGit管理外・mode600。
+CaddyはLet's Encrypt HTTP-01で証明書取得。DuckDNS tokenは未使用。
+自動更新を有効にし、caddy-data/caddy-configボリュームを永続化している。
+DNSとTCP80/443の到達性を維持すること。初回証明書の期限は2027-01-13。
+更新処理の実行は更新時期になるため、現時点では構成と更新情報の取得を確認。
+
+証明書検証後にHTTPS側の503制限を解除。HTTPはIP直打ちも含めHTTPSへ308転送。
+/up、/login、CSS/JSは200。staff/dashboard・student/dashboardは未ログイン時
+HTTPSログインへ302。Secure/SameSite=Lax Cookie、セッションHttpOnlyを確認。
+CSRFなしログインPOSTは419、CSRF付き不正ログインはログイン画面へ302。
+利用者0件のためログイン成功・認証後画面の実確認は未実施。利用者は追加していない。
+
+6サービスhealthy、jobs/failed_jobs各0、OOMなし。直近バックアップは10/14成功。
+RAM553MiB/954MiB、利用可能400MiB、Swap293MiB/2GiB（確認時点）。
+外部TCP到達:22/80/443。3306/33060/8025/1025/5173/9000/8080/2019/111は到達不可。
+業務データ変更・migration・GitHub pushは実施していない。

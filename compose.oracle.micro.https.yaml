@@ -1,0 +1,8 @@
+# Apply after compose.oracle.micro.yaml; preserves x86/1GB and mail isolation.
+services:
+  web:
+    ports: !override
+      - '${ORACLE_BIND_IP:-0.0.0.0}:${ORACLE_HTTP_PORT:-80}:80'
+      - '${ORACLE_BIND_IP:-0.0.0.0}:${ORACLE_HTTPS_PORT:-443}:443'
+    volumes:
+      - ./docker/oracle/Caddyfile.micro.https:/etc/caddy/Caddyfile:ro

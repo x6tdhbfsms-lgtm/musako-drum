@@ -1,0 +1,53 @@
+{
+	admin localhost:2019
+	servers {
+		protocols h1 h2
+	}
+}
+
+(app) {
+	root * /var/www/html/public
+	encode zstd gzip
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	@private path /.env* /.git/* /storage/../*
+	respond @private 404
+	@otherPhp {
+		path_regexp php (?i)\.(php|phtml|phar)(/|$)
+		not path /index.php
+	}
+	respond @otherPhp 404
+	php_fastcgi app:9000 {
+		env HTTPS on
+		env SERVER_PORT 443
+	}
+	file_server
+}
+
+{$ORACLE_DOMAIN} {
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+		}
+	}
+	import app
+	# Access logs are off: URLs may contain admission/reset tokens.
+}
+
+# Docker-internal health endpoint; this port is never published.
+:8080 {
+	@health path /up
+	handle @health {
+		import app
+	}
+	respond 404
+}
+
+# IP/unknown-host HTTP requests also go to the canonical HTTPS domain.
+http:// {
+	redir https://{$ORACLE_DOMAIN}{uri} 308
+}
