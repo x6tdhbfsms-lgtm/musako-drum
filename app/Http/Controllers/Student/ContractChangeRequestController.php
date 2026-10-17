@@ -21,6 +21,9 @@ class ContractChangeRequestController extends Controller
         Gate::authorize('viewAny', ContractChangeRequest::class);
         $profile = $request->user()->studentProfile;
         $selectedType = ContractChangeType::tryFrom($request->string('type')->toString()) ?? ContractChangeType::Schedule;
+        if ($selectedType === ContractChangeType::AdministrativeEdit) {
+            $selectedType = ContractChangeType::Schedule;
+        }
         $enrollments = $profile->enrollments()
             ->with(['course', 'teacherProfile', 'venue'])
             ->activeOn(now())

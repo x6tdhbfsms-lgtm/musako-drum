@@ -128,7 +128,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/inquiries', [StaffInquiryController::class, 'index'])->name('inquiries.index');
         Route::get('/inquiries/{inquiry}', [StaffInquiryController::class, 'show'])->name('inquiries.show');
         Route::patch('/inquiries/{inquiry}', [StaffInquiryController::class, 'update'])->name('inquiries.update');
-        Route::resource('students', StaffStudentController::class)->only(['index', 'show']);
+        Route::resource('students', StaffStudentController::class)->only(['index', 'show', 'edit', 'update']);
+        Route::get('/students/{student}/enrollments/{enrollment}/edit', [StaffStudentController::class, 'editEnrollment'])->name('students.enrollments.edit');
+        Route::patch('/students/{student}/enrollments/{enrollment}', [StaffStudentController::class, 'updateEnrollment'])->name('students.enrollments.update');
         Route::get('/pricing-settings', [PricingSettingController::class, 'index'])->name('pricing-settings.index');
         Route::patch('/pricing-settings/venues/{venue}', [PricingSettingController::class, 'updateVenue'])->name('pricing-settings.venues.update');
         Route::post('/pricing-settings/rates', [PricingSettingController::class, 'storeRate'])->name('pricing-settings.rates.store');

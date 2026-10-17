@@ -2,20 +2,64 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Actions\UpdateStaffEnrollment;
+use App\Actions\UpdateStaffStudent;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateStaffEnrollmentRequest;
+use App\Http\Requests\UpdateStaffStudentRequest;
+use App\Models\Course;
+use App\Models\LessonEnrollment;
 use App\Models\StudentProfile;
+use App\Models\TeacherProfile;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\FlexInactivityWarning;
 use App\Services\LessonPricingService;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class StudentController extends Controller
 {
+    public function edit(StudentProfile $student, UpdateStaffStudent $update): View
+    {
+        Gate::authorize('update', $student);
+        $student->load(['user', 'enrollments.course', 'enrollments.replacements']);
+
+        return view('staff.students.edit', ['student' => $student, 'revision' => $update->revision($student)]);
+    }
+
+    public function update(UpdateStaffStudentRequest $request, StudentProfile $student, UpdateStaffStudent $update): RedirectResponse
+    {
+        $update->handle($student, $request->user(), $request->validated());
+
+        return redirect()->route('staff.students.show', $student)->with('success', '生徒の基本情報を更新しました。');
+    }
+
+    public function editEnrollment(StudentProfile $student, LessonEnrollment $enrollment): View
+    {
+        Gate::authorize('update', $student);
+        abort_unless($enrollment->student_profile_id === $student->id, 404);
+
+        return view('staff.students.edit-enrollment', [
+            'student' => $student->load('user'), 'enrollment' => $enrollment,
+            'courses' => Course::where('is_active', true)->orderBy('name')->get(),
+            'venues' => Venue::where('is_active', true)->orderBy('name')->get(),
+            'teachers' => TeacherProfile::orderBy('display_name')->get(),
+        ]);
+    }
+
+    public function updateEnrollment(UpdateStaffEnrollmentRequest $request, StudentProfile $student, LessonEnrollment $enrollment, UpdateStaffEnrollment $update): RedirectResponse
+    {
+        $update->handle($student, $enrollment, $request->user(), $request->validated());
+
+        return redirect()->route('staff.students.show', $student)->with('success', '適用日を指定して契約情報を更新しました。作成済みのレッスン予定と請求は変更していません。必要に応じて予定を確認してください。');
+    }
+
     public function index(Request $request): View
     {
         Gate::authorize('viewAny', StudentProfile::class);

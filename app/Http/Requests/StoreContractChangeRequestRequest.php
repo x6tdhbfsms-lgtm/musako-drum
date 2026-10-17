@@ -21,7 +21,7 @@ class StoreContractChangeRequestRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => ['required', Rule::enum(ContractChangeType::class)],
+            'type' => ['required', Rule::enum(ContractChangeType::class)->except([ContractChangeType::AdministrativeEdit])],
             'lesson_enrollment_id' => ['nullable', 'integer', 'exists:lesson_enrollments,id', 'required_unless:type,course_add'],
             'effective_on' => ['required', 'date', 'after:today'],
             'weekday' => ['nullable', 'integer', 'between:0,6', 'required_if:type,schedule', 'required_if:lesson_type,regular'],

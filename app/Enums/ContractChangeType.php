@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum ContractChangeType: string
 {
+    case AdministrativeEdit = 'administrative_edit';
     case Schedule = 'schedule';
     case MonthlyLessons = 'monthly_lessons';
     case LessonMinutes = 'lesson_minutes';
@@ -16,6 +17,7 @@ enum ContractChangeType: string
     public function label(): string
     {
         return match ($this) {
+            self::AdministrativeEdit => '管理者による契約情報変更',
             self::Schedule => '時間割／曜日／時間変更',
             self::MonthlyLessons => '月のレッスン回数変更',
             self::LessonMinutes => '1回のレッスン時間変更',

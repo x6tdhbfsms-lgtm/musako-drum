@@ -9,6 +9,11 @@ use App\Models\User;
 
 class StudentProfilePolicy
 {
+    public function update(User $user, StudentProfile $studentProfile): bool
+    {
+        return $user->role === UserRole::Admin;
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->hasRole(UserRole::Teacher, UserRole::Admin);

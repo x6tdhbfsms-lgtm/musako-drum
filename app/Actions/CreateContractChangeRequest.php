@@ -24,6 +24,9 @@ class CreateContractChangeRequest
         $contractChangeRequest = DB::transaction(function () use ($studentProfile, $data): ContractChangeRequest {
             StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
             $type = ContractChangeType::from($data['type']);
+            if ($type === ContractChangeType::AdministrativeEdit) {
+                throw ValidationException::withMessages(['type' => '管理者専用の操作です。']);
+            }
             $enrollment = isset($data['lesson_enrollment_id'])
                 ? LessonEnrollment::query()->lockForUpdate()->findOrFail($data['lesson_enrollment_id'])
                 : null;
