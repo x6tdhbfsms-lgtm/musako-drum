@@ -7,7 +7,7 @@
 @if ($canManage)
 <section class="mt-6 rounded-2xl border border-stone-200 bg-white p-5">
     <h2 class="text-xl font-bold">会場名・教室規約の区分</h2>
-    <p class="mt-2 text-sm text-stone-600">会場の対応を確認して設定してください。電子ドラムコースは別棟音楽室です。「有限会社伊藤」との自動的な対応付けは行いません。</p>
+    <p class="mt-2 text-sm text-stone-600">会場の対応を確認して設定してください。電子ドラムコースの会場は「別棟音楽室」です。</p>
     @foreach ($venues as $venue)
         <form method="post" action="{{ route('staff.pricing-settings.venues.update', $venue) }}" class="mt-4 grid gap-3 sm:grid-cols-3">
             @csrf @method('patch')

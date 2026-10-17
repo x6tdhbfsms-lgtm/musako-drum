@@ -300,7 +300,7 @@ class TransferTermsTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $venue = Venue::factory()->create();
-        $other = Venue::factory()->create(['name' => '有限会社 伊藤']);
+        $other = Venue::factory()->create(['name' => '未分類の試験会場']);
 
         $this->actingAs($admin)->patch(route('staff.pricing-settings.venues.update', $venue), [
             'name' => '電子ドラムコース（別棟音楽室）', 'lesson_room_type' => 'music_room',
