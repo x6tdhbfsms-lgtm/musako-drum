@@ -7,7 +7,26 @@
 </div>
 @if ($errors->any())<div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>@endif
 
-<a href="{{ route('student.invoices.index') }}" class="mt-5 flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm"><span class="min-w-0"><strong class="block">ご請求・お支払い</strong><span class="text-xs text-stone-600">月ごとの請求額、支払期限、入金状況を確認</span></span><span class="shrink-0 text-amber-700">→</span></a>
+<section class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm" aria-labelledby="my-lesson-title">
+    <h2 id="my-lesson-title" class="text-xl font-bold">あなたのレッスン内容</h2>
+    <p class="mt-1 text-xs text-stone-600">現在ご契約中の内容です。</p>
+    <div class="mt-4 grid gap-4">
+        @forelse ($currentEnrollments as $enrollment)
+            <article class="min-w-0 rounded-xl bg-white p-4">
+                <h3 class="break-words text-lg font-bold">{{ $enrollment->course?->name ?? 'コース確認中' }}</h3>
+                <p class="mt-2 text-lg font-bold text-amber-800">1回 {{ $enrollment->lesson_minutes ?? '未設定' }}分 · 月{{ $enrollment->monthly_lesson_limit ?? '未設定' }}回</p>
+                <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                    <div class="min-w-0"><dt class="text-xs text-stone-500">会場</dt><dd class="mt-1 break-words font-semibold">{{ $enrollment->venue?->name ?? '会場未定' }}</dd></div>
+                    <div class="min-w-0"><dt class="text-xs text-stone-500">担当講師</dt><dd class="mt-1 break-words font-semibold">{{ $enrollment->teacherProfile?->display_name ?? '講師未定' }}</dd></div>
+                    <div><dt class="text-xs text-stone-500">レッスン形式</dt><dd class="mt-1 font-semibold">{{ $enrollment->lesson_type?->label() ?? '確認中' }}</dd></div>
+                    <div><dt class="text-xs text-stone-500">曜日・時間</dt><dd class="mt-1 font-semibold">@if ($enrollment->lesson_type === App\Enums\LessonType::Flex)予約ごとに調整@elseif ($enrollment->weekday !== null && $enrollment->starts_at_time){{ ['日','月','火','水','木','金','土'][$enrollment->weekday] }}曜日 {{ substr($enrollment->starts_at_time, 0, 5) }}〜@else調整中@endif</dd></div>
+                </dl>
+            </article>
+        @empty
+            <p class="text-sm text-stone-600">現在有効な契約はありません。レッスン内容は教室へお問い合わせください。</p>
+        @endforelse
+    </div>
+</section>
 
 @if ($monthlySummary)
 <section class="mt-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm" aria-labelledby="monthly-summary-title">
