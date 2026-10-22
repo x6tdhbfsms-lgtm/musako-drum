@@ -41,9 +41,21 @@ class TransferRequestController extends Controller
                 fn ($query) => $query->whereBelongsTo($studentProfile, 'studentProfile')
             )
             ->latest('requested_at')
-            ->paginate(20);
+            ->paginate(20)->withQueryString();
 
-        return view('student.transfer-requests.index', compact('transferRequests'));
+        $lessons = ReservationRequest::query()
+            ->select('reservation_requests.*')
+            ->join('lesson_slots', 'lesson_slots.id', '=', 'reservation_requests.lesson_slot_id')
+            ->where('reservation_requests.student_profile_id', $studentProfile?->id ?? 0)
+            ->with(['lessonSlot.course', 'lessonSlot.venue', 'lessonSlot.teacherProfile', 'resultingTransferRequest'])
+            ->withExists(['transferRequests as has_pending_transfer' => fn ($query) => $query->where('status', 'pending')])
+            ->orderByRaw('CASE WHEN lesson_slots.starts_at >= ? THEN 0 ELSE 1 END', [now()])
+            ->orderByRaw('CASE WHEN lesson_slots.starts_at >= ? THEN lesson_slots.starts_at END ASC', [now()])
+            ->orderByDesc('lesson_slots.starts_at')
+            ->orderBy('reservation_requests.id')
+            ->paginate(20, ['reservation_requests.*'], 'lessons_page')->withQueryString();
+
+        return view('student.transfer-requests.index', compact('transferRequests', 'lessons'));
     }
 
     public function create(ReservationRequest $reservationRequest, TeacherBookingAvailability $availability): View
