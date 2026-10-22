@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Enums\AccountStatus;
 use App\Enums\AdmissionApplicationStatus;
 use App\Enums\EnrollmentStatus;
+use App\Enums\LessonType;
 use App\Enums\PricingCategory;
 use App\Enums\TrialLessonStatus;
 use App\Enums\UserRole;
@@ -13,6 +14,8 @@ use App\Models\LessonEnrollment;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Services\MusakoNotificationService;
+use App\Services\RegularScheduleGenerator;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -83,6 +86,15 @@ class ReviewAdmissionApplication
                 'status' => EnrollmentStatus::Active,
                 'starts_on' => $application->preferred_start_date,
             ]);
+
+            if ($enrollment->lesson_type === LessonType::Regular
+                && $enrollment->teacher_profile_id !== null && $enrollment->weekday !== null
+                && $enrollment->starts_at_time !== null && $enrollment->lesson_minutes > 0) {
+                $firstMonth = CarbonImmutable::instance($enrollment->starts_on)->startOfMonth()->max(CarbonImmutable::today()->startOfMonth());
+                $generator = app(RegularScheduleGenerator::class);
+                $generator->generateEnrollment($enrollment, $firstMonth, $reviewer);
+                $generator->generateEnrollment($enrollment, $firstMonth->addMonth(), $reviewer);
+            }
 
             $application->update([
                 'status' => AdmissionApplicationStatus::Approved,

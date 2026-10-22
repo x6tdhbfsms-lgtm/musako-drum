@@ -59,7 +59,7 @@ class AdmissionApplicationController extends Controller
         }, 3);
 
         return redirect()->route('staff.students.show', $application->converted_student_profile_id)
-            ->with('success', '生徒と契約を登録しました。初回パスワード設定の案内をメールで送信します。定期枠はスケジュール管理から生成・確認してください。');
+            ->with('success', '生徒と契約を登録しました。初回パスワード設定の案内をメールで送信します。固定日時のあるレギュラー契約は仮予定を作成しました。定期予定で確認・確定してください。');
     }
 
     public function index(Request $request): View

@@ -8,6 +8,7 @@ use App\Enums\PricingCategory;
 use App\Enums\TrialLessonStatus;
 use App\Models\AdmissionApplication;
 use App\Models\Course;
+use App\Models\RegularScheduleOccurrence;
 use App\Models\TeacherProfile;
 use App\Models\TrialLessonRequest;
 use App\Models\User;
@@ -23,6 +24,22 @@ use Tests\TestCase;
 class AdmissionApplicationFlowTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_approval_generates_first_two_months_of_drafts_without_confirming_bookings(): void
+    {
+        Notification::fake();
+        $this->travelTo(now()->setDate(2026, 10, 22)->setTime(10, 0));
+        $admin = User::factory()->admin()->create();
+        $application = AdmissionApplication::factory()->create(['preferred_start_date' => '2026-11-01', 'weekday' => 0, 'starts_at_time' => '12:00:00', 'monthly_lesson_count' => 2]);
+        $this->actingAs($admin)->patch(route('staff.admission-applications.update', $application), ['status' => 'approved'])->assertSessionHas('success');
+        $studentId = $application->fresh()->converted_student_profile_id;
+        $dates = RegularScheduleOccurrence::where('student_profile_id', $studentId)->orderBy('starts_at')->get();
+        $this->assertSame(['2026-11-01 12:00', '2026-11-15 12:00', '2026-12-06 12:00', '2026-12-20 12:00'], $dates->map(fn ($row) => $row->starts_at->format('Y-m-d H:i'))->all());
+        $this->assertTrue($dates->every(fn ($row) => in_array($row->status->value, ['draft', 'conflict'])));
+        $this->assertDatabaseMissing('reservation_requests', ['student_profile_id' => $studentId]);
+        $this->patch(route('staff.admission-applications.update', $application), ['status' => 'approved'])->assertSessionHasErrors('status');
+        $this->assertSame(4, RegularScheduleOccurrence::where('student_profile_id', $studentId)->count());
+    }
 
     public function test_completed_trial_can_open_and_submit_admission_application(): void
     {
@@ -103,6 +120,7 @@ class AdmissionApplicationFlowTest extends TestCase
         $this->assertSame(LessonType::Flex, $enrollment->lesson_type);
         $this->assertNull($enrollment->weekday);
         $this->assertNull($enrollment->starts_at_time);
+        $this->assertDatabaseMissing('regular_schedule_batches', ['lesson_enrollment_id' => $enrollment->id]);
     }
 
     public function test_existing_email_stops_conversion_and_teacher_cannot_approve(): void
