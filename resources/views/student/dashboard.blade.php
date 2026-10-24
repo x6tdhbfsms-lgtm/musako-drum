@@ -57,7 +57,7 @@
 <section class="mt-6" aria-labelledby="lesson-calendar-title">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 id="lesson-calendar-title" class="text-xl font-bold">レッスンカレンダー</h2><a href="{{ route('student.reservations.index') }}" class="text-sm font-semibold text-amber-700">予約一覧を見る →</a></div>
     <div class="mt-3 flex flex-wrap gap-2 text-xs">
-        @foreach ([['予約申請中','bg-sky-100 text-sky-800'], ['予約確定','bg-emerald-100 text-emerald-800'], ['振替申請中','bg-violet-100 text-violet-800'], ['振替確定','bg-indigo-100 text-indigo-800'], ['お休み連絡済み','bg-red-100 text-red-700'], ['遅刻連絡済み','bg-orange-100 text-orange-800'], ['休講／予約不可','bg-stone-100 text-stone-500']] as [$label, $classes])<span class="rounded-full px-3 py-1 font-semibold {{ $classes }}">{{ $label }}</span>@endforeach
+        @foreach ([['振替申請中','bg-violet-100 text-violet-800'], ['振替確定','bg-indigo-100 text-indigo-800'], ['お休み連絡済み','bg-red-100 text-red-700'], ['遅刻連絡済み','bg-orange-100 text-orange-800'], ['休講／予約不可','bg-stone-100 text-stone-500']] as [$label, $classes])<span class="rounded-full px-3 py-1 font-semibold {{ $classes }}">{{ $label }}</span>@endforeach
     </div>
 
     <div class="mt-4 hidden overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm md:block">
