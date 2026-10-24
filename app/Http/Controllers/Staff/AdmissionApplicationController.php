@@ -52,6 +52,7 @@ class AdmissionApplicationController extends Controller
                 'privacy_policy_version' => config('musako.privacy.policy_version'),
                 'privacy_consented_at' => now(),
                 'requested_at' => now(),
+                'address' => $attributes['address'] ?? '',
                 'notes' => '【管理者による直接登録】本人同意確認済み。'.($attributes['notes'] ?? ''),
             ]);
 

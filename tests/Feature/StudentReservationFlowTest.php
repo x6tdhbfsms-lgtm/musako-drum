@@ -28,11 +28,26 @@ class StudentReservationFlowTest extends TestCase
         $past = LessonSlot::factory()->create(['starts_at' => '2026-09-01 14:00', 'ends_at' => '2026-09-01 15:00']);
 
         $this->actingAs($student->user)
-            ->get(route('student.lesson-slots.index', ['month' => '2026-09']))
+            ->get(route('student.lesson-slots.index', ['date' => '2026-09-20']))
             ->assertOk()
-            ->assertSee($available->starts_at->format('H:i'))
+            ->assertSee(route('student.reservations.store', $available), false)
+            ->assertSee('12:00')
+            ->assertSee('21:00')
             ->assertDontSee(route('student.reservations.store', $closed), false)
             ->assertDontSee(route('student.reservations.store', $past), false);
+    }
+
+    public function test_weekly_calendar_excludes_other_weeks_and_morning_slots(): void
+    {
+        $this->travelTo('2026-09-12 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $morning = LessonSlot::factory()->create(['starts_at' => '2026-09-20 10:00', 'ends_at' => '2026-09-20 11:00']);
+        $nextWeek = LessonSlot::factory()->create(['starts_at' => '2026-09-27 14:00', 'ends_at' => '2026-09-27 15:00']);
+        $this->actingAs($student->user)->get(route('student.lesson-slots.index', ['date' => '2026-09-20']))
+            ->assertOk()
+            ->assertDontSee(route('student.reservations.store', $morning), false)
+            ->assertDontSee(route('student.reservations.store', $nextWeek), false)
+            ->assertViewHas('calendarDays', fn ($days) => count($days) === 7);
     }
 
     public function test_student_can_submit_a_pending_reservation_request(): void

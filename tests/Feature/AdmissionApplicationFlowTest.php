@@ -181,6 +181,7 @@ class AdmissionApplicationFlowTest extends TestCase
         $payload['course_id'] = Course::where('code', 'INDIVIDUAL-60')->sole()->id;
         $payload['venue_id'] = Venue::where('code', 'MUSAKO')->sole()->id;
         $payload['email'] = ' New.Student@Example.com ';
+        unset($payload['address'], $payload['postal_code']);
         $payload['regular_week_pattern'] = '2,4';
         $this->actingAs($admin)->get(route('staff.admission-applications.create'))->assertOk()->assertSee('新規生徒登録');
         foreach (['1', '2,2', '2,5'] as $invalidPattern) {

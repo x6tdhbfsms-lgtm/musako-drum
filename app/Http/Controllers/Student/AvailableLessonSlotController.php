@@ -10,9 +10,9 @@ use App\Http\Controllers\Controller;
 use App\Models\LessonSlot;
 use App\Models\User;
 use App\Services\TeacherBookingAvailability;
+use App\Support\CalendarRange;
 use App\Support\MonthlyLessonUsageCalculator;
 use Carbon\CarbonImmutable;
-use Carbon\CarbonPeriod;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -23,8 +23,10 @@ class AvailableLessonSlotController extends Controller
      */
     public function __invoke(Request $request, MonthlyLessonUsageCalculator $monthlyLessonUsage, TeacherBookingAvailability $availability): View
     {
-        $validated = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
-        $month = CarbonImmutable::createFromFormat('!Y-m', $validated['month'] ?? now()->format('Y-m'))->startOfMonth();
+        $validated = $request->validate(['date' => ['nullable', 'date_format:Y-m-d'], 'month' => ['nullable', 'date_format:Y-m']]);
+        $focus = CarbonImmutable::parse($validated['date'] ?? (isset($validated['month']) ? $validated['month'].'-01' : now()->toDateString()));
+        $range = CalendarRange::forView($focus, 'week');
+        $month = $focus->startOfMonth();
 
         /** @var User $user */
         $user = $request->user();
@@ -35,8 +37,10 @@ class AvailableLessonSlotController extends Controller
             ->where('status', LessonSlotStatus::Open)
             ->whereIn('booking_audience', [LessonSlotAudience::Regular, LessonSlotAudience::Both])
             ->where('starts_at', '>', now())
-            ->where('starts_at', '>=', $month)
-            ->where('starts_at', '<', $month->addMonth())
+            ->where('starts_at', '>=', $range->start)
+            ->where('starts_at', '<=', $range->end)
+            ->whereTime('starts_at', '>=', '12:00:00')
+            ->whereTime('ends_at', '<=', '21:00:00')
             ->orderBy('starts_at')
             ->get();
 
@@ -50,7 +54,9 @@ class AvailableLessonSlotController extends Controller
 
         return view('student.lesson-slots.index', [
             'month' => $month,
-            'calendarDays' => CarbonPeriod::create($month->startOfWeek(CarbonImmutable::SUNDAY), $month->endOfMonth()->endOfWeek(CarbonImmutable::SATURDAY)),
+            'range' => $range,
+            'calendarDays' => $range->days(),
+            'monthlySummaries' => collect($range->days()->toArray())->map(fn ($day) => $day->format('Y-m'))->unique()->mapWithKeys(fn ($key) => [$key => $user->studentProfile === null ? null : $monthlyLessonUsage->calculate($user->studentProfile, CarbonImmutable::parse($key.'-01'))]),
             'lessonSlotsByDay' => $lessonSlots->groupBy(fn (LessonSlot $slot) => $slot->starts_at->format('Y-m-d')),
             'requestedSlotIds' => $requestedSlotIds,
             'monthlySummary' => $user->studentProfile === null
