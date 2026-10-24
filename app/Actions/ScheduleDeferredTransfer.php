@@ -13,6 +13,7 @@ use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Services\LessonOperatingHours;
+use App\Services\LessonPricingService;
 use App\Services\MusakoNotificationService;
 use App\Services\TeacherBookingAvailability;
 use App\Services\TransferTermsService;
@@ -63,7 +64,7 @@ class ScheduleDeferredTransfer
                 'student_profile_id' => $locked->student_profile_id, 'lesson_slot_id' => $slot->id,
                 'lesson_enrollment_id' => $original->lesson_enrollment_id,
                 'lesson_entitlement_month' => ($original->lesson_entitlement_month ?? $source->starts_at->copy()->startOfMonth())->toDateString(),
-                'studio_fee_amount' => $locked->terms_snapshot['deferred_studio_fee_amount'],
+                'studio_fee_amount' => app(LessonPricingService::class)->studioFeeWaivedForSlot($slot) ? 0 : $locked->terms_snapshot['deferred_studio_fee_amount'],
                 'studio_fee_priced_on' => $locked->terms_snapshot['deferred_studio_fee_priced_on'],
                 'status' => ReservationStatus::Approved, 'requested_at' => $locked->requested_at,
                 'reviewed_by_user_id' => $reviewer->id, 'reviewed_at' => now(),

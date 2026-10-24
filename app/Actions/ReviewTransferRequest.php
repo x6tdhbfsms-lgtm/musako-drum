@@ -10,6 +10,7 @@ use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\TransferRequest;
 use App\Models\User;
+use App\Services\LessonPricingService;
 use App\Services\LessonSlotCapacityService;
 use App\Services\MusakoNotificationService;
 use App\Services\TeacherBookingAvailability;
@@ -76,7 +77,7 @@ class ReviewTransferRequest
                 throw ValidationException::withMessages(['staff_note' => '講師都合・災害等の特例は理由を記録してください。']);
             }
             $formalizedAt = CarbonImmutable::now(config('app.timezone'));
-            if ($cause === 'student' && $formalizedAt->gt($originalReservation->transferRequestDeadline())) {
+            if ($cause === 'student' && $formalizedAt->gte($originalReservation->transferRequestDeadline())) {
                 throw ValidationException::withMessages(['transfer_request' => '正式な申請期限（前日12:00）を過ぎています。講師の確定日時で判定します。']);
             }
 
@@ -128,7 +129,7 @@ class ReviewTransferRequest
             $termsSnapshot['exception_reason'] = $cause === 'student' ? null : $staffNote;
             $targetFee = match ($requestedSlot->venue?->termsRoomType()) {
                 'music_room' => 1000,
-                'studio34' => 1610,
+                'studio34' => app(LessonPricingService::class)->studioFeeWaivedForSlot($requestedSlot) ? 0 : 1610,
                 default => $studioFeeAmount,
             };
             $resultingReservation = ReservationRequest::create([

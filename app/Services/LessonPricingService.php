@@ -17,10 +17,16 @@ class LessonPricingService
     /** @var array<string, int|null> */
     private array $amountCache = [];
 
+    public function studioFeeWaivedForSlot(LessonSlot $slot): bool
+    {
+        return $slot->venue?->termsRoomType() === 'studio34'
+            && CarbonImmutable::parse($slot->starts_at)->toDateString() >= config('musako.studio34_fee_waived_from');
+    }
+
     public function requiredStudioFeeForSlot(LessonSlot $slot): int
     {
         return match ($slot->venue?->termsRoomType()) {
-            'studio34' => $this->requiredStudioFee($slot->starts_at),
+            'studio34' => $this->studioFeeWaivedForSlot($slot) ? 0 : $this->requiredStudioFee($slot->starts_at),
             'music_room' => 1000,
             default => $this->requiredStudioFee($slot->starts_at),
         };
@@ -50,7 +56,8 @@ class LessonPricingService
             $enrollment->lesson_type,
             (int) $enrollment->monthly_lesson_limit,
             $enrollment->pricing_category,
-            $enrollment->venue?->termsRoomType() === 'music_room' ? 1000 : null,
+            $enrollment->venue?->termsRoomType() === 'studio34'
+                && CarbonImmutable::parse($date)->toDateString() >= config('musako.studio34_fee_waived_from') ? 0 : null,
         );
     }
 

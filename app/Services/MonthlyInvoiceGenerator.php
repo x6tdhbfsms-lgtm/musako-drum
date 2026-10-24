@@ -178,9 +178,12 @@ class MonthlyInvoiceGenerator
                 ->where('status', ReservationStatus::Approved)
                 ->whereDate('lesson_entitlement_month', $month)
                 ->whereNotNull('studio_fee_amount')
-                ->with('lessonSlot')
+                ->with('lessonSlot.venue')
                 ->get();
             foreach ($reservations as $reservation) {
+                if ($this->pricing->studioFeeWaivedForSlot($reservation->lessonSlot) || (int) $reservation->studio_fee_amount === 0) {
+                    continue;
+                }
                 $invoice->items()->create([
                     'type' => InvoiceItemType::StudioFee,
                     'description' => 'スタジオ使用料 '.($reservation->lessonSlot?->starts_at?->format('n/j H:i') ?? ''),
@@ -204,7 +207,9 @@ class MonthlyInvoiceGenerator
             ];
             foreach ($transfers as $transfer) {
                 $snapshot = $transfer->terms_snapshot;
-                if ($transfer->isAwaitingSchedule() && isset($snapshot['deferred_studio_fee_amount'])) {
+                if ($transfer->isAwaitingSchedule() && isset($snapshot['deferred_studio_fee_amount'])
+                    && $snapshot['deferred_studio_fee_amount'] > 0
+                    && ! $this->pricing->studioFeeWaivedForSlot($transfer->originalReservationRequest->lessonSlot)) {
                     $invoice->items()->create([
                         'type' => InvoiceItemType::StudioFee,
                         'description' => 'スタジオ使用料（日程保留中・振替#'.$transfer->id.'）',

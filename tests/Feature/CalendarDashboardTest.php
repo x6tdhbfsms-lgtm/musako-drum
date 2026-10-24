@@ -60,8 +60,8 @@ class CalendarDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('レッスンカレンダー')
             ->assertDontSee(route('student.reservations.store', $available), escape: false)
-            ->assertDontSee(route('student.membership-status-requests.index', ['type' => 'pause']), escape: false)
-            ->assertDontSee(route('student.membership-status-requests.index', ['type' => 'withdraw']), escape: false)
+            ->assertSee(route('student.membership-status-requests.index', ['type' => 'pause']), escape: false)
+            ->assertSee(route('student.membership-status-requests.index', ['type' => 'withdraw']), escape: false)
             ->assertViewHas('nextReservation', fn ($next) => $next->is($approved))
             ->assertViewHas('calendarEntriesByDay', function (Collection $days): bool {
                 $statuses = $days->flatten(1)->pluck('status');

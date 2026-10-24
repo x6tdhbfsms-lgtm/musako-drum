@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'studio34_fee_waived_from' => '2026-10-24',
     'electronic_drum' => [
         'lesson_fees' => [30 => 3500, 45 => 4250, 60 => 5000],
         'room_fee' => 1000,

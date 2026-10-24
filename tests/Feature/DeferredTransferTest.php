@@ -56,7 +56,7 @@ class DeferredTransferTest extends TestCase
         $this->assertSame('deferred', $usage->items->sole()['category']);
         $generator = app(MonthlyInvoiceGenerator::class);
         $invoice = $generator->generateForStudent($student, CarbonImmutable::parse('2026-11-01'));
-        $this->assertEquals(1610, $invoice->items()->where('type', InvoiceItemType::StudioFee)->sum('amount'));
+        $this->assertEquals(0, $invoice->items()->where('type', InvoiceItemType::StudioFee)->sum('amount'));
         $heldMail = new TransferApplicationNotification($transfer, ApplicationStatus::Approved);
         $this->assertStringContainsString('日程保留', $heldMail->toMail($student->user)->subject);
         $this->travelTo('2026-11-25 10:00:00');
@@ -72,7 +72,7 @@ class DeferredTransferTest extends TestCase
         $this->get(route('staff.transfer-requests.deferred'))->assertOk()->assertDontSee($student->user->name);
         $this->actingAs($student->user)->get(route('student.transfer-requests.index'))->assertOk()->assertSee('振替確定');
         $invoice = $generator->generateForStudent($student, CarbonImmutable::parse('2026-11-01'));
-        $this->assertEquals(1610, $invoice->items()->where('type', InvoiceItemType::StudioFee)->sum('amount'));
+        $this->assertEquals(0, $invoice->items()->where('type', InvoiceItemType::StudioFee)->sum('amount'));
         $this->assertSame(1, app(MonthlyLessonUsageCalculator::class)->calculate($student, CarbonImmutable::parse('2026-11-01'))->used);
         $this->assertSame(0, app(MonthlyLessonUsageCalculator::class)->calculate($student, CarbonImmutable::parse('2026-12-01'))->used);
         Notification::assertSentTo($student->user, TransferApplicationNotification::class);

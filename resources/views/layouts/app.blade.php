@@ -22,7 +22,7 @@
                         <a href="{{ route('student.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">予約一覧</a>
                         <a href="{{ route('student.attendance-notices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">お休み・遅刻</a>
                         <a href="{{ route('student.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
-                        <a href="{{ route('student.membership-status-requests.index', ['type' => 'resume']) }}" class="rounded-full px-3 py-2 hover:bg-stone-100">再開・申請履歴</a>
+                        <a href="{{ route('student.membership-status-requests.index', ['type' => 'resume']) }}" class="rounded-full px-3 py-2 hover:bg-stone-100">休会・退会・再開</a>
                         <a href="{{ route('student.contract-change-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
                         <a href="{{ route('student.invoices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">ご請求</a>
                     @else

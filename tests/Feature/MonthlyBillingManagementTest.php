@@ -26,9 +26,12 @@ use App\Models\PriceRate;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Models\Venue;
 use App\Notifications\MonthlyInvoiceConfirmedNotification;
 use App\Notifications\MonthlyInvoicePaidNotification;
+use App\Services\LessonPricingService;
 use App\Services\MonthlyInvoiceGenerator;
+use App\Services\TransferTermsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -41,6 +44,66 @@ use Tests\TestCase;
 class MonthlyBillingManagementTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_studio34_regular_room_fee_stops_on_october_24_without_changing_old_snapshots(): void
+    {
+        $this->seed();
+        [$student, $enrollment] = $this->studentWithEnrollment();
+        $studio = Venue::factory()->create(['lesson_room_type' => 'studio34']);
+        $music = Venue::factory()->create(['lesson_room_type' => 'music_room']);
+        $before = $this->reservation($student, $enrollment, '2026-10-23 14:00', ReservationStatus::Approved, 1610);
+        $after = $this->reservation($student, $enrollment, '2026-10-24 14:00', ReservationStatus::Approved, 1610);
+        $electronic = $this->reservation($student, $enrollment, '2026-10-25 14:00', ReservationStatus::Approved, 1000);
+        $before->lessonSlot->update(['venue_id' => $studio->id]);
+        $after->lessonSlot->update(['venue_id' => $studio->id]);
+        $electronic->lessonSlot->update(['venue_id' => $music->id]);
+        $pricing = app(LessonPricingService::class);
+        $this->assertSame(1610, $pricing->requiredStudioFeeForSlot($before->lessonSlot->fresh()));
+        $this->assertSame(0, $pricing->requiredStudioFeeForSlot($after->lessonSlot->fresh()));
+        $this->assertSame(1000, $pricing->requiredStudioFeeForSlot($electronic->lessonSlot->fresh()));
+        $invoice = app(MonthlyInvoiceGenerator::class)->generate('2026-10')->sole();
+        $this->assertSame(2610, $invoice->studio_fee_total);
+        $this->assertSame(1610, $after->fresh()->studio_fee_amount);
+        $this->assertSame(1610, app(TransferTermsService::class)->studioCancellationFee($after->lessonSlot->fresh(), CarbonImmutable::parse('2026-10-23')));
+    }
+
+    public function test_confirmed_studio_fee_invoice_is_not_rewritten_by_the_waiver(): void
+    {
+        $this->seed();
+        [$student, $enrollment] = $this->studentWithEnrollment();
+        $studio = Venue::factory()->create(['lesson_room_type' => 'studio34']);
+        $reservation = $this->reservation($student, $enrollment, '2026-10-25 14:00', ReservationStatus::Approved, 1610);
+        $reservation->lessonSlot->update(['venue_id' => $studio->id]);
+        config(['musako.studio34_fee_waived_from' => '2026-11-01']);
+        $generator = app(MonthlyInvoiceGenerator::class);
+        $invoice = $generator->generate('2026-10')->sole();
+        $invoice->update(['status' => MonthlyInvoiceStatus::Confirmed]);
+        config(['musako.studio34_fee_waived_from' => '2026-10-24']);
+        $generator->generate('2026-10');
+        $this->assertSame(1610, $invoice->fresh()->studio_fee_total);
+        $this->assertSame(12610, $invoice->fresh()->total_amount);
+    }
+
+    public function test_old_draft_must_be_regenerated_before_confirming_waived_studio_fees(): void
+    {
+        $this->seed();
+        [$student, $enrollment] = $this->studentWithEnrollment();
+        $reservation = $this->reservation($student, $enrollment, '2026-10-25 14:00', ReservationStatus::Approved, 1610);
+        $reservation->lessonSlot->update(['venue_id' => Venue::factory()->create(['lesson_room_type' => 'studio34'])->id]);
+        config(['musako.studio34_fee_waived_from' => '2026-11-01']);
+        $generator = app(MonthlyInvoiceGenerator::class);
+        $invoice = $generator->generate('2026-10')->sole();
+        config(['musako.studio34_fee_waived_from' => '2026-10-24']);
+        try {
+            app(ConfirmMonthlyInvoice::class)->handle($invoice, User::factory()->admin()->create());
+            $this->fail('Old draft must not be confirmed.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(['請求停止対象のstudio34使用料が残っています。下書きを再生成してから確定してください。'], $exception->errors()['invoice']);
+        }
+        $this->assertSame(MonthlyInvoiceStatus::Draft, $invoice->fresh()->status);
+        $generator->generate('2026-10');
+        $this->assertSame(0, $invoice->fresh()->studio_fee_total);
+    }
 
     #[DataProvider('priceCases')]
     public function test_generates_lesson_fee_snapshots_for_each_contract_type(string $lessonType, string $category, int $expected): void

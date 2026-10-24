@@ -132,7 +132,8 @@ class PricingContractIntegrationTest extends TestCase
             ->assertOk()
             ->assertDontSee('現在の料金目安')
             ->assertDontSee('料金ページを見る')
-            ->assertSee('ご請求・お支払い');
+            ->assertSee(route('student.invoices.index'), false)
+            ->assertDontSee('ご請求・お支払い');
     }
 
     public function test_reservation_approval_snapshots_the_studio_fee_effective_on_the_lesson_date(): void

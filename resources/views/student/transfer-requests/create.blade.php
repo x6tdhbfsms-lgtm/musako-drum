@@ -15,6 +15,10 @@
 <div data-transfer-calendar>
     <h1 class="text-2xl font-bold sm:text-3xl">週間の空き枠から振替先を選択</h1>
     <p class="mt-2 text-sm text-stone-600">希望の日時の空き枠を選び、会場を確認してください。会場が変わる場合は、講師の移動時間15分を確保できる枠だけ表示されます。正式な申請期限は元レッスン前日の12:00です。生徒様の送信は希望受付となり、講師が確定した日時で期限・追加料金を判定します。</p>
+<aside class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>レッスン予定日より4日を切ってのご申請は、振替料金1,000円が発生します（電子ドラムコースの前日申請は、現在の規約では追加なし）。</p><p class="mt-2 font-semibold">前日のお昼12:00以降は通常の振替申請ができません。</p><p class="mt-2">料金・期限は講師が正式に確定した日時で判定します。自然災害などの特例は先生へご相談ください。</p></aside>
+    <p class="mt-3 text-sm">このレッスンは{{ $reservationRequest->lessonSlot->starts_at->copy()->subDays(3)->format('n月j日') }}から直前振替料金の対象です。電子ドラムの前日申請は除きます。</p>
+    <p class="mt-3 text-sm font-semibold">このレッスンの通常申請受付：{{ $reservationRequest->transferRequestDeadline()->format('Y年n月j日 H:i') }}より前まで</p>
+    @if (now()->greaterThanOrEqualTo($reservationRequest->transferRequestDeadline()))<p role="alert" class="mt-2 text-sm font-bold text-red-700">通常の申請期限を過ぎています。特例のご相談は先生の確認が必要です。</p>@endif
     @if ($errors->any())
         <div role="alert" class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>
     @endif

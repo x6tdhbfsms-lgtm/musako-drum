@@ -54,7 +54,7 @@ class CreateTransferRequest
             if ($specialHandling && trim($reason ?? '') === '') {
                 throw ValidationException::withMessages(['reason' => '特例を希望する理由を入力してください。']);
             }
-            if (! $specialHandling && $now->greaterThan($lockedReservation->transferRequestDeadline())) {
+            if (! $specialHandling && $now->greaterThanOrEqualTo($lockedReservation->transferRequestDeadline())) {
                 throw ValidationException::withMessages(['reservation' => '振替申請期限（前日12:00）を過ぎています。']);
             }
 

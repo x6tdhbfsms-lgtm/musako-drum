@@ -82,7 +82,7 @@
 @php
     $procedures = [
         ['時間割／曜日／時間変更', '曜日と開始時間', route('student.contract-change-requests.index', ['type' => 'schedule'])],
-        ['月のレッスン回数変更', '月2回・月4回など', route('student.contract-change-requests.index', ['type' => 'monthly_lessons'])],
+        ['月のレッスン回数変更', '変更希望月の前月10日までに申請必須', route('student.contract-change-requests.index', ['type' => 'monthly_lessons'])],
         ['レッスン時間変更', '1回あたりの時間', route('student.contract-change-requests.index', ['type' => 'lesson_minutes'])],
         ['コース変更', '現在のコースを変更', route('student.contract-change-requests.index', ['type' => 'course_change'])],
         ['コース追加', '新しいコースを追加', route('student.contract-change-requests.index', ['type' => 'course_add'])],
@@ -94,6 +94,8 @@
         ['その他問い合わせ', '教室へのお問い合わせ', route('student.inquiries.index')],
         ['お休み・遅刻', '確定予約の連絡', route('student.attendance-notices.index')],
         ['振替', '申請履歴を確認', route('student.transfer-requests.index')],
+        ['休会', '希望月の前月10日までに申請必須', route('student.membership-status-requests.index', ['type' => 'pause']).'#application-form'],
+        ['退会', '希望月の前月10日までに申請必須', route('student.membership-status-requests.index', ['type' => 'withdraw']).'#application-form'],
         ['再開', '在籍に関する申請', route('student.membership-status-requests.index', ['type' => 'resume']).'#application-form'],
     ];
 @endphp

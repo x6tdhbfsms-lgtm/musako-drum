@@ -6,8 +6,10 @@ use App\Enums\ApplicationStatus;
 use App\Enums\MonthlyInvoiceStatus;
 use App\Models\MonthlyInvoice;
 use App\Models\MonthlyInvoiceAudit;
+use App\Models\ReservationRequest;
 use App\Models\TransferRequest;
 use App\Models\User;
+use App\Services\LessonPricingService;
 use App\Services\MusakoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +24,17 @@ class ConfirmMonthlyInvoice
             $locked = MonthlyInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
             if ($locked->status !== MonthlyInvoiceStatus::Draft) {
                 throw ValidationException::withMessages(['invoice' => 'この請求は下書きではありません。']);
+            }
+            foreach ($locked->items()->where('type', 'studio_fee')->where('is_manual', false)->where('amount', '>', 0)->get() as $item) {
+                $source = $item->source;
+                $slot = match (true) {
+                    $source instanceof ReservationRequest => $source->lessonSlot,
+                    $source instanceof TransferRequest => $source->originalReservationRequest->lessonSlot,
+                    default => null,
+                };
+                if ($slot !== null && app(LessonPricingService::class)->studioFeeWaivedForSlot($slot)) {
+                    throw ValidationException::withMessages(['invoice' => '請求停止対象のstudio34使用料が残っています。下書きを再生成してから確定してください。']);
+                }
             }
             if ($locked->requires_review && ! $acknowledgeWarnings) {
                 throw ValidationException::withMessages(['acknowledge_warnings' => '警告内容を確認してから確定してください。']);

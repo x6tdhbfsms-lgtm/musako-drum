@@ -2,6 +2,7 @@
 @section('title', '振替申請 | MUSAKO')
 @section('content')
 <div><p class="text-sm font-semibold text-amber-700">TRANSFER</p><h1 class="text-2xl font-bold sm:text-3xl">振替するレッスンを選ぶ</h1><p class="mt-2 text-sm text-stone-600">ご自身の予約済みレッスンをすべて確認できます。振替したいコマの「このレッスンを振替」を押してください。振替日が未定の場合は、次の画面から保留申請できます。</p></div>
+<aside class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>レッスン予定日より4日を切ってのご申請は、振替料金1,000円が発生します（電子ドラムコースの前日申請は、現在の規約では追加なし）。</p><p class="mt-2 font-semibold">前日のお昼12:00以降は通常の振替申請ができません。</p><p class="mt-2">料金・期限は講師が正式に確定した日時で判定します。自然災害などの特例は先生へご相談ください。</p></aside>
 <section class="mt-6 space-y-3" aria-label="自分のレッスン一覧">
 @forelse ($lessons as $lesson)
     @php
@@ -12,7 +13,7 @@
             (bool) $lesson->has_pending_transfer => '振替申請中です。先生の確認をお待ちください。',
             default => null,
         };
-        $late = now()->greaterThan($lesson->transferRequestDeadline());
+        $late = now()->greaterThanOrEqualTo($lesson->transferRequestDeadline());
     @endphp
     <article class="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -59,9 +59,9 @@ class TransferRequestFlowTest extends TestCase
         $this->assertDatabaseCount('transfer_requests', 1);
     }
 
-    public function test_student_can_request_a_transfer_at_the_previous_day_deadline(): void
+    public function test_student_can_request_a_transfer_just_before_the_previous_day_deadline(): void
     {
-        $this->travelTo('2026-09-10 12:00:00');
+        $this->travelTo('2026-09-10 11:59:59');
         $student = StudentProfile::factory()->create();
         $original = $this->approvedReservation($student, '2026-09-11 14:00:00');
         $target = LessonSlot::factory()->create(['starts_at' => '2026-09-15 14:00:00', 'ends_at' => '2026-09-15 15:00:00']);
@@ -87,9 +87,9 @@ class TransferRequestFlowTest extends TestCase
         ]);
     }
 
-    public function test_student_cannot_request_a_transfer_after_the_previous_day_deadline(): void
+    public function test_student_cannot_request_a_transfer_at_the_previous_day_deadline(): void
     {
-        $this->travelTo('2026-09-10 12:00:01');
+        $this->travelTo('2026-09-10 12:00:00');
         $student = StudentProfile::factory()->create();
         $original = $this->approvedReservation($student, '2026-09-11 14:00:00');
         $target = LessonSlot::factory()->create(['starts_at' => '2026-09-15 14:00:00', 'ends_at' => '2026-09-15 15:00:00']);
