@@ -37,7 +37,7 @@ class AdmissionApplicationController extends Controller
     public function store(StoreStaffAdmissionRequest $request, ReviewAdmissionApplication $review): RedirectResponse
     {
         $application = DB::transaction(function () use ($request, $review) {
-            $attributes = $request->safe()->except(['privacy_accepted', 'website']);
+            $attributes = $request->safe()->except(['privacy_accepted', 'website', 'regular_week_pattern']);
             if ($attributes['lesson_type'] !== 'regular') {
                 $attributes['weekday'] = null;
                 $attributes['starts_at_time'] = null;
@@ -55,7 +55,10 @@ class AdmissionApplicationController extends Controller
                 'notes' => '【管理者による直接登録】本人同意確認済み。'.($attributes['notes'] ?? ''),
             ]);
 
-            return $review->handle($application, $request->user(), AdmissionApplicationStatus::Approved, null);
+            $weeks = $attributes['lesson_type'] === 'regular' && $request->filled('regular_week_pattern')
+                ? array_map('intval', explode(',', $request->validated('regular_week_pattern'))) : null;
+
+            return $review->handle($application, $request->user(), AdmissionApplicationStatus::Approved, null, regularWeeks: $weeks);
         }, 3);
 
         return redirect()->route('staff.students.show', $application->converted_student_profile_id)

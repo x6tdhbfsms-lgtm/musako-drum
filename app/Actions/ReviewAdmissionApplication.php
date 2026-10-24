@@ -26,9 +26,9 @@ class ReviewAdmissionApplication
 {
     public function __construct(private readonly MusakoNotificationService $notifications) {}
 
-    public function handle(AdmissionApplication $admissionApplication, User $reviewer, AdmissionApplicationStatus $decision, ?string $reason, ?PricingCategory $confirmedPricingCategory = null): AdmissionApplication
+    public function handle(AdmissionApplication $admissionApplication, User $reviewer, AdmissionApplicationStatus $decision, ?string $reason, ?PricingCategory $confirmedPricingCategory = null, ?array $regularWeeks = null): AdmissionApplication
     {
-        $reviewed = DB::transaction(function () use ($admissionApplication, $reviewer, $decision, $reason, $confirmedPricingCategory): AdmissionApplication {
+        $reviewed = DB::transaction(function () use ($admissionApplication, $reviewer, $decision, $reason, $confirmedPricingCategory, $regularWeeks): AdmissionApplication {
             $application = AdmissionApplication::query()->lockForUpdate()->findOrFail($admissionApplication->id);
             if ($application->status !== AdmissionApplicationStatus::Pending) {
                 throw ValidationException::withMessages(['status' => 'この入会申込みはすでに処理されています。']);
@@ -81,6 +81,7 @@ class ReviewAdmissionApplication
                 'venue_id' => $application->venue_id,
                 'weekday' => $application->weekday,
                 'starts_at_time' => $application->starts_at_time,
+                'regular_week_numbers' => $application->lesson_type === LessonType::Regular ? $regularWeeks : null,
                 'monthly_lesson_limit' => $application->monthly_lesson_count,
                 'lesson_minutes' => $application->lesson_minutes,
                 'status' => EnrollmentStatus::Active,

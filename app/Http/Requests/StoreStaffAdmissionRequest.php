@@ -27,6 +27,7 @@ class StoreStaffAdmissionRequest extends StoreAdmissionApplicationRequest
         $rules['venue_id'][0] = 'required';
         $rules['teacher_profile_id'][0] = 'required';
         $rules['monthly_lesson_count'] = ['required', 'integer', 'between:1,4'];
+        $rules['regular_week_pattern'] = ['nullable', 'string', 'regex:/^[1-4](,[1-4]){0,3}$/'];
 
         return $rules;
     }
@@ -36,6 +37,12 @@ class StoreStaffAdmissionRequest extends StoreAdmissionApplicationRequest
         return [...parent::after(), function (Validator $validator): void {
             if ($validator->errors()->isNotEmpty()) {
                 return;
+            }
+            if ($this->input('lesson_type') === 'regular' && $this->filled('regular_week_pattern')) {
+                $weeks = explode(',', $this->input('regular_week_pattern'));
+                if (count($weeks) !== $this->integer('monthly_lesson_count') || count(array_unique($weeks)) !== count($weeks)) {
+                    $validator->errors()->add('regular_week_pattern', '月回数と同じ数の週を、重複せず選択してください。');
+                }
             }
             $email = $this->validated('email');
             if (User::whereRaw('LOWER(email) = ?', [$email])->exists()

@@ -60,3 +60,30 @@ document.querySelectorAll('[data-staff-admission]').forEach((form) => {
         if (selected.dataset.room === 'music_room') form.elements.namedItem('pricing_category').value = 'standard';
     });
 });
+
+// Keep the regular lesson selectors compact and consistent with the monthly count.
+document.querySelectorAll('[data-staff-admission]').forEach((form) => {
+    const pattern = form.elements.namedItem('regular_week_pattern');
+    if (!pattern) return;
+    const count = form.elements.namedItem('monthly_lesson_count');
+    const type = form.elements.namedItem('lesson_type');
+    const weekday = form.elements.namedItem('weekday');
+    const time = form.elements.namedItem('starts_at_time');
+    const update = () => {
+        const regular = type.value === 'regular';
+        const n = Number(count.value);
+        [...pattern.options].forEach((option) => {
+            option.hidden = Boolean(option.dataset.count) && Number(option.dataset.count) !== n;
+            option.disabled = option.hidden;
+        });
+        if (pattern.selectedOptions[0]?.disabled) pattern.value = '';
+        [pattern, weekday, time].forEach((input) => { input.disabled = !regular; });
+        const weeks = pattern.value || (n === 2 ? '1,3' : Array.from({length: Math.max(0, Math.min(4, n))}, (_, i) => i + 1).join(','));
+        const label = weeks.split(',').filter(Boolean).map((week) => '第' + week).join('・');
+        form.querySelector('[data-schedule-summary]').textContent = regular
+            ? '月' + count.value + '回 · ' + label + ' ' + (weekday.value === '' ? '曜日未選択' : weekday.selectedOptions[0].text) + ' ' + (time.value || '時間未選択')
+            : 'フレックス：予約ごとに日時を調整します。';
+    };
+    [pattern, count, type, weekday, time].forEach((input) => input.addEventListener('change', update));
+    update();
+});

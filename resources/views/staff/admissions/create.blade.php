@@ -22,8 +22,20 @@
 <label class="grid gap-2 text-sm font-semibold">会場<select name="venue_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>@foreach ($venues as $venue)<option data-room="{{ $venue->termsRoomType() }}" value="{{ $venue->id }}" @selected(old('venue_id') == $venue->id)>{{ $venue->name }}</option>@endforeach</select></label>
 <label class="grid gap-2 text-sm font-semibold">講師<select name="teacher_profile_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>@foreach ($teachers as $teacher)<option value="{{ $teacher->id }}" @selected(old('teacher_profile_id') == $teacher->id)>{{ $teacher->display_name }}</option>@endforeach</select></label>
 <label class="grid gap-2 text-sm font-semibold">希望開始日<input type="date" name="preferred_start_date" required min="{{ now()->format('Y-m-d') }}" value="{{ old('preferred_start_date', now()->addMonth()->startOfMonth()->format('Y-m-d')) }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
-<label class="grid gap-2 text-sm font-semibold">固定曜日（レギュラー契約は必須）<select name="weekday" class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択</option>@foreach (['日','月','火','水','木','金','土'] as $value=>$label)<option value="{{ $value }}" @selected((string) old('weekday') === (string) $value)>{{ $label }}曜日</option>@endforeach</select></label>
-<label class="grid gap-2 text-sm font-semibold">固定時間（レギュラー契約は必須）<input type="time" name="starts_at_time" value="{{ old('starts_at_time') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+<fieldset class="min-w-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:col-span-2" data-fixed-schedule>
+<legend class="px-2 text-sm font-bold">固定レッスン（レギュラー契約）</legend>
+<div class="grid min-w-0 gap-3 sm:grid-cols-3">
+<label class="grid min-w-0 gap-2 text-sm font-semibold">実施する週<select name="regular_week_pattern" class="min-h-12 min-w-0 w-full rounded-xl border border-stone-300 bg-white px-3">
+<option value="">標準（月回数に合わせる）</option>
+@foreach ([[1],[2],[3],[4],[1,3],[2,4],[1,2],[1,4],[2,3],[3,4],[1,2,3],[1,2,4],[1,3,4],[2,3,4],[1,2,3,4]] as $weeks)
+<option value="{{ implode(',', $weeks) }}" data-count="{{ count($weeks) }}" @selected(old('regular_week_pattern') === implode(',', $weeks))>{{ collect($weeks)->map(fn ($week) => '第'.$week)->implode('・') }}</option>
+@endforeach</select></label>
+<label class="grid min-w-0 gap-2 text-sm font-semibold">曜日<select name="weekday" class="min-h-12 min-w-0 w-full rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>@foreach (['日','月','火','水','木','金','土'] as $value=>$label)<option value="{{ $value }}" @selected((string) old('weekday') === (string) $value)>{{ $label }}曜日</option>@endforeach</select></label>
+<label class="grid min-w-0 gap-2 text-sm font-semibold">開始時間<input type="time" name="starts_at_time" value="{{ old('starts_at_time') }}" class="min-h-12 min-w-0 w-full rounded-xl border border-stone-300 bg-white px-3"></label>
+</div>
+<p data-schedule-summary aria-live="polite" class="mt-3 text-sm font-bold text-amber-800">週・曜日・開始時間を選択してください。</p>
+<p class="mt-2 text-xs text-stone-600">「第1」はその月の最初の指定曜日です。標準は月2回＝第1・第3、月4回＝第1〜第4。第5は自動作成しません。フレックスは固定日時不要です。</p>
+</fieldset>
 </div>
 <label class="grid gap-2 text-sm font-semibold">備考（任意）<textarea name="notes" rows="4" maxlength="1000" class="rounded-xl border border-stone-300 p-3">{{ old('notes') }}</textarea></label><div class="absolute -left-[9999px]" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
 <label class="flex items-start gap-3 rounded-xl bg-stone-50 p-4 text-sm"><input type="checkbox" name="privacy_accepted" value="1" required class="mt-1"><span><a href="{{ config('musako.privacy.policy_url') }}" target="_blank" class="font-bold underline">プライバシーポリシー</a>について本人の同意を確認しました。</span></label>

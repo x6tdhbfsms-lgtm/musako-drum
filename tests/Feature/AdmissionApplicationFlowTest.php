@@ -181,13 +181,20 @@ class AdmissionApplicationFlowTest extends TestCase
         $payload['course_id'] = Course::where('code', 'INDIVIDUAL-60')->sole()->id;
         $payload['venue_id'] = Venue::where('code', 'MUSAKO')->sole()->id;
         $payload['email'] = ' New.Student@Example.com ';
+        $payload['regular_week_pattern'] = '2,4';
         $this->actingAs($admin)->get(route('staff.admission-applications.create'))->assertOk()->assertSee('新規生徒登録');
+        foreach (['1', '2,2', '2,5'] as $invalidPattern) {
+            $this->post(route('staff.admission-applications.store'), [...$payload, 'regular_week_pattern' => $invalidPattern])->assertSessionHasErrors('regular_week_pattern');
+        }
+        $this->assertDatabaseCount('admission_applications', 0);
         $response = $this->post(route('staff.admission-applications.store'), $payload)->assertSessionHasNoErrors();
         $application = AdmissionApplication::sole();
         $this->assertNull($application->trial_lesson_request_id);
         $this->assertSame(AdmissionApplicationStatus::Approved, $application->status);
         $this->assertSame('new.student@example.com', $application->convertedUser->email);
         $this->assertSame(2, (int) $application->convertedLessonEnrollment->monthly_lesson_limit);
+        $this->assertSame([2, 4], $application->convertedLessonEnrollment->regular_week_numbers);
+        $this->assertSame([2, 4], RegularScheduleOccurrence::where('lesson_enrollment_id', $application->converted_lesson_enrollment_id)->orderBy('week_number')->pluck('week_number')->unique()->values()->all());
         $response->assertRedirectToRoute('staff.students.show', $application->converted_student_profile_id);
         Notification::assertSentOnDemand(InitialPasswordSetupNotification::class);
         $this->post(route('staff.admission-applications.store'), $payload)->assertSessionHasErrors('email');
