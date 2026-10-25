@@ -3,9 +3,20 @@
 @section('content')
 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div><p class="text-sm font-semibold tracking-widest text-amber-700">MY CALENDAR</p><h1 class="mt-1 text-2xl font-bold sm:text-4xl">こんにちは、{{ auth()->user()->name }}さん</h1><p class="mt-2 text-sm text-stone-600">ご自身のレッスンと申請中の予定を確認できます。</p></div>
-    <div class="flex items-center justify-between gap-2 rounded-xl border border-stone-200 bg-white p-1 shadow-sm"><a href="{{ route('student.dashboard', ['month' => $month->subMonth()->format('Y-m')]) }}" class="grid min-h-11 min-w-11 place-items-center rounded-lg hover:bg-stone-100" aria-label="前月">←</a><strong class="min-w-28 text-center">{{ $month->format('Y年 n月') }}</strong><a href="{{ route('student.dashboard', ['month' => $month->addMonth()->format('Y-m')]) }}" class="grid min-h-11 min-w-11 place-items-center rounded-lg hover:bg-stone-100" aria-label="翌月">→</a></div>
 </div>
 @if ($errors->any())<div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>@endif
+
+<section class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5" aria-labelledby="next-lesson-title">
+    <h2 id="next-lesson-title" class="text-sm font-bold text-emerald-800">次回のレッスン</h2>
+    @if ($nextReservation)
+        <a href="{{ route('student.reservations.show', $nextReservation) }}" class="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <div><strong class="block text-2xl tabular-nums">{{ $nextReservation->lessonSlot->starts_at->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$nextReservation->lessonSlot->starts_at->dayOfWeek] }}） {{ $nextReservation->lessonSlot->starts_at->format('H:i') }}〜{{ $nextReservation->lessonSlot->ends_at->format('H:i') }}</strong><p class="mt-2 text-sm">{{ $nextReservation->lessonSlot->venue?->name ?? '会場未定' }} · {{ $nextReservation->lessonSlot->teacherProfile->display_name }}</p></div>
+            <span class="text-sm font-bold text-emerald-800">詳細を見る →</span>
+        </a>
+    @else
+        <p class="mt-2 text-sm text-stone-600">確定した今後のレッスンはありません。</p>
+    @endif
+</section>
 
 <section class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm" aria-labelledby="my-lesson-title">
     <h2 id="my-lesson-title" class="text-xl font-bold">あなたのレッスン内容</h2>
@@ -43,19 +54,12 @@
 </section>
 @endif
 
-<section class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5" aria-labelledby="next-lesson-title">
-    <h2 id="next-lesson-title" class="text-sm font-bold text-emerald-800">次回のレッスン</h2>
-    @if ($nextReservation)
-        <a href="{{ route('student.reservations.show', $nextReservation) }}" class="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div><strong class="block text-2xl tabular-nums">{{ $nextReservation->lessonSlot->starts_at->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$nextReservation->lessonSlot->starts_at->dayOfWeek] }}） {{ $nextReservation->lessonSlot->starts_at->format('H:i') }}〜{{ $nextReservation->lessonSlot->ends_at->format('H:i') }}</strong><p class="mt-2 text-sm">{{ $nextReservation->lessonSlot->venue?->name ?? '会場未定' }} · {{ $nextReservation->lessonSlot->teacherProfile->display_name }}</p></div>
-            <span class="text-sm font-bold text-emerald-800">詳細を見る →</span>
-        </a>
-    @else
-        <p class="mt-2 text-sm text-stone-600">確定した今後のレッスンはありません。</p>
-    @endif
-</section>
+
 <section class="mt-6" aria-labelledby="lesson-calendar-title">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 id="lesson-calendar-title" class="text-xl font-bold">レッスンカレンダー</h2><a href="{{ route('student.reservations.index') }}" class="text-sm font-semibold text-amber-700">予約一覧を見る →</a></div>
+    <div class="mt-4">
+    <div class="flex items-center justify-between gap-2 rounded-xl border border-stone-200 bg-white p-1 shadow-sm"><a href="{{ route('student.dashboard', ['month' => $month->subMonth()->format('Y-m')]) }}" class="grid min-h-11 min-w-11 place-items-center rounded-lg hover:bg-stone-100" aria-label="前月">←</a><strong class="min-w-28 text-center">{{ $month->format('Y年 n月') }}</strong><a href="{{ route('student.dashboard', ['month' => $month->addMonth()->format('Y-m')]) }}" class="grid min-h-11 min-w-11 place-items-center rounded-lg hover:bg-stone-100" aria-label="翌月">→</a></div>
+    </div>
     <div class="mt-3 flex flex-wrap gap-2 text-xs">
         @foreach ([['振替申請中','bg-violet-100 text-violet-800'], ['振替確定','bg-indigo-100 text-indigo-800'], ['お休み連絡済み','bg-red-100 text-red-700'], ['遅刻連絡済み','bg-orange-100 text-orange-800'], ['休講／予約不可','bg-stone-100 text-stone-500']] as [$label, $classes])<span class="rounded-full px-3 py-1 font-semibold {{ $classes }}">{{ $label }}</span>@endforeach
     </div>
