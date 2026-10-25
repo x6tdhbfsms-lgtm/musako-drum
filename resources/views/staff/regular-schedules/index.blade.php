@@ -14,7 +14,7 @@
 @endphp
 
 <div class="flex flex-wrap items-end justify-between gap-4">
-    <div><p class="text-xs font-bold tracking-widest text-amber-700">REGULAR SCHEDULE</p><h1 class="text-2xl font-bold sm:text-3xl">レギュラースケジュール管理</h1><p class="mt-2 text-sm text-stone-600">候補を下書き生成し、競合を確認してから生徒の予約へ確定します。</p></div>
+    <div><p class="text-xs font-bold tracking-widest text-amber-700">REGULAR SCHEDULE</p><h1 class="text-2xl font-bold sm:text-3xl">レギュラースケジュール管理</h1><p class="mt-2 text-sm text-stone-600">登録した曜日・時間で自動生成し、問題がなければ予約を確定します。重複などで確定できない予定はエラーを表示します。</p></div>
     <form method="get" class="flex items-end gap-2"><label class="grid gap-1 text-sm font-semibold">対象月<input type="month" name="month" value="{{ $month->format('Y-m') }}" class="min-h-11 rounded-xl border border-stone-300 px-3"></label><button class="min-h-11 rounded-xl bg-stone-900 px-4 font-bold text-white">表示</button></form>
 </div>
 
@@ -35,7 +35,7 @@
 </section>
 
 @if (auth()->user()->role->value === 'admin')
-<details class="mt-4 rounded-2xl border border-stone-200 bg-white p-4"><summary class="cursor-pointer font-bold">自動生成設定</summary><form method="post" action="{{ route('staff.regular-schedules.settings.update') }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf @method('patch')<label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="automatic_generation_enabled" value="1" @checked($settings->automatic_generation_enabled)> 自動生成を有効にする</label><span>毎日、当月から翌々月末までの仮予定を補充します。確定は先生が行います。</span><button class="min-h-11 rounded-xl border border-stone-300 px-4 font-bold">保存</button></form></details>
+<details class="mt-4 rounded-2xl border border-stone-200 bg-white p-4"><summary class="cursor-pointer font-bold">自動生成設定</summary><form method="post" action="{{ route('staff.regular-schedules.settings.update') }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf @method('patch')<label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="automatic_generation_enabled" value="1" @checked($settings->automatic_generation_enabled)> 自動生成を有効にする</label><span>毎日、当月から翌々月末までの予定を自動生成・確定します。重複する予定は確定しません。</span><button class="min-h-11 rounded-xl border border-stone-300 px-4 font-bold">保存</button></form></details>
 @endif
 
 <div class="mt-8 grid gap-5">

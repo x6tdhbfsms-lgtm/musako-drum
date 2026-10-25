@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Actions\ConfirmRegularScheduleOccurrences;
 use App\Enums\ApplicationStatus;
 use App\Enums\EnrollmentStatus;
 use App\Enums\LessonType;
@@ -70,6 +71,30 @@ class RegularScheduleGenerator
         }
 
         return $batches->map->fresh(['occurrences']);
+    }
+
+    /** @return list<string> */
+    public function confirmGenerated(Collection $batches, ?User $actor = null): array
+    {
+        $errors = [];
+        foreach ($batches as $batch) {
+            $pending = $batch->occurrences()->whereIn('status', [RegularScheduleOccurrenceStatus::Draft, RegularScheduleOccurrenceStatus::Conflict])->get();
+            if ($pending->isEmpty()) {
+                continue;
+            }
+            try {
+                app(ConfirmRegularScheduleOccurrences::class)->handle($pending->modelKeys(), $actor, skipConflicts: true);
+            } catch (ValidationException $exception) {
+                $messages = array_merge(...array_values($exception->errors()));
+                $batch->update(['status' => RegularScheduleBatchStatus::Conflict, 'warning' => implode(' ', $messages)]);
+                $errors = array_merge($errors, $messages);
+            }
+            foreach ($batch->occurrences()->where('status', RegularScheduleOccurrenceStatus::Conflict)->get() as $occurrence) {
+                $errors[] = $occurrence->starts_at->format('Y/m/d H:i').'：'.implode(' ', $occurrence->conflict_reasons ?? []);
+            }
+        }
+
+        return array_values(array_unique($errors));
     }
 
     /** @param Collection<int, LessonEnrollment>|null $versions */

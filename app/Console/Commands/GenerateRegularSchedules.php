@@ -11,7 +11,7 @@ class GenerateRegularSchedules extends Command
 {
     protected $signature = 'regular-schedules:generate-next-month {--month= : Generate YYYY-MM instead} {--force : Ignore enabled setting}';
 
-    protected $description = 'Generate safe draft regular lesson schedules through two months ahead';
+    protected $description = 'Generate and confirm regular lesson schedules through two months ahead';
 
     public function handle(RegularScheduleGenerator $generator): int
     {
@@ -26,11 +26,16 @@ class GenerateRegularSchedules extends Command
         $months = $this->option('month')
             ? [CarbonImmutable::createFromFormat('!Y-m', (string) $this->option('month'), config('app.timezone'))]
             : [$today->startOfMonth(), $today->startOfMonth()->addMonth(), $today->startOfMonth()->addMonths(2)];
+        $hasErrors = false;
         foreach ($months as $month) {
             $batches = $generator->generateMonth($month, notBefore: $this->option('month') ? null : $today);
+            foreach ($generator->confirmGenerated($batches) as $error) {
+                $hasErrors = true;
+                $this->components->error($error);
+            }
             $this->components->info($month->format('Y-m').": {$batches->count()} regular schedule batches processed.");
         }
 
-        return self::SUCCESS;
+        return $hasErrors ? self::FAILURE : self::SUCCESS;
     }
 }

@@ -4,11 +4,15 @@ namespace Tests\Feature;
 
 use App\Enums\AdmissionApplicationStatus;
 use App\Enums\LessonType;
+use App\Enums\PriceRateKind;
 use App\Enums\PricingCategory;
 use App\Enums\TrialLessonStatus;
 use App\Models\AdmissionApplication;
 use App\Models\Course;
+use App\Models\LessonSlot;
+use App\Models\PriceRate;
 use App\Models\RegularScheduleOccurrence;
+use App\Models\ReservationRequest;
 use App\Models\TeacherProfile;
 use App\Models\TrialLessonRequest;
 use App\Models\User;
@@ -28,9 +32,10 @@ class AdmissionApplicationFlowTest extends TestCase
 
     #[TestWith(['2026-10-01'])]
     #[TestWith(['2026-11-01'])]
-    public function test_approval_generates_drafts_through_two_months_ahead_without_confirming_bookings(string $startsOn): void
+    public function test_approval_confirms_lessons_through_two_months_ahead(string $startsOn): void
     {
         Notification::fake();
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $this->travelTo(now()->setDate(2026, 10, 22)->setTime(10, 0));
         $admin = User::factory()->admin()->create();
         $application = AdmissionApplication::factory()->create(['preferred_start_date' => $startsOn, 'weekday' => 0, 'starts_at_time' => '12:00:00', 'monthly_lesson_count' => 2]);
@@ -38,10 +43,31 @@ class AdmissionApplicationFlowTest extends TestCase
         $studentId = $application->fresh()->converted_student_profile_id;
         $dates = RegularScheduleOccurrence::where('student_profile_id', $studentId)->orderBy('starts_at')->get();
         $this->assertSame(['2026-11-01 12:00', '2026-11-15 12:00', '2026-12-06 12:00', '2026-12-20 12:00'], $dates->map(fn ($row) => $row->starts_at->format('Y-m-d H:i'))->all());
-        $this->assertTrue($dates->every(fn ($row) => in_array($row->status->value, ['draft', 'conflict'])));
-        $this->assertDatabaseMissing('reservation_requests', ['student_profile_id' => $studentId]);
+        $this->assertTrue($dates->every(fn ($row) => $row->status->value === 'confirmed'));
+        $this->assertSame(4, ReservationRequest::where('student_profile_id', $studentId)->where('status', 'approved')->count());
         $this->patch(route('staff.admission-applications.update', $application), ['status' => 'approved'])->assertSessionHasErrors('status');
         $this->assertSame(4, RegularScheduleOccurrence::where('student_profile_id', $studentId)->count());
+    }
+
+    public function test_conflicting_admission_returns_error_without_partial_student_or_reservations(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-10-25 10:00:00');
+        $admin = User::factory()->admin()->create();
+        $application = AdmissionApplication::factory()->create(['preferred_start_date' => '2026-11-01', 'weekday' => 0, 'starts_at_time' => '12:00:00']);
+        LessonSlot::factory()->create([
+            'teacher_profile_id' => $application->teacher_profile_id,
+            'venue_id' => $application->venue_id,
+            'starts_at' => '2026-11-01 12:00:00',
+            'ends_at' => '2026-11-01 13:00:00',
+        ]);
+        $this->actingAs($admin)->patch(route('staff.admission-applications.update', $application), ['status' => 'approved'])
+            ->assertSessionHasErrors('occurrences');
+        $this->assertSame(AdmissionApplicationStatus::Pending, $application->fresh()->status);
+        $this->assertDatabaseMissing('users', ['email' => $application->email_normalized]);
+        $this->assertDatabaseCount('regular_schedule_occurrences', 0);
+        $this->assertDatabaseCount('reservation_requests', 0);
+        Notification::assertNothingSent();
     }
 
     public function test_completed_trial_can_open_and_submit_admission_application(): void
@@ -84,6 +110,8 @@ class AdmissionApplicationFlowTest extends TestCase
 
     public function test_admin_approval_creates_student_account_and_regular_enrollment_with_password_setup(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
+
         Notification::fake();
         $admin = User::factory()->admin()->create();
         $application = AdmissionApplication::factory()->create([

@@ -66,7 +66,12 @@ class RegularScheduleController extends Controller
         $month = CarbonImmutable::createFromFormat('!Y-m', $validated['month'], config('app.timezone'));
         $batches = $generator->generateMonth($month, $request->user());
 
-        return back()->with('success', $month->format('Y年n月').'分を生成・差分更新しました（'.$batches->count().'契約）。');
+        $errors = $generator->confirmGenerated($batches, $request->user());
+        if ($errors !== []) {
+            return back()->withErrors(['regular_schedule' => $errors]);
+        }
+
+        return back()->with('success', $month->format('Y年n月').'分を生成・確定しました（'.$batches->count().'契約）。');
     }
 
     public function updateOccurrence(Request $request, RegularScheduleOccurrence $regularScheduleOccurrence, UpdateRegularScheduleOccurrence $action): RedirectResponse

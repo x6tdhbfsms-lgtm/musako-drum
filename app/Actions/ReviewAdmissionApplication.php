@@ -95,9 +95,12 @@ class ReviewAdmissionApplication
                 $generator = app(RegularScheduleGenerator::class);
                 $today = CarbonImmutable::today(config('app.timezone'));
                 $lastMonth = $today->startOfMonth()->addMonths(2)->max($firstMonth);
+                $occurrenceIds = [];
                 for ($month = $firstMonth; $month->lessThanOrEqualTo($lastMonth); $month = $month->addMonth()) {
-                    $generator->generateEnrollment($enrollment, $month, $reviewer, notBefore: $today);
+                    $batch = $generator->generateEnrollment($enrollment, $month, $reviewer, notBefore: $today);
+                    $occurrenceIds = array_merge($occurrenceIds, $batch->occurrences->modelKeys());
                 }
+                app(ConfirmRegularScheduleOccurrences::class)->handle($occurrenceIds, $reviewer);
             }
 
             $application->update([

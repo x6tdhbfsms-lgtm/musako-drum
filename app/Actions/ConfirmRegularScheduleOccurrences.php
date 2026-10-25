@@ -39,7 +39,7 @@ class ConfirmRegularScheduleOccurrences
     /** @param list<int> $occurrenceIds
      * @return Collection<int, RegularScheduleOccurrence>
      */
-    public function handle(array $occurrenceIds, User $actor, bool $skipConflicts = false): Collection
+    public function handle(array $occurrenceIds, ?User $actor, bool $skipConflicts = false): Collection
     {
         $confirmed = DB::transaction(function () use ($occurrenceIds, $actor, $skipConflicts): Collection {
             $items = RegularScheduleOccurrence::query()->whereKey($occurrenceIds)->orderBy('starts_at')->lockForUpdate()->get();
@@ -64,7 +64,7 @@ class ConfirmRegularScheduleOccurrences
                     if ($skipConflicts) {
                         continue;
                     }
-                    throw ValidationException::withMessages(['occurrences' => $occurrence->starts_at->format('n/j H:i').' は競合しているため確定できません。']);
+                    throw ValidationException::withMessages(['occurrences' => $occurrence->starts_at->format('n/j H:i').' は確定できません。'.implode(' ', $reasons)]);
                 }
 
                 $student = StudentProfile::query()->lockForUpdate()->findOrFail($occurrence->student_profile_id);
@@ -110,20 +110,20 @@ class ConfirmRegularScheduleOccurrences
                     'lesson_entitlement_month' => $occurrence->lesson_entitlement_month,
                     'studio_fee_amount' => $studioFee,
                     'studio_fee_priced_on' => $occurrence->starts_at->toDateString(),
-                    'reviewed_by_user_id' => $actor->id,
+                    'reviewed_by_user_id' => $actor?->id,
                     'reviewed_at' => now(),
                     'staff_note' => 'レギュラー固定スケジュール確定',
                 ]);
                 $occurrence->update([
                     'status' => RegularScheduleOccurrenceStatus::Confirmed,
                     'conflict_reasons' => null,
-                    'confirmed_by_user_id' => $actor->id,
+                    'confirmed_by_user_id' => $actor?->id,
                     'confirmed_at' => now(),
                 ]);
                 RegularScheduleAudit::query()->create([
                     'regular_schedule_batch_id' => $occurrence->regular_schedule_batch_id,
                     'regular_schedule_occurrence_id' => $occurrence->id,
-                    'actor_user_id' => $actor->id,
+                    'actor_user_id' => $actor?->id,
                     'action' => 'confirmed',
                     'after_values' => $occurrence->fresh()->toArray(),
                     'created_at' => now(),

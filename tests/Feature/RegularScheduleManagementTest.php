@@ -263,6 +263,8 @@ class RegularScheduleManagementTest extends TestCase
         $this->regularEnrollment($teacher, 1, [1]);
         $other = $this->regularEnrollment($otherTeacher, 1, [2]);
 
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
+        $this->travelTo('2026-09-01 10:00:00');
         $this->actingAs($teacher->user)->post(route('staff.regular-schedules.generate'), ['month' => '2026-10'])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('regular_schedule_batches', 1);
         $this->assertDatabaseMissing('regular_schedule_batches', ['lesson_enrollment_id' => $other->id]);
@@ -290,6 +292,7 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_scheduler_command_obeys_setting_and_can_be_forced(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $teacher = TeacherProfile::factory()->create();
         $this->regularEnrollment($teacher, 1, [1]);
         $this->travelTo('2026-09-19 10:00:00');
@@ -303,16 +306,39 @@ class RegularScheduleManagementTest extends TestCase
 
     public function test_daily_generation_covers_two_months_ahead_without_duplicate_or_past_lessons(): void
     {
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
         $this->travelTo('2026-10-25 10:00:00');
         $teacher = TeacherProfile::factory()->create();
         $this->regularEnrollment($teacher, 2, [1, 3], ['weekday' => 0, 'starts_at_time' => '12:00']);
         $this->artisan('regular-schedules:generate-next-month')->assertSuccessful();
         $this->artisan('regular-schedules:generate-next-month')->assertSuccessful();
         $this->assertSame(['2026-11-01', '2026-11-15', '2026-12-06', '2026-12-20'], RegularScheduleOccurrence::orderBy('starts_at')->get()->map(fn ($row) => $row->starts_at->toDateString())->all());
-        $this->assertDatabaseCount('reservation_requests', 0);
+        $this->assertDatabaseCount('reservation_requests', 4);
+        $this->assertSame(4, RegularScheduleOccurrence::where('status', RegularScheduleOccurrenceStatus::Confirmed)->count());
         $this->travelTo('2026-11-01 00:30:00');
         $this->artisan('regular-schedules:generate-next-month')->assertSuccessful();
         $this->assertSame(['2026-11-01', '2026-11-15', '2026-12-06', '2026-12-20', '2027-01-03', '2027-01-17'], RegularScheduleOccurrence::orderBy('starts_at')->get()->map(fn ($row) => $row->starts_at->toDateString())->all());
+    }
+
+    public function test_automatic_confirmation_keeps_conflicting_lessons_unbooked_and_displays_errors(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-10-25 10:00:00');
+        PriceRate::factory()->create(['kind' => PriceRateKind::StudioPerLesson, 'pricing_category' => null, 'monthly_lesson_count' => null, 'amount' => 1610, 'effective_from' => '2026-01-01']);
+        $teacher = TeacherProfile::factory()->create();
+        $first = $this->regularEnrollment($teacher, 1, [1]);
+        $this->regularEnrollment($teacher, 1, [1]);
+        $this->regularEnrollment(TeacherProfile::factory()->create(), 1, [1]);
+        $this->actingAs($teacher->user)->post(route('staff.regular-schedules.generate'), ['month' => '2026-11'])
+            ->assertSessionHasErrors('regular_schedule');
+        $this->assertDatabaseCount('reservation_requests', 0);
+        $this->actingAs($teacher->user)->get(route('staff.regular-schedules.index', ['month' => '2026-11']))
+            ->assertOk()->assertSee('別のレギュラー予定と時間が重複しています。');
+        $this->artisan('regular-schedules:generate-next-month')->assertFailed();
+        $this->assertDatabaseMissing('reservation_requests', ['student_profile_id' => $first->student_profile_id]);
+        $this->assertDatabaseCount('reservation_requests', 2);
+        $this->artisan('regular-schedules:generate-next-month')->assertFailed();
+        $this->assertDatabaseCount('reservation_requests', 2);
     }
 
     public function test_draft_can_be_skipped_and_regeneration_does_not_restore_it(): void
