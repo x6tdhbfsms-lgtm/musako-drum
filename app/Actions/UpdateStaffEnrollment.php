@@ -11,6 +11,8 @@ use App\Models\Course;
 use App\Models\LessonEnrollment;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Services\RegularScheduleGenerator;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -53,6 +55,17 @@ class UpdateStaffEnrollment
                 'status' => ApplicationStatus::Pending, 'requested_at' => now(),
             ]);
             app(ReviewContractChangeRequest::class)->handle($change, $actor, ApplicationStatus::Approved, null);
+            if ($after['lesson_type'] === LessonType::Regular->value) {
+                $today = CarbonImmutable::today(config('app.timezone'));
+                $firstMonth = CarbonImmutable::parse($data['effective_on'])->startOfMonth()->max($today->startOfMonth());
+                $lastMonth = $today->startOfMonth()->addMonths(2)->max($firstMonth);
+                $generator = app(RegularScheduleGenerator::class);
+                for ($month = $firstMonth; $month->lessThanOrEqualTo($lastMonth); $month = $month->addMonth()) {
+                    $batches = $generator->generateMonth($month, $actor, notBefore: $today, studentId: $student->id);
+                    $ids = $batches->flatMap(fn ($batch) => $batch->occurrences->modelKeys())->all();
+                    app(ConfirmRegularScheduleOccurrences::class)->handle($ids, $actor);
+                }
+            }
         }, 3);
     }
 }

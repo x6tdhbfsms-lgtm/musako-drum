@@ -28,12 +28,13 @@ class RegularScheduleGenerator
     public function __construct(private readonly RegularScheduleConflictDetector $conflicts) {}
 
     /** @return Collection<int, RegularScheduleBatch> */
-    public function generateMonth(CarbonImmutable $month, ?User $actor = null, ?CarbonImmutable $notBefore = null): Collection
+    public function generateMonth(CarbonImmutable $month, ?User $actor = null, ?CarbonImmutable $notBefore = null, ?int $studentId = null): Collection
     {
         $month = $month->setTimezone(config('app.timezone'))->startOfMonth();
 
         $enrollments = LessonEnrollment::query()
             ->with(['studentProfile.user', 'teacherProfile', 'venue', 'course'])
+            ->when($studentId !== null, fn (Builder $query) => $query->where('student_profile_id', $studentId))
             ->where('lesson_type', LessonType::Regular)
             ->where('status', EnrollmentStatus::Active)
             ->whereDate('starts_on', '<=', $month->endOfMonth())
@@ -51,6 +52,7 @@ class RegularScheduleGenerator
             })->values();
 
         RegularScheduleOccurrence::query()
+            ->when($studentId !== null, fn (Builder $query) => $query->where('student_profile_id', $studentId))
             ->whereDate('lesson_entitlement_month', $month)
             ->whereIn('status', [RegularScheduleOccurrenceStatus::Draft, RegularScheduleOccurrenceStatus::Conflict])
             ->when($actor?->role === UserRole::Teacher, fn (Builder $query) => $query->where('teacher_profile_id', $actor->teacherProfile?->id ?? 0))

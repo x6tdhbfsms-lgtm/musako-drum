@@ -22,6 +22,7 @@ use App\Models\Venue;
 use App\Services\FlexInactivityWarning;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
@@ -207,6 +208,23 @@ class StaffStudentEditingTest extends TestCase
     private function profileData(StudentProfile $student): array
     {
         return ['name' => '編集確認', 'email' => 'edited@example.invalid', 'phone' => '00000000000', 'postal_code' => '184-0000', 'address' => '試験専用住所', 'revision' => app(UpdateStaffStudent::class)->revision($student)];
+    }
+
+    public function test_setting_fixed_time_immediately_confirms_lessons_visible_in_student_reservations(): void
+    {
+        Notification::fake();
+        [$enrollment, $data] = $this->contractData();
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->patch(route('staff.students.enrollments.update', [$enrollment->studentProfile, $enrollment]), [
+            ...$data, 'lesson_type' => 'regular', 'weekday' => 5, 'starts_at_time' => '16:00', 'monthly_lesson_limit' => 4,
+        ])->assertSessionHasNoErrors();
+        $reservations = ReservationRequest::where('student_profile_id', $enrollment->student_profile_id)->with('lessonSlot')->get();
+        $this->assertCount(8, $reservations);
+        $this->assertTrue($reservations->every(fn ($row) => $row->status->value === 'approved'));
+        $this->assertSame(['2026-11-06 16:00', '2026-11-13 16:00', '2026-11-20 16:00', '2026-11-27 16:00', '2026-12-04 16:00', '2026-12-11 16:00', '2026-12-18 16:00', '2026-12-25 16:00'], $reservations->sortBy('lessonSlot.starts_at')->map(fn ($row) => $row->lessonSlot->starts_at->format('Y-m-d H:i'))->values()->all());
+        $this->actingAs($enrollment->studentProfile->user)->get(route('student.reservations.index'))->assertOk()->assertSee('16:00');
+        $this->get(route('student.dashboard', ['date' => '2026-11-01']))->assertOk();
+        $this->actingAs($admin)->get(route('staff.dashboard', ['date' => '2026-11-01']))->assertOk()->assertSee($enrollment->studentProfile->user->name);
     }
 
     private function contractData(): array
