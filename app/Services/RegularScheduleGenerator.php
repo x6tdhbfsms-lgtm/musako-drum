@@ -27,7 +27,7 @@ class RegularScheduleGenerator
     public function __construct(private readonly RegularScheduleConflictDetector $conflicts) {}
 
     /** @return Collection<int, RegularScheduleBatch> */
-    public function generateMonth(CarbonImmutable $month, ?User $actor = null): Collection
+    public function generateMonth(CarbonImmutable $month, ?User $actor = null, ?CarbonImmutable $notBefore = null): Collection
     {
         $month = $month->setTimezone(config('app.timezone'))->startOfMonth();
 
@@ -43,10 +43,10 @@ class RegularScheduleGenerator
 
         $batches = $enrollments
             ->groupBy(fn (LessonEnrollment $enrollment): int => $this->rootEnrollmentId($enrollment))
-            ->map(function (Collection $versions) use ($month, $actor): RegularScheduleBatch {
+            ->map(function (Collection $versions) use ($month, $actor, $notBefore): RegularScheduleBatch {
                 $representative = $versions->sortByDesc('starts_on')->first();
 
-                return $this->generateEnrollment($representative, $month, $actor, $versions);
+                return $this->generateEnrollment($representative, $month, $actor, $versions, $notBefore);
             })->values();
 
         RegularScheduleOccurrence::query()
@@ -73,11 +73,11 @@ class RegularScheduleGenerator
     }
 
     /** @param Collection<int, LessonEnrollment>|null $versions */
-    public function generateEnrollment(LessonEnrollment $enrollment, CarbonImmutable $month, ?User $actor = null, ?Collection $versions = null): RegularScheduleBatch
+    public function generateEnrollment(LessonEnrollment $enrollment, CarbonImmutable $month, ?User $actor = null, ?Collection $versions = null, ?CarbonImmutable $notBefore = null): RegularScheduleBatch
     {
         $month = $month->setTimezone(config('app.timezone'))->startOfMonth();
 
-        return DB::transaction(function () use ($enrollment, $month, $actor, $versions): RegularScheduleBatch {
+        return DB::transaction(function () use ($enrollment, $month, $actor, $versions, $notBefore): RegularScheduleBatch {
             TeacherProfile::query()->lockForUpdate()->findOrFail($enrollment->teacher_profile_id);
             $enrollment = LessonEnrollment::query()->lockForUpdate()->findOrFail($enrollment->id);
             $versions = ($versions ?? collect([$enrollment]))->map(fn (LessonEnrollment $version) => LessonEnrollment::query()->lockForUpdate()->findOrFail($version->id));
@@ -130,7 +130,7 @@ class RegularScheduleGenerator
                 $version = $candidate['version'];
                 $week = $candidate['week'];
                 $date = $candidate['date'];
-                if ($this->isInactiveOn($version, $date)) {
+                if (($notBefore !== null && $date->lessThan($notBefore)) || $this->isInactiveOn($version, $date)) {
                     continue;
                 }
 

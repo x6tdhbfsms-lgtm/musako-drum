@@ -19,6 +19,7 @@ use App\Models\RegularScheduleAudit;
 use App\Models\RegularScheduleBatch;
 use App\Models\RegularScheduleNotificationDelivery;
 use App\Models\RegularScheduleOccurrence;
+use App\Models\RegularScheduleSetting;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\TeacherProfile;
@@ -292,11 +293,26 @@ class RegularScheduleManagementTest extends TestCase
         $teacher = TeacherProfile::factory()->create();
         $this->regularEnrollment($teacher, 1, [1]);
         $this->travelTo('2026-09-19 10:00:00');
+        RegularScheduleSetting::current()->update(['automatic_generation_enabled' => false]);
 
         $this->artisan('regular-schedules:generate-next-month')->assertSuccessful();
         $this->assertDatabaseCount('regular_schedule_batches', 0);
         $this->artisan('regular-schedules:generate-next-month --force')->assertSuccessful();
-        $this->assertDatabaseCount('regular_schedule_batches', 1);
+        $this->assertDatabaseCount('regular_schedule_batches', 3);
+    }
+
+    public function test_daily_generation_covers_two_months_ahead_without_duplicate_or_past_lessons(): void
+    {
+        $this->travelTo('2026-10-25 10:00:00');
+        $teacher = TeacherProfile::factory()->create();
+        $this->regularEnrollment($teacher, 2, [1, 3], ['weekday' => 0, 'starts_at_time' => '12:00']);
+        $this->artisan('regular-schedules:generate-next-month')->assertSuccessful();
+        $this->artisan('regular-schedules:generate-next-month')->assertSuccessful();
+        $this->assertSame(['2026-11-01', '2026-11-15', '2026-12-06', '2026-12-20'], RegularScheduleOccurrence::orderBy('starts_at')->get()->map(fn ($row) => $row->starts_at->toDateString())->all());
+        $this->assertDatabaseCount('reservation_requests', 0);
+        $this->travelTo('2026-11-01 00:30:00');
+        $this->artisan('regular-schedules:generate-next-month')->assertSuccessful();
+        $this->assertSame(['2026-11-01', '2026-11-15', '2026-12-06', '2026-12-20', '2027-01-03', '2027-01-17'], RegularScheduleOccurrence::orderBy('starts_at')->get()->map(fn ($row) => $row->starts_at->toDateString())->all());
     }
 
     public function test_draft_can_be_skipped_and_regeneration_does_not_restore_it(): void

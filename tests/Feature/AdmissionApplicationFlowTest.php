@@ -19,18 +19,21 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class AdmissionApplicationFlowTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_approval_generates_first_two_months_of_drafts_without_confirming_bookings(): void
+    #[TestWith(['2026-10-01'])]
+    #[TestWith(['2026-11-01'])]
+    public function test_approval_generates_drafts_through_two_months_ahead_without_confirming_bookings(string $startsOn): void
     {
         Notification::fake();
         $this->travelTo(now()->setDate(2026, 10, 22)->setTime(10, 0));
         $admin = User::factory()->admin()->create();
-        $application = AdmissionApplication::factory()->create(['preferred_start_date' => '2026-11-01', 'weekday' => 0, 'starts_at_time' => '12:00:00', 'monthly_lesson_count' => 2]);
+        $application = AdmissionApplication::factory()->create(['preferred_start_date' => $startsOn, 'weekday' => 0, 'starts_at_time' => '12:00:00', 'monthly_lesson_count' => 2]);
         $this->actingAs($admin)->patch(route('staff.admission-applications.update', $application), ['status' => 'approved'])->assertSessionHas('success');
         $studentId = $application->fresh()->converted_student_profile_id;
         $dates = RegularScheduleOccurrence::where('student_profile_id', $studentId)->orderBy('starts_at')->get();

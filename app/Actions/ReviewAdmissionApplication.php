@@ -93,8 +93,11 @@ class ReviewAdmissionApplication
                 && $enrollment->starts_at_time !== null && $enrollment->lesson_minutes > 0) {
                 $firstMonth = CarbonImmutable::instance($enrollment->starts_on)->startOfMonth()->max(CarbonImmutable::today()->startOfMonth());
                 $generator = app(RegularScheduleGenerator::class);
-                $generator->generateEnrollment($enrollment, $firstMonth, $reviewer);
-                $generator->generateEnrollment($enrollment, $firstMonth->addMonth(), $reviewer);
+                $today = CarbonImmutable::today(config('app.timezone'));
+                $lastMonth = $today->startOfMonth()->addMonths(2)->max($firstMonth);
+                for ($month = $firstMonth; $month->lessThanOrEqualTo($lastMonth); $month = $month->addMonth()) {
+                    $generator->generateEnrollment($enrollment, $month, $reviewer, notBefore: $today);
+                }
             }
 
             $application->update([

@@ -35,7 +35,7 @@
 </section>
 
 @if (auth()->user()->role->value === 'admin')
-<details class="mt-4 rounded-2xl border border-stone-200 bg-white p-4"><summary class="cursor-pointer font-bold">自動生成設定</summary><form method="post" action="{{ route('staff.regular-schedules.settings.update') }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf @method('patch')<label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="automatic_generation_enabled" value="1" @checked($settings->automatic_generation_enabled)> 自動生成を有効にする</label><label class="grid gap-1 text-sm font-semibold">毎月の生成日<input type="number" name="generation_day" min="1" max="28" value="{{ $settings->generation_day }}" class="min-h-11 w-24 rounded-xl border border-stone-300 px-3"></label><button class="min-h-11 rounded-xl border border-stone-300 px-4 font-bold">保存</button></form></details>
+<details class="mt-4 rounded-2xl border border-stone-200 bg-white p-4"><summary class="cursor-pointer font-bold">自動生成設定</summary><form method="post" action="{{ route('staff.regular-schedules.settings.update') }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf @method('patch')<label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="automatic_generation_enabled" value="1" @checked($settings->automatic_generation_enabled)> 自動生成を有効にする</label><span>毎日、当月から翌々月末までの仮予定を補充します。確定は先生が行います。</span><button class="min-h-11 rounded-xl border border-stone-300 px-4 font-bold">保存</button></form></details>
 @endif
 
 <div class="mt-8 grid gap-5">

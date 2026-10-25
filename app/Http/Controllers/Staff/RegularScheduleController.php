@@ -138,13 +138,11 @@ class RegularScheduleController extends Controller
     public function updateSettings(Request $request): RedirectResponse
     {
         abort_unless($request->user()->role === UserRole::Admin, 403);
-        $validated = $request->validate([
+        $request->validate([
             'automatic_generation_enabled' => ['nullable', 'boolean'],
-            'generation_day' => ['required', 'integer', 'between:1,28'],
         ]);
         RegularScheduleSetting::current()->update([
             'automatic_generation_enabled' => $request->boolean('automatic_generation_enabled'),
-            'generation_day' => $validated['generation_day'],
         ]);
 
         return back()->with('success', '自動生成設定を更新しました。');
