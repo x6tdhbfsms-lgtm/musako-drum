@@ -16,11 +16,36 @@ use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\Venue;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class ContractChangeRequestFlowTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    #[TestWith(['2026-10-10 23:59:59', '2026-11-01', true])]
+    #[TestWith(['2026-10-11 00:00:00', '2026-11-01', false])]
+    #[TestWith(['2026-10-25 12:00:00', '2026-11-30', false])]
+    #[TestWith(['2026-10-25 12:00:00', '2026-12-01', true])]
+    public function test_monthly_change_deadline_is_enforced_on_submission(string $now, string $effectiveOn, bool $accepted): void
+    {
+        $this->travelTo($now);
+        [$student, $enrollment] = $this->studentWithEnrollment();
+        $response = $this->actingAs($student->user)->from(route('student.contract-change-requests.index', ['type' => 'monthly_lessons']))
+            ->post(route('student.contract-change-requests.store'), [
+                'type' => 'monthly_lessons', 'lesson_enrollment_id' => $enrollment->id,
+                'monthly_lesson_limit' => 2, 'effective_on' => $effectiveOn,
+            ]);
+        if ($accepted) {
+            $response->assertSessionHasNoErrors();
+            $this->assertDatabaseHas('contract_change_requests', ['student_profile_id' => $student->id, 'status' => 'pending']);
+            $this->assertSame($effectiveOn, ContractChangeRequest::sole()->effective_on->toDateString());
+        } else {
+            $message = '時間割・回数変更、休会・退会の申請期限は希望月の前月10日までです。';
+            $response->assertSessionHasErrors(['effective_on' => $message]);
+            $this->assertDatabaseCount('contract_change_requests', 0);
+        }
+    }
 
     public function test_student_can_submit_a_schedule_change_without_changing_the_current_contract(): void
     {
