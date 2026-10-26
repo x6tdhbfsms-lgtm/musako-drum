@@ -38,4 +38,5 @@
 <label class="grid gap-2 text-sm font-semibold">備考（任意）<textarea name="notes" rows="4" maxlength="1000" class="rounded-xl border border-stone-300 p-3">{{ old('notes') }}</textarea></label><div class="absolute -left-[9999px]" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
 <label class="flex items-start gap-3 rounded-xl bg-stone-50 p-4 text-sm"><input type="checkbox" name="privacy_accepted" value="1" required class="mt-1"><span><a href="{{ config('musako.privacy.policy_url') }}" target="_blank" class="font-bold underline">プライバシーポリシー</a>について本人の同意を確認しました。</span></label>
 <button class="min-h-12 w-full rounded-xl bg-amber-400 px-6 font-bold">生徒を登録して案内メールを送る</button></form></div>
+<p class="mt-4 text-sm text-stone-600">キッズ（3〜7歳）は電子ドラム30分：1回2,750円、45分：1回3,800円。会場代は別途1回1,000円です。料金区分でキッズを選択すると自動適用されます。</p>
 @endsection

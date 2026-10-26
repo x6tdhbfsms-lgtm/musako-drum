@@ -5,10 +5,12 @@ namespace App\Actions;
 use App\Enums\ApplicationStatus;
 use App\Enums\ContractChangeType;
 use App\Enums\EnrollmentStatus;
+use App\Enums\PricingCategory;
 use App\Models\ContractChangeRequest;
 use App\Models\Course;
 use App\Models\LessonEnrollment;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\MusakoNotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
@@ -76,6 +78,9 @@ class ReviewContractChangeRequest
             'ends_on' => $previousEnd,
             'supersedes_lesson_enrollment_id' => $enrollment->id,
         ]);
+        if (($attributes['pricing_category'] ?? null) === 'kids' && (! str_contains(Course::findOrFail($attributes['course_id'])->code, 'ELECTRONIC-') || ! in_array((int) $attributes['lesson_minutes'], [30, 45], true) || (int) Course::findOrFail($attributes['course_id'])->default_lesson_minutes !== (int) $attributes['lesson_minutes'] || Venue::find($attributes['venue_id'])?->termsRoomType() !== 'music_room')) {
+            throw ValidationException::withMessages(['pricing_category' => 'キッズ料金は電子ドラム30分・45分のみ選択できます。']);
+        }
         LessonEnrollment::create($attributes);
     }
 
@@ -88,6 +93,9 @@ class ReviewContractChangeRequest
             ->first();
         $course = Course::query()->where('is_active', true)->findOrFail($request->after_values['course_id']);
 
+        if ($base?->pricing_category === PricingCategory::Kids && (! str_contains($course->code, 'ELECTRONIC-') || ! in_array((int) $course->default_lesson_minutes, [30, 45], true) || $base->venue?->termsRoomType() !== 'music_room')) {
+            throw ValidationException::withMessages(['pricing_category' => 'キッズ料金は電子ドラム30分・45分のみ選択できます。']);
+        }
         LessonEnrollment::create([
             'student_profile_id' => $request->student_profile_id,
             'course_id' => $course->id,

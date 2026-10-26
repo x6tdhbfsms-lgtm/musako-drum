@@ -59,8 +59,8 @@ class StoreStaffAdmissionRequest extends StoreAdmissionApplicationRequest
             if ($this->integer('lesson_minutes') !== (int) $course->default_lesson_minutes) {
                 $validator->errors()->add('lesson_minutes', 'コースに設定されたレッスン時間を入力してください。');
             }
-            if ($electronic && $this->input('pricing_category') !== 'standard') {
-                $validator->errors()->add('pricing_category', '電子ドラムコースは一般料金のみです。');
+            if (($electronic && $this->input('pricing_category') === 'junior') || ($this->input('pricing_category') === 'kids' && (! $electronic || ! in_array((int) $course->default_lesson_minutes, [30, 45], true)))) {
+                $validator->errors()->add('pricing_category', 'キッズ料金は電子ドラム30分・45分のみ選択できます。電子ドラムにジュニア料金は適用できません。');
             }
             if (! $electronic && $this->input('lesson_type') === 'regular'
                 && ! in_array(substr($this->input('starts_at_time'), -2), ['00', '30'], true)) {

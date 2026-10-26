@@ -40,6 +40,21 @@ class LessonPricingServiceTest extends TestCase
         $this->assertNull($quote->estimatedMonthlyTotal);
     }
 
+    public function test_kids_electronic_prices_use_specified_amounts_and_room_fee(): void
+    {
+        foreach ([30 => 2750, 45 => 3800] as $minutes => $unit) {
+            $enrollment = LessonEnrollment::factory()->create([
+                'venue_id' => Venue::factory()->create(['lesson_room_type' => 'music_room'])->id,
+                'lesson_minutes' => $minutes, 'monthly_lesson_limit' => 4,
+                'pricing_category' => PricingCategory::Kids,
+            ]);
+            $quote = app(LessonPricingService::class)->forEnrollment($enrollment, '2026-11-01');
+            $this->assertSame($unit * 4, $quote->lessonFeeTotal);
+            $this->assertSame(($unit + 1000) * 4, $quote->estimatedMonthlyTotal);
+        }
+        $this->assertTrue(app(LessonPricingService::class)->electronicQuote(60, 4, PricingCategory::Kids)->isConsultationRequired);
+    }
+
     #[DataProvider('supportedPriceCases')]
     public function test_calculates_supported_lesson_and_studio_prices(
         LessonType $lessonType,

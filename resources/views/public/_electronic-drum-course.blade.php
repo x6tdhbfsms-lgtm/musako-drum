@@ -10,12 +10,12 @@
     <div class="mt-5 rounded-2xl border border-sky-200 bg-white p-5">
         <h3 class="text-lg font-bold">レッスン料金・対象年齢</h3>
         <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">
-            <li>1回30分：3,500円／45分：4,250円／60分：5,000円です。</li>
+            <li>一般料金は1回30分：3,500円／45分：4,250円／60分：5,000円です。</li>
             <li>月額は「1回のレッスン料金＋部屋代1,000円」×月の回数です。月2回の場合、30分は9,000円、45分は10,500円、60分は12,000円です。</li>
             <li>部屋代は別途、1レッスン一律1,000円です。</li>
             <li>教材費はかかりません。</li>
-            <li>対象年齢は8歳以上です。</li>
-            <li>電子ドラムコースにはジュニア料金の適用はありません。</li>
+            <li>一般コースは8歳以上、キッズは3〜7歳が対象です。</li>
+            <li>電子ドラムコースにはジュニア料金の適用はありません。3〜7歳向けキッズ料金は30分2,750円・45分3,800円（1回、会場代別途1,000円）です。</li>
         </ul>
     </div>
     <p class="mt-4 text-sm leading-7 text-stone-700">電子ドラムでの体験をご希望の方は、<a href="https://www.soma-drums.com/音大出身講師ならではの確かな指導が受けられます/体験レッスンお申し込みフォーム/" target="_blank" rel="noopener noreferrer" class="font-bold text-sky-800 underline">公式サイトのお申込みフォーム</a>で電子ドラムコースにチェックを入れて送信してください。</p>

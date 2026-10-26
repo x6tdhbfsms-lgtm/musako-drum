@@ -56,6 +56,11 @@ class ReviewAdmissionApplication
                 $application->update(['pricing_category' => $confirmedPricingCategory]);
             }
 
+            $category = $confirmedPricingCategory ?? $application->pricing_category;
+            if ($category === PricingCategory::Kids && (! str_contains($application->course->code, 'ELECTRONIC-') || ! in_array((int) $application->lesson_minutes, [30, 45], true) || (int) $application->course->default_lesson_minutes !== (int) $application->lesson_minutes || $application->venue?->termsRoomType() !== 'music_room')) {
+                throw ValidationException::withMessages(['pricing_category' => 'キッズ料金は電子ドラム30分・45分のみ選択できます。']);
+            }
+
             $user = User::query()->create([
                 'name' => $application->name,
                 'email' => $application->email_normalized,

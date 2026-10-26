@@ -18,7 +18,7 @@ class PricingController extends Controller
     {
         $date = CarbonImmutable::today(config('app.timezone'));
         $setting = PricingSetting::query()->effectiveOn($date)->first();
-        $quotes = collect(PricingCategory::cases())->mapWithKeys(
+        $quotes = collect([PricingCategory::Standard, PricingCategory::Junior])->mapWithKeys(
             fn (PricingCategory $category): array => [
                 $category->value => collect(range(1, 4))->mapWithKeys(
                     fn (int $count): array => [

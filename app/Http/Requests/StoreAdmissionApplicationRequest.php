@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\LessonType;
 use App\Enums\PricingCategory;
+use App\Models\Course;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -87,6 +88,12 @@ class StoreAdmissionApplicationRequest extends FormRequest
     public function after(): array
     {
         return [function (Validator $validator): void {
+            if ($this->input('pricing_category') === 'kids') {
+                $course = Course::find($this->integer('course_id'));
+                if (! str_contains($course?->code ?? '', 'ELECTRONIC-') || ! in_array((int) $this->input('lesson_minutes'), [30, 45], true) || (int) $course?->default_lesson_minutes !== $this->integer('lesson_minutes')) {
+                    $validator->errors()->add('pricing_category', 'キッズ料金は電子ドラム30分・45分のみ選択できます。');
+                }
+            }
             $text = mb_convert_kana($this->string('notes')->toString(), 'n');
             $withoutSeparators = preg_replace('/[\s\p{Pd}ー−]/u', '', $text) ?? $text;
             if (preg_match('/\d{7,}/', $withoutSeparators) === 1) {

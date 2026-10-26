@@ -25,4 +25,5 @@
 <label class="grid gap-2 text-sm font-semibold">変更理由<textarea name="reason" required maxlength="1000" rows="3" class="min-w-0 w-full rounded-xl border border-stone-300 p-3">{{ old('reason') }}</textarea></label>
 <button class="min-h-12 w-full rounded-xl bg-amber-400 px-5 font-bold">適用日を指定して契約を保存</button>
 </form></div>
+<p class="mt-4 text-sm text-stone-600">キッズ（3〜7歳）は電子ドラム30分：1回2,750円、45分：1回3,800円。会場代は別途1回1,000円です。料金区分でキッズを選択すると自動適用されます。</p>
 @endsection

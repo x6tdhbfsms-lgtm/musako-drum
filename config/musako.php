@@ -4,6 +4,7 @@ return [
     'studio34_fee_waived_from' => '2026-10-24',
     'electronic_drum' => [
         'lesson_fees' => [30 => 3500, 45 => 4250, 60 => 5000],
+        'kids_lesson_fees' => [30 => 2750, 45 => 3800],
         'room_fee' => 1000,
     ],
     'booking' => [

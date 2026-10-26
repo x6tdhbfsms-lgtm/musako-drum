@@ -15,7 +15,7 @@
             <div class="mt-5 overflow-x-auto"><table class="w-full min-w-[32rem] text-left text-sm"><thead><tr class="border-b border-stone-200 text-stone-500"><th class="p-3">月回数</th><th class="p-3">一般</th><th class="p-3">ジュニア</th></tr></thead><tbody>
                 @foreach (range(1, 4) as $count)
                     <tr class="border-b border-stone-100"><th class="p-3">月{{ $count }}回</th>
-                        @foreach (App\Enums\PricingCategory::cases() as $category)
+                        @foreach ([App\Enums\PricingCategory::Standard, App\Enums\PricingCategory::Junior] as $category)
                             @php
                                 $quote = $quotes[$category->value][$count];
                             @endphp

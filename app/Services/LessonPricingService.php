@@ -48,7 +48,7 @@ class LessonPricingService
     {
         if ($enrollment->venue?->termsRoomType() === 'music_room'
             || str_contains($enrollment->course?->code ?? '', 'ELECTRONIC-')) {
-            return $this->electronicQuote((int) $enrollment->lesson_minutes, (int) $enrollment->monthly_lesson_limit);
+            return $this->electronicQuote((int) $enrollment->lesson_minutes, (int) $enrollment->monthly_lesson_limit, $enrollment->pricing_category);
         }
 
         return $this->quote(
@@ -61,9 +61,9 @@ class LessonPricingService
         );
     }
 
-    public function electronicQuote(int $minutes, int $monthlyLessonCount): LessonPriceQuote
+    public function electronicQuote(int $minutes, int $monthlyLessonCount, PricingCategory $category = PricingCategory::Standard): LessonPriceQuote
     {
-        $unit = config('musako.electronic_drum.lesson_fees.'.$minutes);
+        $unit = config('musako.electronic_drum.'.($category === PricingCategory::Kids ? 'kids_lesson_fees.' : 'lesson_fees.').$minutes);
         $base = is_int($unit) && $monthlyLessonCount > 0 ? $unit * $monthlyLessonCount : null;
         $room = (int) config('musako.electronic_drum.room_fee', 1000);
 

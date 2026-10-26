@@ -66,8 +66,8 @@ class UpdateStaffEnrollmentRequest extends FormRequest
             if ($venue->termsRoomType() !== ($electronic ? 'music_room' : 'studio34')) {
                 $validator->errors()->add('venue_id', 'コースに対応する会場を選択してください。');
             }
-            if ($electronic && $this->input('pricing_category') !== 'standard') {
-                $validator->errors()->add('pricing_category', '電子ドラムコースは一般料金のみです。');
+            if (($electronic && $this->input('pricing_category') === 'junior') || ($this->input('pricing_category') === 'kids' && (! $electronic || ! in_array((int) $course->default_lesson_minutes, [30, 45], true)))) {
+                $validator->errors()->add('pricing_category', 'キッズ料金は電子ドラム30分・45分のみ選択できます。電子ドラムにジュニア料金は適用できません。');
             }
             if ($this->input('lesson_type') === 'regular') {
                 $start = CarbonImmutable::now('Asia/Tokyo')->startOfWeek(CarbonImmutable::SUNDAY)->addDays($this->integer('weekday'))->setTimeFromTimeString($this->input('starts_at_time'));

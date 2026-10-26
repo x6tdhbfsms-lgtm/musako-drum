@@ -20,7 +20,9 @@ use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\Venue;
 use App\Services\FlexInactivityWarning;
+use App\Services\MonthlyInvoiceGenerator;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -225,6 +227,43 @@ class StaffStudentEditingTest extends TestCase
         $this->actingAs($enrollment->studentProfile->user)->get(route('student.reservations.index'))->assertOk()->assertSee('16:00');
         $this->get(route('student.dashboard', ['date' => '2026-11-01']))->assertOk();
         $this->actingAs($admin)->get(route('staff.dashboard', ['date' => '2026-11-01']))->assertOk()->assertSee($enrollment->studentProfile->user->name);
+    }
+
+    #[TestWith([30, 5500])]
+    #[TestWith([45, 7600])]
+    public function test_admin_can_select_kids_and_invoice_uses_kids_amount(int $minutes, int $amount): void
+    {
+        Notification::fake();
+        [$enrollment, $data] = $this->contractData();
+        $enrollment->course->update(['code' => 'ELECTRONIC-'.$minutes, 'default_lesson_minutes' => $minutes]);
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->patch(route('staff.students.enrollments.update', [$enrollment->studentProfile, $enrollment]), [...$data, 'pricing_category' => 'kids'])->assertSessionHasNoErrors();
+        $replacement = $enrollment->replacements()->sole();
+        $this->assertSame('kids', $replacement->pricing_category->value);
+        $invoice = app(MonthlyInvoiceGenerator::class)->generateForStudent($enrollment->studentProfile, CarbonImmutable::parse('2026-11-01'), $admin);
+        $this->assertSame($amount, (int) $invoice->items()->where('type', 'lesson_fee')->sum('amount'));
+    }
+
+    public function test_kids_price_change_preserves_already_confirmed_regular_lessons(): void
+    {
+        Notification::fake();
+        [$enrollment, $data] = $this->contractData();
+        $admin = User::factory()->admin()->create();
+        $data = [...$data, 'lesson_type' => 'regular', 'weekday' => 5, 'starts_at_time' => '16:00'];
+        $this->actingAs($admin)->patch(route('staff.students.enrollments.update', [$enrollment->studentProfile, $enrollment]), $data)->assertSessionHasNoErrors();
+        $replacement = $enrollment->replacements()->sole();
+        $this->patch(route('staff.students.enrollments.update', [$enrollment->studentProfile, $replacement]), [...$data, 'effective_on' => '2026-12-01', 'pricing_category' => 'kids'])->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('reservation_requests', 4);
+        $invoice = app(MonthlyInvoiceGenerator::class)->generateForStudent($enrollment->studentProfile, CarbonImmutable::parse('2026-12-01'), $admin);
+        $this->assertSame(7600, (int) $invoice->items()->where('type', 'lesson_fee')->sum('amount'));
+    }
+
+    public function test_kids_cannot_be_selected_for_sixty_minute_electronic_lessons(): void
+    {
+        [$enrollment, $data] = $this->contractData();
+        $enrollment->course->update(['code' => 'ELECTRONIC-60', 'default_lesson_minutes' => 60]);
+        $this->actingAs(User::factory()->admin()->create())->patch(route('staff.students.enrollments.update', [$enrollment->studentProfile, $enrollment]), [...$data, 'pricing_category' => 'kids'])->assertSessionHasErrors('pricing_category');
+        $this->assertDatabaseCount('lesson_enrollments', 1);
     }
 
     private function contractData(): array

@@ -108,9 +108,17 @@ class RegularScheduleGenerator
             TeacherProfile::query()->lockForUpdate()->findOrFail($enrollment->teacher_profile_id);
             $enrollment = LessonEnrollment::query()->lockForUpdate()->findOrFail($enrollment->id);
             $versions = ($versions ?? collect([$enrollment]))->map(fn (LessonEnrollment $version) => LessonEnrollment::query()->lockForUpdate()->findOrFail($version->id));
+            $lineageIds = [];
+            foreach ($versions as $version) {
+                $ancestor = $version;
+                while ($ancestor !== null && ! in_array($ancestor->id, $lineageIds, true)) {
+                    $lineageIds[] = $ancestor->id;
+                    $ancestor = $ancestor->supersededEnrollment;
+                }
+            }
             $expected = max(0, (int) $enrollment->monthly_lesson_limit);
             $batch = RegularScheduleBatch::query()
-                ->whereIn('lesson_enrollment_id', $versions->pluck('id')->all())
+                ->whereIn('lesson_enrollment_id', $lineageIds)
                 ->whereDate('entitlement_month', $month)
                 ->first();
             $isRegeneration = $batch !== null;
@@ -162,6 +170,13 @@ class RegularScheduleGenerator
                 }
 
                 $startsAt = CarbonImmutable::parse($date->toDateString().' '.$version->starts_at_time, config('app.timezone'));
+                if ($batch->occurrences()->where('status', RegularScheduleOccurrenceStatus::Confirmed)
+                    ->where('starts_at', $startsAt)->where('ends_at', $startsAt->addMinutes((int) $version->lesson_minutes))
+                    ->where('student_profile_id', $version->student_profile_id)->where('teacher_profile_id', $version->teacher_profile_id)
+                    ->where('venue_id', $version->venue_id)->where('course_id', $version->course_id)->exists()) {
+                    continue;
+                }
+
                 $occurrence = RegularScheduleOccurrence::query()->firstOrCreate(
                     ['regular_schedule_batch_id' => $batch->id, 'source_key' => $version->id.'-week-'.$week],
                     [
