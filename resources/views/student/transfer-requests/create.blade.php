@@ -9,7 +9,8 @@
     for ($week = $firstWeek; $week->lte($lastWeek); $week = $week->addWeek()) {
         $weeks->push($week);
     }
-    $slotsByHour = $availableSlots->groupBy(fn ($slot) => $slot->starts_at->format('Y-m-d-H'));
+    $slotsByTime = $availableSlots->groupBy(fn ($slot) => $slot->starts_at->format('Y-m-d-H:i'));
+    $timeStep = $availableSlots->contains(fn ($slot) => $slot->starts_at->minute % 30 !== 0) ? 15 : 30;
     $weekdayNames = ['日', '月', '火', '水', '木', '金', '土'];
 @endphp
 <div data-transfer-calendar>
@@ -64,12 +65,13 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @for ($hour = 10; $hour < 21; $hour++)
+                                @for ($minuteOfDay = 10 * 60; $minuteOfDay < 21 * 60; $minuteOfDay += $timeStep)
+                                    @php $hour = intdiv($minuteOfDay, 60); $minute = $minuteOfDay % 60; $timeLabel = sprintf('%02d:%02d', $hour, $minute); @endphp
                                     <tr>
-                                        <th scope="row" class="sticky left-0 z-10 border-b border-r border-stone-200 bg-stone-100 p-2 align-top">{{ $hour }}:00</th>
+                                        <th scope="row" class="sticky left-0 z-10 border-b border-r border-stone-200 bg-stone-100 p-2 align-top">{{ $timeLabel }}</th>
                                         @for ($offset = 0; $offset < 7; $offset++)
-                                            @php $slots = $slotsByHour->get($week->addDays($offset)->format('Y-m-d').'-'.$hour, collect()); @endphp
-                                            <td class="border-b border-r border-stone-200 p-1 align-top {{ \App\Services\LessonOperatingHours::allows($week->addDays($offset)->setTime($hour, 0), $week->addDays($offset)->setTime($hour + 1, 0)) ? 'bg-white' : 'bg-stone-100' }}">
+                                            @php $slots = $slotsByTime->get($week->addDays($offset)->format('Y-m-d').'-'.$timeLabel, collect()); @endphp
+                                            <td class="border-b border-r border-stone-200 p-1 align-top {{ \App\Services\LessonOperatingHours::allows($week->addDays($offset)->setTime($hour, $minute), $week->addDays($offset)->setTime($hour, $minute)->addMinutes($timeStep)) ? 'bg-white' : 'bg-stone-100' }}">
                                                 <div class="grid min-h-12 gap-2 text-left">
                                                     @forelse ($slots as $slot)
                                                         @include('student.transfer-requests.slot-option', ['slot' => $slot])
