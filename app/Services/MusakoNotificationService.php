@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\AdmissionApplicationStatus;
 use App\Enums\ApplicationStatus;
 use App\Enums\InquiryStatus;
 use App\Enums\ReservationStatus;
@@ -27,7 +26,6 @@ use App\Notifications\AdmissionApplicationNotification;
 use App\Notifications\AttendanceNoticeNotification;
 use App\Notifications\Concerns\QueuedMusakoNotification;
 use App\Notifications\ContractChangeApplicationNotification;
-use App\Notifications\InitialPasswordSetupNotification;
 use App\Notifications\InquiryNotification;
 use App\Notifications\MembershipStatusApplicationNotification;
 use App\Notifications\MonthlyInvoiceCancelledNotification;
@@ -277,16 +275,7 @@ class MusakoNotificationService
 
     public function admissionSubmitted(AdmissionApplication $application): void
     {
-        $this->sendToMail($application->email, new AdmissionApplicationNotification($application, false));
         $this->send($this->recipients->allStaff(), new AdmissionApplicationNotification($application, true));
-    }
-
-    public function admissionReviewed(AdmissionApplication $application, AdmissionApplicationStatus $decision, ?string $passwordToken = null): void
-    {
-        $this->sendToMail($application->email, new AdmissionApplicationNotification($application, false));
-        if ($decision === AdmissionApplicationStatus::Approved && $passwordToken !== null) {
-            $this->sendToMail($application->email, new InitialPasswordSetupNotification($application->email_normalized, $passwordToken));
-        }
     }
 
     private function sendToStudent(User $student, QueuedMusakoNotification $notification): void

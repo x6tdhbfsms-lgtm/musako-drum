@@ -21,6 +21,7 @@ class NewPasswordController extends Controller
 
     public function store(ResetInitialPasswordRequest $request): RedirectResponse
     {
+        abort_if(User::where('email', $request->validated('email'))->where('role', 'student')->exists(), 403, 'パスワードの変更は教室へご相談ください。');
         $status = Password::reset(
             $request->safe()->only(['email', 'password', 'password_confirmation', 'token']),
             function (User $user, string $password): void {

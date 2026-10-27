@@ -25,15 +25,27 @@ class StoreAdmissionApplicationRequest extends FormRequest
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('login_name'))) {
+            $this->merge(['login_name' => mb_strtolower(trim($this->input('login_name')))]);
+        }
+    }
+
     public function rules(): array
     {
         return [
             'name' => ['required', 'string', 'max:100'],
-            'name_kana' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email:rfc', 'max:254'],
-            'phone' => ['required', 'string', 'max:30', 'regex:/^[0-9+()\-\s]+$/'],
+            'name_kana' => ['nullable', 'string', 'max:100'],
+            'login_name' => ['required', 'string', 'max:64', 'regex:/^[a-z0-9][a-z0-9_-]{2,63}$/', Rule::unique('users', 'login_name'), Rule::unique('admission_applications', 'pending_login_name')],
+            'password' => ['required', 'string', 'min:12', 'max:72', 'confirmed', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (is_string($value) && strlen($value) > 72) {
+                    $fail('パスワードは72バイト以内で入力してください（日本語は1文字3バイト程度です）。');
+                }
+            }],
+            'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+()\-\s]+$/'],
             'postal_code' => ['nullable', 'string', 'max:12'],
-            'address' => ['required', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:255'],
             'course_id' => ['required', 'integer', Rule::exists('courses', 'id')->where('is_active', true)],
             'lesson_type' => ['required', Rule::enum(LessonType::class)],
             'pricing_category' => ['required', Rule::enum(PricingCategory::class)],
@@ -54,6 +66,10 @@ class StoreAdmissionApplicationRequest extends FormRequest
     {
         return [
             'required' => ':attributeを入力・選択してください。',
+            'login_name.unique' => 'このログイン名は使用済み、または申請中です。',
+            'login_name.regex' => 'ログイン名は半角英数字・ハイフン・アンダーバーで3〜64文字にしてください。',
+            'password.min' => 'パスワードは12文字以上で入力してください。',
+            'password.confirmed' => '確認用パスワードが一致しません。',
             'email' => ':attributeを正しいメールアドレスで入力してください。',
             'string' => ':attributeは文字で入力してください。',
             'integer' => ':attributeは整数で入力してください。',
@@ -75,6 +91,7 @@ class StoreAdmissionApplicationRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'login_name' => 'ログイン名', 'password' => 'パスワード',
             'name' => '氏名', 'name_kana' => 'フリガナ', 'email' => 'メールアドレス',
             'phone' => '電話番号', 'postal_code' => '郵便番号', 'address' => '住所',
             'course_id' => 'コース', 'lesson_type' => '契約タイプ', 'pricing_category' => '料金区分',

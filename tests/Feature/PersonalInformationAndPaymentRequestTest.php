@@ -40,7 +40,7 @@ class PersonalInformationAndPaymentRequestTest extends TestCase
         ])->assertRedirectToRoute('staff.personal-information-change-requests.show', $request);
 
         $this->assertSame('変更後氏名', $student->user->fresh()->name);
-        $this->assertSame('after@example.test', $student->user->fresh()->email);
+        $this->assertSame('before@example.test', $student->user->fresh()->email);
         $this->assertSame('090-2222-2222', $student->fresh()->phone);
         $this->assertSame('東京都武蔵野市', $student->fresh()->address);
         $this->assertSame(ApplicationStatus::Approved, $request->fresh()->status);

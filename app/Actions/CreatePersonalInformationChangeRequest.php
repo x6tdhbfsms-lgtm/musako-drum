@@ -23,13 +23,11 @@ class CreatePersonalInformationChangeRequest
 
             $before = [
                 'name' => $profile->user->name,
-                'email' => $profile->user->email,
                 'phone' => $profile->phone,
                 'address' => $profile->address,
             ];
             $after = [
                 'name' => $data['name'],
-                'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
                 'address' => $data['address'] ?? null,
             ];

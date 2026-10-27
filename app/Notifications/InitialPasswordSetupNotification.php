@@ -16,6 +16,11 @@ class InitialPasswordSetupNotification extends QueuedMusakoNotification
         $this->encryptedToken = Crypt::encryptString($token);
     }
 
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        return false;
+    }
+
     public function category(): NotificationCategory
     {
         return NotificationCategory::Admission;

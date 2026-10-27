@@ -40,10 +40,10 @@ class StaffStudentEditingTest extends TestCase
         $password = $student->user->password;
         $data = $this->profileData($student);
         $this->actingAs($admin)->get(route('staff.students.edit', $student))->assertOk()->assertSee('基本情報を保存');
-        $this->patch(route('staff.students.update', $student), [...$data, 'role' => 'admin', 'password' => 'injected'])
+        $this->patch(route('staff.students.update', $student), [...$data, 'role' => 'admin'])
             ->assertRedirect(route('staff.students.show', $student));
         $this->assertSame('編集確認', $student->user->fresh()->name);
-        $this->assertSame('edited@example.invalid', $student->user->fresh()->email);
+        $this->assertSame('edited-student', $student->user->fresh()->login_name);
         $this->assertSame($password, $student->user->fresh()->password);
         $this->assertSame(UserRole::Student, $student->user->fresh()->role);
         $this->assertSame('184-0000', $student->fresh()->postal_code);
@@ -51,7 +51,7 @@ class StaffStudentEditingTest extends TestCase
         $this->assertSame($oldName, $audit->before_values['name']);
         $this->assertSame($admin->id, $audit->reviewed_by_user_id);
         $this->assertSame(ApplicationStatus::Approved, $audit->status);
-        $this->assertNull($student->user->fresh()->email_verified_at);
+        $this->assertNull($student->user->fresh()->login_name_verified_at);
         $this->patch(route('staff.students.update', $student), $data)->assertSessionHasErrors('revision');
         $this->assertDatabaseCount('personal_information_change_requests', 1);
     }
@@ -71,16 +71,16 @@ class StaffStudentEditingTest extends TestCase
         $this->assertDatabaseCount('personal_information_change_requests', 0);
     }
 
-    public function test_duplicate_email_and_pending_profile_request_do_not_change_data(): void
+    public function test_duplicate_login_name_and_pending_profile_request_do_not_change_data(): void
     {
         $student = StudentProfile::factory()->create();
         $original = $student->user->name;
-        User::factory()->create(['email' => 'edited@example.invalid']);
+        User::factory()->create(['login_name' => 'edited-student']);
         $this->actingAs(User::factory()->create(['role' => UserRole::Admin]));
         $data = $this->profileData($student);
-        $this->patch(route('staff.students.update', $student), $data)->assertSessionHasErrors('email');
+        $this->patch(route('staff.students.update', $student), $data)->assertSessionHasErrors('login_name');
         PersonalInformationChangeRequest::create(['student_profile_id' => $student->id, 'status' => 'pending', 'before_values' => ['name' => $original], 'after_values' => ['name' => '申請中氏名'], 'requested_at' => now()]);
-        $this->patch(route('staff.students.update', $student), [...$data, 'email' => $student->user->email])->assertSessionHasErrors('name');
+        $this->patch(route('staff.students.update', $student), [...$data, 'login_name' => $student->user->login_name])->assertSessionHasErrors('name');
         $this->assertSame($original, $student->user->fresh()->name);
     }
 
@@ -203,13 +203,13 @@ class StaffStudentEditingTest extends TestCase
         $student = StudentProfile::factory()->create();
         $this->get(route('staff.students.edit', $student))->assertRedirect(route('login'));
         $this->actingAs(User::factory()->create(['role' => UserRole::Admin]))
-            ->patch(route('staff.students.update', $student), [...$this->profileData($student), 'name' => $student->user->name, 'email' => $student->user->email, 'phone' => $student->phone, 'postal_code' => $student->postal_code, 'address' => $student->address])->assertSessionHasNoErrors();
+            ->patch(route('staff.students.update', $student), [...$this->profileData($student), 'name' => $student->user->name, 'login_name' => $student->user->login_name, 'phone' => $student->phone, 'postal_code' => $student->postal_code, 'address' => $student->address])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('personal_information_change_requests', 0);
     }
 
     private function profileData(StudentProfile $student): array
     {
-        return ['name' => '編集確認', 'email' => 'edited@example.invalid', 'phone' => '00000000000', 'postal_code' => '184-0000', 'address' => '試験専用住所', 'revision' => app(UpdateStaffStudent::class)->revision($student)];
+        return ['name' => '編集確認', 'login_name' => 'edited-student', 'phone' => '00000000000', 'postal_code' => '184-0000', 'address' => '試験専用住所', 'revision' => app(UpdateStaffStudent::class)->revision($student)];
     }
 
     public function test_setting_fixed_time_immediately_confirms_lessons_visible_in_student_reservations(): void

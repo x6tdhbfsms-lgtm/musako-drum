@@ -12,6 +12,11 @@ class AdmissionApplicationNotification extends QueuedMusakoNotification
 {
     public function __construct(private readonly AdmissionApplication $application, private readonly bool $forStaff) {}
 
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        return $this->forStaff && parent::shouldSend($notifiable, $channel);
+    }
+
     public function category(): NotificationCategory
     {
         return NotificationCategory::Admission;

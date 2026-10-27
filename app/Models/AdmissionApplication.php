@@ -21,10 +21,10 @@ class AdmissionApplication extends Model
         'monthly_lesson_count', 'lesson_minutes', 'venue_id', 'teacher_profile_id', 'preferred_start_date', 'weekday',
         'starts_at_time', 'notes', 'status', 'privacy_policy_version', 'privacy_consented_at', 'requested_at',
         'processed_by_user_id', 'processed_at', 'rejection_reason', 'converted_user_id', 'converted_student_profile_id',
-        'converted_lesson_enrollment_id',
+        'converted_lesson_enrollment_id', 'login_name', 'pending_login_name', 'initial_password_hash',
     ];
 
-    protected $hidden = ['access_token_hash', 'pending_email_key', 'email_normalized'];
+    protected $hidden = ['access_token_hash', 'pending_email_key', 'email_normalized', 'pending_login_name', 'initial_password_hash'];
 
     protected function casts(): array
     {

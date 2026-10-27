@@ -75,7 +75,7 @@ class DeferredTransferTest extends TestCase
         $this->assertEquals(0, $invoice->items()->where('type', InvoiceItemType::StudioFee)->sum('amount'));
         $this->assertSame(1, app(MonthlyLessonUsageCalculator::class)->calculate($student, CarbonImmutable::parse('2026-11-01'))->used);
         $this->assertSame(0, app(MonthlyLessonUsageCalculator::class)->calculate($student, CarbonImmutable::parse('2026-12-01'))->used);
-        Notification::assertSentTo($student->user, TransferApplicationNotification::class);
+        Notification::assertNotSentTo($student->user, TransferApplicationNotification::class);
     }
 
     public function test_other_teachers_and_students_cannot_assign_or_view_the_hold(): void

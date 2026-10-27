@@ -29,6 +29,11 @@ abstract class QueuedMusakoNotification extends Notification implements ShouldQu
         return ['mail'];
     }
 
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        return ! ($notifiable instanceof User) || $notifiable->canReceiveEmailNotification($this->category());
+    }
+
     /** @return array<int, int> */
     public function backoff(): array
     {

@@ -69,7 +69,7 @@ class WorkflowNotificationTest extends TestCase
             ->patch(route('staff.reservations.update', $reservation), ['decision' => ReservationStatus::Approved->value])
             ->assertRedirectToRoute('staff.reservations.index');
 
-        Notification::assertSentTo($student->user, ReservationApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ReservationStatus::Approved);
+        Notification::assertNotSentTo($student->user, ReservationApplicationNotification::class);
 
         $this->actingAs($student->user)
             ->delete(route('student.reservations.destroy', $reservation), ['cancellation_reason' => '都合が悪くなりました'])
@@ -85,7 +85,7 @@ class WorkflowNotificationTest extends TestCase
             'staff_note' => '講師都合です',
         ]);
 
-        Notification::assertSentTo($student->user, ReservationApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ReservationStatus::Rejected);
+        Notification::assertNotSentTo($student->user, ReservationApplicationNotification::class);
     }
 
     public function test_absence_lateness_and_transfer_events_notify_staff_and_student(): void
@@ -122,7 +122,7 @@ class WorkflowNotificationTest extends TestCase
             'decision' => ApplicationStatus::Approved->value,
         ])->assertRedirectToRoute('staff.transfer-requests.show', $transfer);
 
-        Notification::assertSentTo($student->user, TransferApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ApplicationStatus::Approved);
+        Notification::assertNotSentTo($student->user, TransferApplicationNotification::class);
 
         $otherOriginal = ReservationRequest::factory()
             ->for($student)
@@ -138,7 +138,7 @@ class WorkflowNotificationTest extends TestCase
             'staff_note' => '振替先を調整してください',
         ])->assertRedirectToRoute('staff.transfer-requests.show', $rejectedTransfer);
 
-        Notification::assertSentTo($student->user, TransferApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ApplicationStatus::Rejected);
+        Notification::assertNotSentTo($student->user, TransferApplicationNotification::class);
     }
 
     public function test_membership_contract_personal_payment_and_inquiry_events_notify_the_expected_users(): void
@@ -159,7 +159,7 @@ class WorkflowNotificationTest extends TestCase
 
         Notification::assertSentToTimes($teacher->user, MembershipStatusApplicationNotification::class, 3);
         Notification::assertSentToTimes($admin, MembershipStatusApplicationNotification::class, 3);
-        Notification::assertSentToTimes($student->user, MembershipStatusApplicationNotification::class, 3);
+        Notification::assertNotSentTo($student->user, MembershipStatusApplicationNotification::class);
 
         $enrollment->update(['status' => 'active']);
         $contract = app(CreateContractChangeRequest::class)->handle($student, [
@@ -196,10 +196,10 @@ class WorkflowNotificationTest extends TestCase
         Notification::assertSentTo($admin, PersonalInformationChangeApplicationNotification::class);
         Notification::assertSentTo($admin, PaymentMethodChangeApplicationNotification::class);
         Notification::assertSentTo($teacher->user, InquiryNotification::class, fn ($notification): bool => $notification->eventStatus === InquiryStatus::Open);
-        Notification::assertSentTo($student->user, ContractChangeApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ApplicationStatus::Rejected);
-        Notification::assertSentTo($student->user, PersonalInformationChangeApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ApplicationStatus::Approved);
-        Notification::assertSentTo($student->user, PaymentMethodChangeApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ApplicationStatus::Rejected);
-        Notification::assertSentTo($student->user, InquiryNotification::class, fn ($notification): bool => $notification->eventStatus === InquiryStatus::Resolved);
+        Notification::assertNotSentTo($student->user, ContractChangeApplicationNotification::class);
+        Notification::assertNotSentTo($student->user, PersonalInformationChangeApplicationNotification::class);
+        Notification::assertNotSentTo($student->user, PaymentMethodChangeApplicationNotification::class);
+        Notification::assertNotSentTo($student->user, InquiryNotification::class);
     }
 
     public function test_sensitive_personal_and_payment_values_are_not_rendered_in_email(): void

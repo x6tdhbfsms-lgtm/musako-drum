@@ -20,6 +20,7 @@ use App\Models\Venue;
 use App\Notifications\AdmissionApplicationNotification;
 use App\Notifications\InitialPasswordSetupNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
@@ -90,7 +91,7 @@ class AdmissionApplicationFlowTest extends TestCase
         $response->assertRedirectToRoute('admissions.complete', $application->public_reference);
         $this->assertSame(AdmissionApplicationStatus::Pending, $application->status);
         $this->assertDatabaseCount('student_profiles', 0);
-        Notification::assertSentOnDemand(AdmissionApplicationNotification::class);
+        Notification::assertNotSentTo(new AnonymousNotifiable, AdmissionApplicationNotification::class);
     }
 
     public function test_admission_form_rejects_duplicate_and_sensitive_submission(): void
@@ -103,7 +104,7 @@ class AdmissionApplicationFlowTest extends TestCase
             'notes' => '口座番号を送ります',
         ])->assertSessionHasErrors('notes');
         $this->post(route('admissions.store', [$trial->public_reference, $token]), $this->validPayload($trial))->assertRedirect();
-        $this->post(route('admissions.store', [$trial->public_reference, $token]), $this->validPayload($trial))->assertSessionHasErrors('email');
+        $this->post(route('admissions.store', [$trial->public_reference, $token]), $this->validPayload($trial))->assertSessionHasErrors('login_name');
 
         $this->assertDatabaseCount('admission_applications', 1);
     }
@@ -135,8 +136,9 @@ class AdmissionApplicationFlowTest extends TestCase
         $this->assertSame(PricingCategory::Junior, $application->convertedLessonEnrollment->pricing_category);
         $this->assertSame(4, $application->convertedLessonEnrollment->monthly_lesson_limit);
         $this->assertSame(3, $application->convertedLessonEnrollment->weekday);
-        $this->assertDatabaseHas('password_reset_tokens', ['email' => $application->email_normalized]);
-        Notification::assertSentOnDemand(InitialPasswordSetupNotification::class);
+        $this->assertDatabaseCount('password_reset_tokens', 0);
+        $this->assertNotNull($application->convertedUser->login_name);
+        Notification::assertNotSentTo(new AnonymousNotifiable, InitialPasswordSetupNotification::class);
     }
 
     public function test_flex_approval_creates_enrollment_without_fixed_schedule(): void
@@ -179,12 +181,12 @@ class AdmissionApplicationFlowTest extends TestCase
 
         $this->assertSame(AdmissionApplicationStatus::Rejected, $application->refresh()->status);
         $this->assertSame('受入調整が必要', $application->rejection_reason);
-        Notification::assertSentOnDemand(AdmissionApplicationNotification::class);
+        Notification::assertNotSentTo(new AnonymousNotifiable, AdmissionApplicationNotification::class);
     }
 
-    public function test_initial_password_link_is_expiring_and_single_use(): void
+    public function test_staff_password_link_is_single_use(): void
     {
-        $user = User::factory()->unverified()->create(['email' => 'new-student@example.test']);
+        $user = User::factory()->admin()->unverified()->create(['email' => 'staff-reset@example.test']);
         $token = Password::broker()->createToken($user);
 
         $this->post(route('password.update'), [
@@ -211,7 +213,7 @@ class AdmissionApplicationFlowTest extends TestCase
         $payload = $this->validPayload(TrialLessonRequest::factory()->create());
         $payload['course_id'] = Course::where('code', 'INDIVIDUAL-60')->sole()->id;
         $payload['venue_id'] = Venue::where('code', 'MUSAKO')->sole()->id;
-        $payload['email'] = ' New.Student@Example.com ';
+        $payload['login_name'] = ' New-Student ';
         unset($payload['address'], $payload['postal_code']);
         $payload['regular_week_pattern'] = '2,4';
         $this->actingAs($admin)->get(route('staff.admission-applications.create'))->assertOk()->assertSee('新規生徒登録');
@@ -223,13 +225,14 @@ class AdmissionApplicationFlowTest extends TestCase
         $application = AdmissionApplication::sole();
         $this->assertNull($application->trial_lesson_request_id);
         $this->assertSame(AdmissionApplicationStatus::Approved, $application->status);
-        $this->assertSame('new.student@example.com', $application->convertedUser->email);
+        $this->assertSame('new-student', $application->convertedUser->login_name);
+        $this->assertNull($application->convertedUser->email);
         $this->assertSame(2, (int) $application->convertedLessonEnrollment->monthly_lesson_limit);
         $this->assertSame([2, 4], $application->convertedLessonEnrollment->regular_week_numbers);
         $this->assertSame([2, 4], RegularScheduleOccurrence::where('lesson_enrollment_id', $application->converted_lesson_enrollment_id)->orderBy('week_number')->pluck('week_number')->unique()->values()->all());
         $response->assertRedirectToRoute('staff.students.show', $application->converted_student_profile_id);
-        Notification::assertSentOnDemand(InitialPasswordSetupNotification::class);
-        $this->post(route('staff.admission-applications.store'), $payload)->assertSessionHasErrors('email');
+        Notification::assertNotSentTo(new AnonymousNotifiable, InitialPasswordSetupNotification::class);
+        $this->post(route('staff.admission-applications.store'), $payload)->assertSessionHasErrors('login_name');
         $this->assertDatabaseCount('admission_applications', 1);
     }
 
@@ -275,6 +278,7 @@ class AdmissionApplicationFlowTest extends TestCase
         $teacher = $trial->lessonSlot->teacherProfile ?? TeacherProfile::factory()->create();
 
         return [
+            'login_name' => 'admission-student', 'password' => 'Admission-pass-2026', 'password_confirmation' => 'Admission-pass-2026',
             'name' => $trial->name,
             'name_kana' => $trial->name_kana,
             'email' => $trial->email,

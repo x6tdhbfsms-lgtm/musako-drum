@@ -4,14 +4,14 @@
 <div class="mx-auto max-w-4xl space-y-6">
 <a href="{{ route('staff.students.index') }}" class="text-sm font-bold text-amber-700">← 生徒一覧</a>
 <h1 class="text-2xl font-bold">新規生徒登録</h1>
-<p class="text-sm text-stone-600">体験を経由せず入会登録できます。登録すると生徒アカウントと契約を作成し、入力したメールアドレスへ初回パスワード設定をご案内します。月2回は第1・第3週、月4回は第1〜4週が標準です。電子ドラムは一般料金を選択してください。</p>
+<p class="text-sm text-stone-600">体験を経由せず入会登録できます。登録すると生徒アカウントと契約を作成します。ログイン名とパスワードを生徒へ直接お伝えください。月2回は第1・第3週、月4回は第1〜4週が標準です。電子ドラム30分・45分ではキッズ料金も選択できます。</p>
 <form data-staff-admission method="post" action="{{ route('staff.admission-applications.store') }}" class="space-y-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8">@csrf
 @if ($errors->any())<div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 <div class="grid gap-5 sm:grid-cols-2">
 <label class="grid gap-2 text-sm font-semibold">氏名<input name="name" required maxlength="100" value="{{ old('name') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
-<label class="grid gap-2 text-sm font-semibold">フリガナ<input name="name_kana" required maxlength="100" value="{{ old('name_kana') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
-<label class="grid gap-2 text-sm font-semibold">メール<input type="email" name="email" required value="{{ old('email') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
-<label class="grid gap-2 text-sm font-semibold">電話番号<input name="phone" required value="{{ old('phone') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
+<label class="grid gap-2 text-sm font-semibold">ログイン名<input name="login_name" required minlength="3" maxlength="64" autocomplete="off" value="{{ old('login_name') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"><span class="text-xs font-normal text-stone-500">半角英数字・ハイフン・アンダーバー（3〜64文字）。氏名とは別に設定します。</span></label>
+<label class="grid gap-2 text-sm font-semibold">パスワード<input type="password" name="password" required minlength="12" maxlength="72" autocomplete="new-password" class="min-h-12 rounded-xl border border-stone-300 px-3"><span class="text-xs font-normal text-stone-500">12文字以上</span></label>
+<label class="grid gap-2 text-sm font-semibold">パスワード（確認）<input type="password" name="password_confirmation" required minlength="12" maxlength="72" autocomplete="new-password" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
 <label class="grid gap-2 text-sm font-semibold">コース<select name="course_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3">@foreach ($courses as $course)<option data-minutes="{{ $course->default_lesson_minutes }}" data-room="{{ str_contains($course->code, 'ELECTRONIC-') ? 'music_room' : 'studio34' }}" value="{{ $course->id }}" @selected(old('course_id', $defaultCourse?->id) == $course->id)>{{ $course->name }}</option>@endforeach</select></label>
 <label class="grid gap-2 text-sm font-semibold">契約タイプ<select name="lesson_type" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3">@foreach (App\Enums\LessonType::cases() as $type)<option value="{{ $type->value }}" @selected(old('lesson_type', 'regular') === $type->value)>{{ $type->label() }}</option>@endforeach</select></label>
 <label class="grid gap-2 text-sm font-semibold">料金区分<select name="pricing_category" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3">@foreach (App\Enums\PricingCategory::cases() as $category)<option value="{{ $category->value }}" @selected(old('pricing_category', 'standard') === $category->value)>{{ $category->label() }}</option>@endforeach</select></label>
@@ -37,6 +37,6 @@
 </div>
 <label class="grid gap-2 text-sm font-semibold">備考（任意）<textarea name="notes" rows="4" maxlength="1000" class="rounded-xl border border-stone-300 p-3">{{ old('notes') }}</textarea></label><div class="absolute -left-[9999px]" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
 <label class="flex items-start gap-3 rounded-xl bg-stone-50 p-4 text-sm"><input type="checkbox" name="privacy_accepted" value="1" required class="mt-1"><span><a href="{{ config('musako.privacy.policy_url') }}" target="_blank" class="font-bold underline">プライバシーポリシー</a>について本人の同意を確認しました。</span></label>
-<button class="min-h-12 w-full rounded-xl bg-amber-400 px-6 font-bold">生徒を登録して案内メールを送る</button></form></div>
+<button class="min-h-12 w-full rounded-xl bg-amber-400 px-6 font-bold">生徒を登録する</button></form></div>
 <p class="mt-4 text-sm text-stone-600">キッズ（3〜7歳）は電子ドラム30分：1回2,750円、45分：1回3,800円。会場代は別途1回1,000円です。料金区分でキッズを選択すると自動適用されます。</p>
 @endsection

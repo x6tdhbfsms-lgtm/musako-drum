@@ -26,7 +26,7 @@ class ReviewPersonalInformationChangeRequest
                 $profile = StudentProfile::query()->lockForUpdate()->findOrFail($lockedRequest->student_profile_id);
                 $user = User::query()->lockForUpdate()->findOrFail($profile->user_id);
                 $email = $lockedRequest->after_values['email'] ?? $user->email;
-                if (User::query()->where('email', $email)->whereKeyNot($user->id)->exists()) {
+                if ($email !== null && User::query()->where('email', $email)->whereKeyNot($user->id)->exists()) {
                     throw ValidationException::withMessages(['email' => 'このメールアドレスは別のアカウントで使用されています。']);
                 }
                 $user->update(array_intersect_key($lockedRequest->after_values, array_flip(['name', 'email'])));

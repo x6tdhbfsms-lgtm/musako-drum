@@ -74,8 +74,8 @@ class InvoiceReissueTest extends TestCase
         $this->assertSame(1, MonthlyInvoice::where('student_profile_id', $student->id)->where('status', '!=', 'cancelled')->count());
         app(MusakoNotificationService::class)->monthlyInvoiceConfirmed($new);
         app(MusakoNotificationService::class)->monthlyInvoiceCancelled($old);
-        Notification::assertSentToTimes($student->user, MonthlyInvoiceConfirmedNotification::class, 2);
-        Notification::assertSentToTimes($student->user, MonthlyInvoiceCancelledNotification::class, 1);
+        Notification::assertNotSentTo($student->user, MonthlyInvoiceConfirmedNotification::class);
+        Notification::assertNotSentTo($student->user, MonthlyInvoiceCancelledNotification::class);
 
         $this->actingAs($student->user)->get(route('student.invoices.index'))
             ->assertOk()->assertSee('取消済み')->assertSee($old->invoice_number)->assertSee($new->invoice_number);

@@ -10,6 +10,7 @@ use App\Models\TrialLessonRequest;
 use App\Services\MusakoNotificationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -23,31 +24,32 @@ class CreateAdmissionApplication
     public function handle(TrialLessonRequest $trialLessonRequest, array $attributes): array
     {
         $token = Str::random(64);
-        $email = Str::lower(trim((string) $attributes['email']));
-        $pendingEmailKey = hash('sha256', $email);
+        $loginName = Str::lower(trim((string) $attributes['login_name']));
 
         try {
-            $application = DB::transaction(function () use ($trialLessonRequest, $attributes, $token, $email, $pendingEmailKey): AdmissionApplication {
+            $application = DB::transaction(function () use ($trialLessonRequest, $attributes, $token, $loginName): AdmissionApplication {
                 $trial = TrialLessonRequest::query()->lockForUpdate()->findOrFail($trialLessonRequest->id);
                 if ($trial->status !== TrialLessonStatus::Completed) {
                     throw ValidationException::withMessages(['trial' => '体験完了後に入会申込みへ進めます。']);
                 }
-                if ($trial->admissionApplication()->exists() || AdmissionApplication::query()->where('pending_email_key', $pendingEmailKey)->exists()) {
-                    throw ValidationException::withMessages(['email' => 'この体験またはメールアドレスでは入会申込み済みです。']);
+                if ($trial->admissionApplication()->exists() || AdmissionApplication::query()->where('pending_login_name', $loginName)->exists()) {
+                    throw ValidationException::withMessages(['login_name' => 'この体験またはログイン名では入会申込み済みです。']);
                 }
 
                 return AdmissionApplication::query()->create([
                     'public_reference' => $this->uniqueReference(),
                     'access_token_hash' => hash('sha256', $token),
-                    'pending_email_key' => $pendingEmailKey,
+                    'login_name' => $loginName,
+                    'pending_login_name' => $loginName,
+                    'initial_password_hash' => Hash::make($attributes['password']),
                     'trial_lesson_request_id' => $trial->id,
                     'name' => $attributes['name'],
-                    'name_kana' => $attributes['name_kana'],
-                    'email' => trim((string) $attributes['email']),
-                    'email_normalized' => $email,
-                    'phone' => $attributes['phone'],
+                    'name_kana' => $attributes['name_kana'] ?? '',
+                    'email' => null,
+                    'email_normalized' => null,
+                    'phone' => $attributes['phone'] ?? '',
                     'postal_code' => $attributes['postal_code'] ?? null,
-                    'address' => $attributes['address'],
+                    'address' => $attributes['address'] ?? '',
                     'course_id' => $attributes['course_id'],
                     'lesson_type' => $attributes['lesson_type'],
                     'pricing_category' => $attributes['pricing_category'],
@@ -66,8 +68,8 @@ class CreateAdmissionApplication
                 ]);
             }, 3);
         } catch (QueryException $exception) {
-            if (AdmissionApplication::query()->where('pending_email_key', $pendingEmailKey)->exists()) {
-                throw ValidationException::withMessages(['email' => 'このメールアドレスでは入会申込み済みです。']);
+            if (AdmissionApplication::query()->where('pending_login_name', $loginName)->exists()) {
+                throw ValidationException::withMessages(['login_name' => 'このログイン名では入会申込み済みです。']);
             }
 
             throw $exception;

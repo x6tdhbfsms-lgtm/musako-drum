@@ -20,7 +20,7 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'role', 'account_status', 'notification_preferences'];
+    protected $fillable = ['name', 'login_name', 'email', 'password', 'role', 'account_status', 'notification_preferences'];
 
     public function studentProfile(): HasOne
     {
@@ -44,7 +44,7 @@ class User extends Authenticatable
 
     public function canReceiveEmailNotification(NotificationCategory $category): bool
     {
-        if (! is_string($this->email) || filter_var($this->email, FILTER_VALIDATE_EMAIL) === false) {
+        if ($this->role === UserRole::Student || ! is_string($this->email) || filter_var($this->email, FILTER_VALIDATE_EMAIL) === false) {
             return false;
         }
 

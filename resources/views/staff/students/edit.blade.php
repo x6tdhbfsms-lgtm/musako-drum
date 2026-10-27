@@ -9,12 +9,14 @@
         @csrf @method('PATCH')
         <input type="hidden" name="revision" value="{{ old('revision', $revision) }}">
         <h2 class="text-xl font-bold">基本情報</h2>
-        <p class="text-sm text-stone-600">メールアドレスはログインIDにも使われます。変更後のアドレスを生徒へお伝えください。パスワードは変わりません。</p>
+        <p class="text-sm text-stone-600">ログイン名を変更した場合は生徒へお伝えください。パスワード欄を空欄にすると現在のパスワードを保持します。</p>
         @if ($errors->any())<div role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800"><ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
         <div class="grid gap-5 sm:grid-cols-2">
-            @foreach (['name' => ['氏名', $student->user->name, 'text', 100], 'email' => ['メールアドレス', $student->user->email, 'email', 254], 'phone' => ['電話番号', $student->phone, 'tel', 30], 'postal_code' => ['郵便番号', $student->postal_code, 'text', 12], 'address' => ['住所', $student->address, 'text', 255]] as $field => [$label, $value, $type, $max])
-            <label class="grid min-w-0 gap-2 text-sm font-semibold {{ $field === 'address' ? 'sm:col-span-2' : '' }}">{{ $label }}<input name="{{ $field }}" type="{{ $type }}" value="{{ old($field, $value) }}" maxlength="{{ $max }}" @required(in_array($field, ['name', 'email'])) class="min-h-12 min-w-0 w-full rounded-xl border border-stone-300 px-3"></label>
+            @foreach (['name' => ['氏名', $student->user->name, 'text', 100], 'login_name' => ['ログイン名', $student->user->login_name, 'text', 64], 'phone' => ['電話番号', $student->phone, 'tel', 30], 'postal_code' => ['郵便番号', $student->postal_code, 'text', 12], 'address' => ['住所', $student->address, 'text', 255]] as $field => [$label, $value, $type, $max])
+            <label class="grid min-w-0 gap-2 text-sm font-semibold {{ $field === 'address' ? 'sm:col-span-2' : '' }}">{{ $label }}<input name="{{ $field }}" type="{{ $type }}" value="{{ old($field, $value) }}" maxlength="{{ $max }}" @required(in_array($field, ['name', 'login_name'])) class="min-h-12 min-w-0 w-full rounded-xl border border-stone-300 px-3"></label>
             @endforeach
+<label class="grid gap-2 text-sm font-semibold">新しいパスワード（変更時のみ）<input type="password" name="password" minlength="12" maxlength="72" autocomplete="new-password" class="min-h-12 rounded-xl border border-stone-300 px-3"><span class="text-xs font-normal text-stone-500">12文字以上</span></label>
+<label class="grid gap-2 text-sm font-semibold">パスワード（確認）<input type="password" name="password_confirmation" minlength="12" maxlength="72" autocomplete="new-password" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
         </div>
         <button class="min-h-12 w-full rounded-xl bg-amber-400 px-5 font-bold">基本情報を保存</button>
     </form>

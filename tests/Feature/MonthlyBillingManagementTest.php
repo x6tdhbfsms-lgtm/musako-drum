@@ -269,7 +269,7 @@ class MonthlyBillingManagementTest extends TestCase
 
         $invoice->refresh();
         $this->assertMatchesRegularExpression('/^INV-202610-\d{6}$/', $invoice->invoice_number);
-        Notification::assertSentTo($student->user, MonthlyInvoiceConfirmedNotification::class);
+        Notification::assertNotSentTo($student->user, MonthlyInvoiceConfirmedNotification::class);
         $this->expectException(ValidationException::class);
         app(ConfirmMonthlyInvoice::class)->handle($invoice, $admin);
     }
@@ -314,7 +314,7 @@ class MonthlyBillingManagementTest extends TestCase
         $action->handle($invoice->fresh(), $admin, $this->paymentData(6000, 'part-2'));
         $this->assertSame(InvoicePaymentStatus::Paid, $invoice->fresh()->payment_status);
         $this->assertSame(0, $invoice->fresh()->remaining_amount);
-        Notification::assertSentToTimes($student->user, MonthlyInvoicePaidNotification::class, 1);
+        Notification::assertNotSentTo($student->user, MonthlyInvoicePaidNotification::class);
         $this->assertDatabaseCount('payment_records', 2);
     }
 

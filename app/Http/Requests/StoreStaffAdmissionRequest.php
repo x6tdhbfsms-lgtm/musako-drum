@@ -3,9 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\UserRole;
-use App\Models\AdmissionApplication;
 use App\Models\Course;
-use App\Models\User;
 use App\Models\Venue;
 use Illuminate\Validation\Validator;
 
@@ -14,11 +12,6 @@ class StoreStaffAdmissionRequest extends StoreAdmissionApplicationRequest
     public function authorize(): bool
     {
         return $this->user()?->role === UserRole::Admin;
-    }
-
-    protected function prepareForValidation(): void
-    {
-        $this->merge(['email' => mb_strtolower(trim((string) $this->input('email')))]);
     }
 
     public function rules(): array
@@ -44,11 +37,6 @@ class StoreStaffAdmissionRequest extends StoreAdmissionApplicationRequest
                 if (count($weeks) !== $this->integer('monthly_lesson_count') || count(array_unique($weeks)) !== count($weeks)) {
                     $validator->errors()->add('regular_week_pattern', '月回数と同じ数の週を、重複せず選択してください。');
                 }
-            }
-            $email = $this->validated('email');
-            if (User::whereRaw('LOWER(email) = ?', [$email])->exists()
-                || AdmissionApplication::where('pending_email_key', hash('sha256', $email))->exists()) {
-                $validator->errors()->add('email', 'このメールアドレスは登録済み、または入会申請中です。');
             }
             $course = Course::find($this->integer('course_id'));
             $venue = Venue::find($this->integer('venue_id'));

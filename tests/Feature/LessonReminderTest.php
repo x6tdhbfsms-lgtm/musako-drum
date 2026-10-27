@@ -20,7 +20,7 @@ class LessonReminderTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_command_queues_only_tomorrows_approved_reservations(): void
+    public function test_command_does_not_queue_student_email_even_for_approved_reservations(): void
     {
         $this->travelTo('2026-09-14 18:00:00');
         $approved = $this->reservation('2026-09-15 18:00:00', ReservationStatus::Approved);
@@ -29,15 +29,11 @@ class LessonReminderTest extends TestCase
         Queue::fake([SendLessonReminder::class]);
 
         $this->artisan('lesson-reminders:send')
-            ->expectsOutput('2026-09-15 の前日リマインダーを 1件キューへ登録しました。')
+            ->expectsOutput('2026-09-15 の前日リマインダーを 0件キューへ登録しました。')
             ->assertSuccessful();
 
-        $this->assertDatabaseHas('lesson_reminder_deliveries', [
-            'reservation_request_id' => $approved->id,
-            'user_id' => $approved->studentProfile->user_id,
-        ]);
-        $this->assertSame('2026-09-15', $approved->lessonReminderDelivery->lesson_on->toDateString());
-        Queue::assertPushed(SendLessonReminder::class, fn (SendLessonReminder $job): bool => $job->lessonReminderDeliveryId === $approved->lessonReminderDelivery->id);
+        $this->assertDatabaseCount('lesson_reminder_deliveries', 0);
+        Queue::assertNothingPushed();
     }
 
     public function test_command_does_not_queue_the_same_reminder_twice(): void
@@ -49,9 +45,8 @@ class LessonReminderTest extends TestCase
         $this->artisan('lesson-reminders:send')->assertSuccessful();
         $this->artisan('lesson-reminders:send')->expectsOutput('2026-09-15 の前日リマインダーを 0件キューへ登録しました。')->assertSuccessful();
 
-        $this->assertDatabaseCount('lesson_reminder_deliveries', 1);
-        Queue::assertPushed(SendLessonReminder::class, 1);
-        $this->assertSame($reservation->id, LessonReminderDelivery::query()->sole()->reservation_request_id);
+        $this->assertDatabaseCount('lesson_reminder_deliveries', 0);
+        Queue::assertNothingPushed();
     }
 
     public function test_command_skips_a_student_without_email_or_with_reminders_disabled(): void
@@ -69,7 +64,7 @@ class LessonReminderTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    public function test_job_sends_the_reminder_once_and_records_delivery(): void
+    public function test_queued_legacy_job_skips_student_delivery(): void
     {
         $this->travelTo('2026-09-14 18:00:00');
         $reservation = $this->reservation('2026-09-15 18:00:00', ReservationStatus::Approved);
@@ -82,9 +77,9 @@ class LessonReminderTest extends TestCase
         $job->handle();
         $job->handle();
 
-        Notification::assertSentToTimes($reservation->studentProfile->user, LessonReminderNotification::class, 1);
-        $this->assertNotNull($delivery->fresh()->sent_at);
-        $this->assertSame(1, $delivery->fresh()->attempts);
+        Notification::assertNotSentTo($reservation->studentProfile->user, LessonReminderNotification::class);
+        $this->assertNull($delivery->fresh()->sent_at);
+        $this->assertSame(0, $delivery->fresh()->attempts);
     }
 
     public function test_reminder_email_contains_lesson_details_and_no_internal_identifier(): void

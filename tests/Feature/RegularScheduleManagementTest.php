@@ -139,7 +139,7 @@ class RegularScheduleManagementTest extends TestCase
         $summary = app(MonthlyLessonUsageCalculator::class)->calculate($enrollment->studentProfile, CarbonImmutable::parse('2026-10-01'));
         $this->assertSame(2, $summary->used);
         $this->assertDatabaseCount('regular_schedule_notification_deliveries', 1);
-        Notification::assertSentTo($enrollment->studentProfile->user, RegularScheduleConfirmedNotification::class, 1);
+        Notification::assertNotSentTo($enrollment->studentProfile->user, RegularScheduleConfirmedNotification::class);
     }
 
     public function test_missing_studio_rate_leaves_schedule_unconfirmed(): void
@@ -174,7 +174,7 @@ class RegularScheduleManagementTest extends TestCase
         $action->handle($batch->occurrences->modelKeys(), $admin);
 
         $this->assertSame(1, RegularScheduleNotificationDelivery::query()->count());
-        Notification::assertSentTo($enrollment->studentProfile->user, RegularScheduleConfirmedNotification::class, 1);
+        Notification::assertNotSentTo($enrollment->studentProfile->user, RegularScheduleConfirmedNotification::class);
     }
 
     public function test_teacher_and_student_time_conflicts_are_detected_and_cannot_be_confirmed(): void

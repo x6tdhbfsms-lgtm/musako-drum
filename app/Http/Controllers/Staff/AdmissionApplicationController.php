@@ -14,11 +14,14 @@ use App\Models\Course;
 use App\Models\TeacherProfile;
 use App\Models\Venue;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class AdmissionApplicationController extends Controller
 {
@@ -36,34 +39,45 @@ class AdmissionApplicationController extends Controller
 
     public function store(StoreStaffAdmissionRequest $request, ReviewAdmissionApplication $review): RedirectResponse
     {
-        $application = DB::transaction(function () use ($request, $review) {
-            $attributes = $request->safe()->except(['privacy_accepted', 'website', 'regular_week_pattern']);
-            if ($attributes['lesson_type'] !== 'regular') {
-                $attributes['weekday'] = null;
-                $attributes['starts_at_time'] = null;
+        try {
+            $application = DB::transaction(function () use ($request, $review) {
+                $attributes = $request->safe()->except(['privacy_accepted', 'website', 'regular_week_pattern', 'password', 'password_confirmation']);
+                if ($attributes['lesson_type'] !== 'regular') {
+                    $attributes['weekday'] = null;
+                    $attributes['starts_at_time'] = null;
+                }
+                $application = AdmissionApplication::create([
+                    ...$attributes,
+                    'public_reference' => 'AD-'.Str::upper(Str::random(16)),
+                    'access_token_hash' => hash('sha256', Str::random(64)),
+                    'email' => null,
+                    'email_normalized' => null,
+                    'pending_login_name' => $attributes['login_name'],
+                    'initial_password_hash' => Hash::make($request->validated('password')),
+                    'name_kana' => $attributes['name_kana'] ?? '',
+                    'phone' => $attributes['phone'] ?? '',
+                    'status' => AdmissionApplicationStatus::Pending,
+                    'privacy_policy_version' => config('musako.privacy.policy_version'),
+                    'privacy_consented_at' => now(),
+                    'requested_at' => now(),
+                    'address' => $attributes['address'] ?? '',
+                    'notes' => '【管理者による直接登録】本人同意確認済み。'.($attributes['notes'] ?? ''),
+                ]);
+
+                $weeks = $attributes['lesson_type'] === 'regular' && $request->filled('regular_week_pattern')
+                    ? array_map('intval', explode(',', $request->validated('regular_week_pattern'))) : null;
+
+                return $review->handle($application, $request->user(), AdmissionApplicationStatus::Approved, null, regularWeeks: $weeks);
+            }, 3);
+        } catch (UniqueConstraintViolationException $exception) {
+            if (str_contains($exception->getMessage(), 'login_name')) {
+                throw ValidationException::withMessages(['login_name' => 'このログイン名は使用済みです。別のログイン名を設定してください。']);
             }
-            $application = AdmissionApplication::create([
-                ...$attributes,
-                'public_reference' => 'AD-'.Str::upper(Str::random(16)),
-                'access_token_hash' => hash('sha256', Str::random(64)),
-                'email_normalized' => $attributes['email'],
-                'pending_email_key' => hash('sha256', $attributes['email']),
-                'status' => AdmissionApplicationStatus::Pending,
-                'privacy_policy_version' => config('musako.privacy.policy_version'),
-                'privacy_consented_at' => now(),
-                'requested_at' => now(),
-                'address' => $attributes['address'] ?? '',
-                'notes' => '【管理者による直接登録】本人同意確認済み。'.($attributes['notes'] ?? ''),
-            ]);
-
-            $weeks = $attributes['lesson_type'] === 'regular' && $request->filled('regular_week_pattern')
-                ? array_map('intval', explode(',', $request->validated('regular_week_pattern'))) : null;
-
-            return $review->handle($application, $request->user(), AdmissionApplicationStatus::Approved, null, regularWeeks: $weeks);
-        }, 3);
+            throw $exception;
+        }
 
         return redirect()->route('staff.students.show', $application->converted_student_profile_id)
-            ->with('success', '生徒と契約を登録しました。初回パスワード設定の案内をメールで送信します。固定日時のあるレギュラー契約は仮予定を作成しました。定期予定で確認・確定してください。');
+            ->with('success', '生徒と契約を登録しました。設定したログイン名とパスワードを生徒へ直接お伝えください。固定日時のあるレギュラー契約はレッスンを確定しました。');
     }
 
     public function index(Request $request): View
