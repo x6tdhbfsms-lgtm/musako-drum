@@ -37,17 +37,7 @@
                                 <option value="late" @selected(old('type', $notice?->type->value) === 'late')>遅刻</option>
                             </select>
                         </label>
-                        <label class="grid gap-2 text-sm font-semibold">遅刻予定分数
-                            <input type="number" name="late_minutes" min="1" max="180" value="{{ old('late_minutes', $notice?->late_minutes) }}" placeholder="例：15" class="min-h-12 rounded-xl border border-stone-300 px-3 font-normal">
-                        </label>
-                        <label class="grid gap-2 text-sm font-semibold">到着予定時刻
-                            <input type="time" name="expected_arrival_time" value="{{ old('expected_arrival_time', $notice?->expected_arrival_at?->format('H:i')) }}" class="min-h-12 rounded-xl border border-stone-300 px-3 font-normal">
-                        </label>
-                        <label class="grid gap-2 text-sm font-semibold">備考（任意）
-                            <input name="notes" maxlength="1000" value="{{ old('notes', $notice?->notes) }}" class="min-h-12 rounded-xl border border-stone-300 px-3 font-normal">
-                        </label>
                     </div>
-                    <p class="text-xs leading-5 text-stone-500">遅刻の場合は、予定分数または到着予定時刻のどちらかを入力してください。</p>
                     <button class="min-h-12 rounded-xl bg-stone-900 px-5 font-semibold text-white sm:justify-self-end">{{ $notice ? '連絡を更新する' : '先生へ連絡する' }}</button>
                 </form>
             </article>

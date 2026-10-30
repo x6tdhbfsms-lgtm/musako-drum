@@ -62,7 +62,7 @@ class AttendanceNoticeFlowTest extends TestCase
         ]);
     }
 
-    public function test_late_notice_requires_minutes_or_an_arrival_time(): void
+    public function test_late_notice_can_be_sent_without_minutes_or_arrival_time(): void
     {
         $this->travelTo('2026-09-12 10:00:00');
         $student = StudentProfile::factory()->create();
@@ -72,11 +72,14 @@ class AttendanceNoticeFlowTest extends TestCase
             ->put(route('student.attendance-notices.store', $reservation), [
                 'type' => AttendanceNoticeType::Late->value,
             ])
-            ->assertSessionHasErrors([
-                'late_minutes' => '遅刻予定分数または到着予定時刻のどちらかを入力してください。',
-            ]);
+            ->assertSessionHasNoErrors()->assertRedirect(route('student.attendance-notices.index'));
 
-        $this->assertDatabaseCount('attendance_notices', 0);
+        $this->assertDatabaseHas('attendance_notices', [
+            'reservation_request_id' => $reservation->id,
+            'type' => AttendanceNoticeType::Late->value,
+            'late_minutes' => null,
+            'expected_arrival_at' => null,
+        ]);
     }
 
     public function test_arrival_time_must_be_during_the_lesson(): void
