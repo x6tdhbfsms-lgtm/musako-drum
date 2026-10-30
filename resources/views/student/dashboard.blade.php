@@ -20,17 +20,22 @@
 
 <section class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm" aria-labelledby="my-lesson-title">
     <h2 id="my-lesson-title" class="text-xl font-bold">あなたのレッスン内容</h2>
-    <p class="mt-1 text-xs text-stone-600">現在ご契約中の内容です。</p>
+    <p class="mt-1 text-xs text-stone-600">現在の契約と、登録済みの今後の契約内容です。</p>
     <div class="mt-4 grid gap-4">
-        @forelse ($currentEnrollments as $enrollment)
+        @forelse ($displayEnrollments as $enrollment)
             <article class="min-w-0 rounded-xl bg-white p-4">
+                @php
+                    $weeks = $enrollment->regular_week_numbers ?: ($enrollment->monthly_lesson_limit == 2 ? [1, 3] : ($enrollment->monthly_lesson_limit > 0 ? range(1, min(4, $enrollment->monthly_lesson_limit)) : []));
+                    $fixedSchedule = $enrollment->lesson_type === App\Enums\LessonType::Regular && $enrollment->weekday !== null && $enrollment->starts_at_time;
+                @endphp
+                <p class="text-xs text-stone-600">{{ $enrollment->starts_on->isAfter(today()) ? '開始予定：' : '契約期間：' }}{{ $enrollment->starts_on->format('Y年n月j日') }}〜{{ $enrollment->ends_on?->format('Y年n月j日') }}</p>
                 <h3 class="break-words text-lg font-bold">{{ $enrollment->course?->name ?? 'コース確認中' }}</h3>
-                <p class="mt-2 text-lg font-bold text-amber-800">1回 {{ $enrollment->lesson_minutes ?? '未設定' }}分 · 月{{ $enrollment->monthly_lesson_limit ?? '未設定' }}回</p>
+                <p class="mt-2 text-lg font-bold text-amber-800">1回 {{ $enrollment->lesson_minutes ?? '未設定' }}分 · 月{{ $enrollment->monthly_lesson_limit ?? '未設定' }}回@if ($fixedSchedule) · 第{{ implode('・第', $weeks) }}{{ ['日','月','火','水','木','金','土'][$enrollment->weekday] }}曜日 {{ substr($enrollment->starts_at_time, 0, 5) }}〜@endif</p>
                 <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                     <div class="min-w-0"><dt class="text-xs text-stone-500">会場</dt><dd class="mt-1 break-words font-semibold">{{ $enrollment->venue?->name ?? '会場未定' }}</dd></div>
                     <div class="min-w-0"><dt class="text-xs text-stone-500">担当講師</dt><dd class="mt-1 break-words font-semibold">{{ $enrollment->teacherProfile?->display_name ?? '講師未定' }}</dd></div>
                     <div><dt class="text-xs text-stone-500">レッスン形式</dt><dd class="mt-1 font-semibold">{{ $enrollment->lesson_type?->label() ?? '確認中' }}</dd></div>
-                    <div><dt class="text-xs text-stone-500">曜日・時間</dt><dd class="mt-1 font-semibold">@if ($enrollment->lesson_type === App\Enums\LessonType::Flex)予約ごとに調整@elseif ($enrollment->weekday !== null && $enrollment->starts_at_time){{ ['日','月','火','水','木','金','土'][$enrollment->weekday] }}曜日 {{ substr($enrollment->starts_at_time, 0, 5) }}〜@else調整中@endif</dd></div>
+                    @if (! $fixedSchedule)<div><dt class="text-xs text-stone-500">曜日・時間</dt><dd class="mt-1 font-semibold">{{ $enrollment->lesson_type === App\Enums\LessonType::Flex ? '予約ごとに調整' : '固定日時未登録（各レッスンの予定をご確認ください）' }}</dd></div>@endif
                 </dl>
             </article>
         @empty

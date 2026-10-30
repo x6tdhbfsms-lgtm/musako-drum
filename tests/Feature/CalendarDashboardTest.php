@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Enums\ApplicationStatus;
 use App\Enums\AttendanceNoticeType;
 use App\Enums\LessonSlotStatus;
+use App\Enums\LessonType;
 use App\Enums\ReservationStatus;
 use App\Enums\StudentCalendarStatus;
 use App\Models\AttendanceNotice;
+use App\Models\LessonEnrollment;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
@@ -23,6 +25,41 @@ use Tests\TestCase;
 class CalendarDashboardTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_student_sees_registered_future_fixed_schedule_before_it_starts(): void
+    {
+        $this->travelTo('2026-10-30 12:00:00');
+        $student = StudentProfile::factory()->create();
+        LessonEnrollment::factory()->for($student)->create([
+            'lesson_type' => LessonType::Regular,
+            'starts_on' => '2026-12-01', 'weekday' => 2,
+            'starts_at_time' => '18:00', 'monthly_lesson_limit' => 4,
+            'regular_week_numbers' => null,
+        ]);
+        $other = LessonEnrollment::factory()->create([
+            'starts_on' => '2026-12-01',
+        ]);
+        $this->actingAs($student->user)->get(route('student.dashboard'))
+            ->assertOk()
+            ->assertSee('開始予定：2026年12月1日')
+            ->assertSee('月4回')
+            ->assertSee('第1・第2・第3・第4火曜日 18:00〜')
+            ->assertDontSee($other->course->name);
+    }
+
+    public function test_student_sees_explicit_fixed_weeks_immediately_for_current_contract(): void
+    {
+        $this->travelTo('2026-10-30 12:00:00');
+        $student = StudentProfile::factory()->create();
+        LessonEnrollment::factory()->for($student)->create([
+            'lesson_type' => LessonType::Regular,
+            'starts_on' => '2026-10-30', 'weekday' => 0,
+            'starts_at_time' => '12:30', 'monthly_lesson_limit' => 2,
+            'regular_week_numbers' => [2, 4],
+        ]);
+        $this->actingAs($student->user)->get(route('student.dashboard'))
+            ->assertOk()->assertSee('第2・第4日曜日 12:30〜')->assertDontSee('調整中');
+    }
 
     public function test_student_calendar_distinguishes_every_lesson_state(): void
     {

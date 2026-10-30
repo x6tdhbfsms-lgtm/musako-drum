@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\EnrollmentStatus;
 use App\Enums\LessonSlotAudience;
 use App\Enums\ReservationStatus;
 use App\Enums\StudentCalendarStatus;
@@ -143,6 +144,12 @@ class DashboardController extends Controller
             'selectedDate' => $selectedDate,
             'monthlySummary' => $monthlySummary,
             'currentEnrollments' => $currentEnrollments,
+            'displayEnrollments' => $studentProfile?->enrollments()
+                ->where('status', EnrollmentStatus::Active)
+                ->where(fn ($query) => $query->whereNull('ends_on')->orWhereDate('ends_on', '>=', today()))
+                ->with(['course', 'teacherProfile', 'venue'])
+                ->orderBy('starts_on')
+                ->get() ?? collect(),
             'pricingQuotes' => $pricingQuotes,
             'pricingSetting' => PricingSetting::query()->effectiveOn(today())->first(),
         ]);
