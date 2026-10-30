@@ -270,6 +270,24 @@ class AdmissionApplicationFlowTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_staff_registration_rejects_quarter_hour_fixed_starts_for_electronic_lessons(): void
+    {
+        $this->seed();
+        $payload = $this->validPayload(TrialLessonRequest::factory()->create());
+        $course = Course::where('code', 'DEMO-ELECTRONIC-30')->sole();
+        $venue = Venue::all()->first(fn ($venue) => $venue->termsRoomType() === 'music_room');
+        $payload = [...$payload, 'course_id' => $course->id, 'venue_id' => $venue->id, 'lesson_minutes' => 30];
+        $this->actingAs(User::factory()->admin()->create());
+        foreach (['18:15', '18:45'] as $time) {
+            $this->post(route('staff.admission-applications.store'), [...$payload, 'starts_at_time' => $time])
+                ->assertSessionHasErrors(['starts_at_time' => '固定レッスンの開始時間は00分・30分から選択してください。']);
+        }
+        $this->assertDatabaseCount('admission_applications', 0);
+        $this->post(route('staff.admission-applications.store'), [...$payload, 'starts_at_time' => '18:30'])
+            ->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame('18:30', substr(AdmissionApplication::sole()->convertedLessonEnrollment->starts_at_time, 0, 5));
+    }
+
     /** @return array<string, mixed> */
     private function validPayload(TrialLessonRequest $trial): array
     {
