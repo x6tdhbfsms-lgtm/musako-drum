@@ -89,6 +89,11 @@
 <div class="mt-8 grid gap-4 sm:grid-cols-2"><a href="{{ route('student.reservations.index') }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">承認待ち</span><strong class="mt-2 block text-3xl">{{ $pendingCount }}</strong></a><a href="{{ route('student.reservations.index') }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">確定予約</span><strong class="mt-2 block text-3xl">{{ $approvedCount }}</strong></a></div>
 @php
     $procedures = [
+        ['振替', 'レッスンの振替申請・履歴', route('student.transfer-requests.index')],
+        ['お休み・遅刻', '確定予約について先生へ連絡', route('student.attendance-notices.index')],
+        ['休会', '希望月の前月10日までに申請必須', route('student.membership-status-requests.index', ['type' => 'pause']).'#application-form'],
+        ['退会', '希望月の前月10日までに申請必須', route('student.membership-status-requests.index', ['type' => 'withdraw']).'#application-form'],
+        ['再開', '在籍に関する申請', route('student.membership-status-requests.index', ['type' => 'resume']).'#application-form'],
         ['時間割／曜日／時間変更', '曜日と開始時間', route('student.contract-change-requests.index', ['type' => 'schedule'])],
         ['月のレッスン回数変更', '変更希望月の前月10日までに申請必須', route('student.contract-change-requests.index', ['type' => 'monthly_lessons'])],
         ['レッスン時間変更', '1回あたりの時間', route('student.contract-change-requests.index', ['type' => 'lesson_minutes'])],
@@ -100,12 +105,7 @@
         ['個人情報変更', '氏名・連絡先・住所', route('student.personal-information-change-requests.index')],
         ['支払い方法変更', '決済情報は保存しません', route('student.payment-method-change-requests.index')],
         ['その他問い合わせ', '教室へのお問い合わせ', route('student.inquiries.index')],
-        ['お休み・遅刻', '確定予約の連絡', route('student.attendance-notices.index')],
-        ['振替', '申請履歴を確認', route('student.transfer-requests.index')],
-        ['休会', '希望月の前月10日までに申請必須', route('student.membership-status-requests.index', ['type' => 'pause']).'#application-form'],
-        ['退会', '希望月の前月10日までに申請必須', route('student.membership-status-requests.index', ['type' => 'withdraw']).'#application-form'],
-        ['再開', '在籍に関する申請', route('student.membership-status-requests.index', ['type' => 'resume']).'#application-form'],
     ];
 @endphp
-<section class="mt-9" aria-labelledby="procedures-title"><div><p class="text-sm font-semibold tracking-widest text-amber-700">PROCEDURES</p><h2 id="procedures-title" class="mt-1 text-2xl font-bold">各種お手続き</h2><p class="mt-2 text-sm text-stone-600">契約内容の変更や教室への連絡はこちらから申請できます。</p></div><div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">@foreach ($procedures as [$title, $description, $url])<a href="{{ $url }}" class="group min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-amber-300"><span class="flex items-center justify-between gap-3 font-semibold"><span>{{ $title }}</span><span class="text-amber-600 group-hover:translate-x-0.5">→</span></span><span class="mt-1 block text-xs font-normal text-stone-500">{{ $description }}</span></a>@endforeach</div></section>
+<section id="student-procedures" class="mt-9 scroll-mt-6" aria-labelledby="procedures-title"><div><p class="text-sm font-semibold tracking-widest text-amber-700">PROCEDURES</p><h2 id="procedures-title" class="mt-1 text-2xl font-bold">各種お手続き</h2><p class="mt-2 text-sm text-stone-600">契約内容の変更や教室への連絡はこちらから申請できます。</p></div><div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">@foreach ($procedures as [$title, $description, $url])<a href="{{ $url }}" class="group min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-amber-300"><span class="flex items-center justify-between gap-3 font-semibold"><span>{{ $title }}</span><span class="text-amber-600 group-hover:translate-x-0.5">→</span></span><span class="mt-1 block text-xs font-normal text-stone-500">{{ $description }}</span></a>@endforeach</div></section>
 @endsection

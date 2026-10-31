@@ -19,11 +19,8 @@
                     <span class="rounded-full bg-stone-100 px-3 py-2 text-xs font-semibold">{{ ['admin' => '管理者', 'teacher' => '講師', 'student' => '生徒'][auth()->user()->role->value] }}：{{ auth()->user()->role->value === 'teacher' ? (auth()->user()->teacherProfile?->display_name ?? auth()->user()->name) : auth()->user()->name }}</span>
                     @if (auth()->user()->role->value === 'student')
                         <a href="{{ route('student.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">カレンダー</a>
-                        <a href="{{ route('student.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">空き枠</a>
-                        <a href="{{ route('student.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">予約一覧</a>
-                        <a href="{{ route('student.attendance-notices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">お休み・遅刻</a>
-                        <a href="{{ route('student.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
-                        <a href="{{ route('student.contract-change-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
+                        <a href="{{ route('student.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン一覧</a>
+                        <a href="{{ route('student.dashboard') }}#student-procedures" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
                         <a href="{{ route('student.invoices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">ご請求</a>
                     @else
                         <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">Home</a>
