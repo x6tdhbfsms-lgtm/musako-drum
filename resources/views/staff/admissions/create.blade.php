@@ -19,8 +19,7 @@
 <label class="grid gap-2 text-sm font-semibold">1回の時間（分）<input type="number" name="lesson_minutes" min="15" max="180" step="5" required value="{{ old('lesson_minutes', $defaultCourse?->default_lesson_minutes ?? 60) }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
 <label class="grid gap-2 text-sm font-semibold">会場<select name="venue_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>
 @foreach ($venues as $venue)<option data-room="{{ $venue->termsRoomType() }}" value="{{ $venue->id }}" @selected(old('venue_id') == $venue->id)>{{ $venue->name }}</option>@endforeach</select></label>
-<label class="grid gap-2 text-sm font-semibold">講師<select name="teacher_profile_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>
-@foreach ($teachers as $teacher)<option value="{{ $teacher->id }}" @selected(old('teacher_profile_id') == $teacher->id)>{{ $teacher->display_name }}</option>@endforeach</select></label>
+<input type="hidden" name="teacher_profile_id" value="{{ old('teacher_profile_id', ($teachers->firstWhere('display_name', '茂木') ?? $teachers->sortBy('id')->first())?->id) }}">
 <label class="grid gap-2 text-sm font-semibold">希望開始日<input type="date" name="preferred_start_date" required min="{{ now()->format('Y-m-d') }}" value="{{ old('preferred_start_date', now()->addMonth()->startOfMonth()->format('Y-m-d')) }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
 <fieldset class="min-w-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:col-span-2" data-fixed-schedule>
 <legend class="px-2 text-sm font-bold">固定レッスン（レギュラー契約）</legend>

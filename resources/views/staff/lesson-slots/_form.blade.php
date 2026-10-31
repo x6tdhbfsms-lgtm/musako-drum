@@ -2,7 +2,7 @@
 <p class="mb-4 text-sm text-stone-600">平日12:00〜21:00、土日10:00〜20:00に終了する枠を設定してください。電子ドラムは15分刻みで設定できます。同じ会場は続けてレッスン可能です。会場が変わる場合は両方向とも15分以上空けてください。studio34は00分・30分開始の60分枠です。</p>
 <div class="grid gap-5 sm:grid-cols-2">
     @if (auth()->user()->role->value === 'admin')
-        <label class="grid gap-2 text-sm font-semibold">担当講師<select name="teacher_profile_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">選択してください</option>@foreach ($teachers as $teacher)<option value="{{ $teacher->id }}" @selected(old('teacher_profile_id', $lessonSlot?->teacher_profile_id) == $teacher->id)>{{ $teacher->display_name }}</option>@endforeach</select></label>
+        <input type="hidden" name="teacher_profile_id" value="{{ old('teacher_profile_id', $lessonSlot?->teacher_profile_id ?? ($teachers->firstWhere('display_name', '茂木') ?? $teachers->sortBy('id')->first())?->id) }}">
     @endif
     <label class="grid gap-2 text-sm font-semibold">会場<select name="venue_id" class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">未定</option>@foreach ($venues as $venue)<option value="{{ $venue->id }}" @selected(old('venue_id', $lessonSlot?->venue_id) == $venue->id)>{{ $venue->name }}</option>@endforeach</select></label>
     <label class="grid gap-2 text-sm font-semibold">コース<select name="course_id" class="min-h-12 rounded-xl border border-stone-300 bg-white px-3"><option value="">指定なし</option>@foreach ($courses as $course)<option value="{{ $course->id }}" @selected(old('course_id', $lessonSlot?->course_id) == $course->id)>{{ $course->name }}</option>@endforeach</select></label>
