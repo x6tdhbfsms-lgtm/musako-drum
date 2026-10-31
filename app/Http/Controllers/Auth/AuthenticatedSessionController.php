@@ -25,10 +25,19 @@ class AuthenticatedSessionController extends Controller
             'role' => $staffLogin ? [UserRole::Admin->value, UserRole::Teacher->value] : UserRole::Student->value,
         ];
         $credentials['account_status'] = AccountStatus::Active->value;
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        $otherPortal = $staffLogin ? 'student' : 'staff';
+        $preserveToken = Auth::guard($otherPortal)->check();
+        $csrfToken = $request->session()->token();
+        if (! Auth::guard('web')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages(['identifier' => 'ログイン名またはパスワードが正しくありません。']);
         }
+        $portal = $request->user()->role === UserRole::Student ? 'student' : 'staff';
+        Auth::guard($portal)->login($request->user(), $request->boolean('remember'));
+        $request->session()->put('portal_password_hash_'.$portal, $request->user()->getAuthPassword());
         $request->session()->regenerate();
+        if ($preserveToken) {
+            $request->session()->put('_token', $csrfToken);
+        }
 
         if ($request->expectsJson()) {
             return response()->json(['user' => $request->user()->only(['id', 'name', 'login_name', 'role'])]);
@@ -43,9 +52,22 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request): JsonResponse|RedirectResponse
     {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $user = $request->user();
+        $portal = $request->input('portal');
+        if (! in_array($portal, ['staff', 'student'], true)) {
+            $portal = $user->role === UserRole::Student ? 'student' : 'staff';
+        }
+        Auth::guard($portal)->logout();
+        $request->session()->forget('portal_password_hash_'.$portal);
+        if (Auth::guard('web')->id() === $user->id) {
+            Auth::guard('web')->logout();
+        }
+        if (Auth::guard('staff')->check() || Auth::guard('student')->check()) {
+            $request->session()->migrate(true);
+        } else {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return $request->expectsJson() ? response()->json([], 204) : redirect('/login');
     }

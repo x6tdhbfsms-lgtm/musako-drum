@@ -15,6 +15,8 @@
             <h2 class="text-2xl font-bold">ログイン</h2>
             <p class="mt-2 text-sm text-stone-500">生徒の方はログイン名、管理者・先生はメールアドレスを入力してください。</p>
 
+            <p class="mt-2 text-xs text-stone-500">講師・管理者と生徒は、別々のタブで同時にログインできます。片方のログアウトでも、もう片方の操作は続けられます。</p>
+
             @if ($errors->any())
                 <div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ $errors->first() }}</div>
             @endif

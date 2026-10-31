@@ -147,8 +147,8 @@ class MonthlyLessonUsageTest extends TestCase
         $this->actingAs($student->user)
             ->get(route('student.dashboard', ['month' => '2026-09']))
             ->assertOk()
-            ->assertSee('1 / 4', false)
-            ->assertSee('残り 3回');
+            ->assertViewHas('monthlySummary', fn ($summary) => $summary->used === 1 && $summary->remaining === 3)
+            ->assertDontSee('1 / 4', false);
     }
 
     public function test_staff_override_is_required_and_audited_for_an_over_limit_approval(): void

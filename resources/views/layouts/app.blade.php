@@ -16,6 +16,7 @@
             </a>
             @auth
                 <nav class="flex flex-wrap items-center justify-end gap-2 text-sm">
+                    <span class="rounded-full bg-stone-100 px-3 py-2 text-xs font-semibold">{{ ['admin' => '管理者', 'teacher' => '講師', 'student' => '生徒'][auth()->user()->role->value] }}：{{ auth()->user()->role->value === 'teacher' ? (auth()->user()->teacherProfile?->display_name ?? auth()->user()->name) : auth()->user()->name }}</span>
                     @if (auth()->user()->role->value === 'student')
                         <a href="{{ route('student.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">カレンダー</a>
                         <a href="{{ route('student.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">空き枠</a>
@@ -39,7 +40,8 @@
                         <a href="{{ route('staff.trial-lessons.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">体験</a>
                         <a href="{{ route('staff.admission-applications.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">入会</a>
                     @endif
-                    <form method="post" action="{{ route('logout') }}">@csrf<button class="rounded-full border border-stone-300 px-3 py-2 hover:bg-stone-100">ログアウト</button></form>
+                    <a href="{{ route('login') }}" target="_blank" rel="noopener" class="rounded-full px-3 py-2 hover:bg-stone-100">別の区分でログイン ↗</a>
+                    <form method="post" action="{{ route('logout') }}">@csrf<input type="hidden" name="portal" value="{{ auth()->user()->role->value === 'student' ? 'student' : 'staff' }}"><button class="rounded-full border border-stone-300 px-3 py-2 hover:bg-stone-100">ログアウト</button></form>
                 </nav>
             @endauth
             @guest

@@ -60,10 +60,8 @@ Route::get('/admissions/complete/{reference}', [PublicAdmissionApplicationContro
 Route::get('/password/reset/{token}', [NewPasswordController::class, 'create'])->middleware('guest')->name('password.reset');
 Route::post('/password/reset', [NewPasswordController::class, 'store'])->middleware(['guest', 'throttle:6,1'])->name('password.update');
 
-Route::middleware('guest')->group(function () {
-    Route::view('/login', 'auth.login')->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login');
-});
+Route::view('/login', 'auth.login')->name('login');
+Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
