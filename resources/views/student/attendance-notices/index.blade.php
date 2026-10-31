@@ -26,6 +26,12 @@
                         <span class="self-start rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">連絡済み・更新可能</span>
                     @endif
                 </div>
+                @if ($notice)
+                    <p class="mt-3 text-xs text-stone-500">初回連絡日時：{{ $notice->created_at->timezone('Asia/Tokyo')->format('Y年n月j日 H:i') }}</p>
+                    @if ($notice->submitted_at && ! $notice->submitted_at->equalTo($notice->created_at))
+                        <p class="mt-1 text-xs text-stone-500">最終更新日時：{{ $notice->submitted_at->timezone('Asia/Tokyo')->format('Y年n月j日 H:i') }}</p>
+                    @endif
+                @endif
 
                 <form method="post" action="{{ route('student.attendance-notices.store', $reservation) }}" class="mt-5 grid gap-4">
                     @csrf

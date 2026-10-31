@@ -82,6 +82,33 @@ class AttendanceNoticeFlowTest extends TestCase
         ]);
     }
 
+    public function test_notice_keeps_first_submission_time_and_displays_latest_update_time(): void
+    {
+        $this->travelTo('2026-09-12 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $reservation = $this->approvedReservation($student);
+        $this->actingAs($student->user)->put(route('student.attendance-notices.store', $reservation), [
+            'type' => AttendanceNoticeType::Absence->value,
+        ])->assertSessionHasNoErrors();
+        $this->travelTo('2026-09-12 11:15:00');
+        $this->put(route('student.attendance-notices.store', $reservation), [
+            'type' => AttendanceNoticeType::Late->value,
+        ])->assertSessionHasNoErrors();
+        $notice = $reservation->attendanceNotice()->firstOrFail();
+        $this->assertSame('2026-09-12 10:00', $notice->created_at->format('Y-m-d H:i'));
+        $this->assertSame('2026-09-12 11:15', $notice->submitted_at->format('Y-m-d H:i'));
+        $this->get(route('student.attendance-notices.index'))->assertOk()
+            ->assertSee('初回連絡日時：2026年9月12日 10:00')
+            ->assertSee('最終更新日時：2026年9月12日 11:15');
+        $this->get(route('student.reservations.show', $reservation))->assertOk()
+            ->assertSee('初回連絡日時：2026年9月12日 10:00')
+            ->assertSee('最終更新日時：2026年9月12日 11:15');
+        $this->actingAs($reservation->lessonSlot->teacherProfile->user)
+            ->get(route('staff.reservations.show', $reservation))->assertOk()
+            ->assertSee('初回連絡日時：2026年9月12日 10:00')
+            ->assertSee('最終更新日時：2026年9月12日 11:15');
+    }
+
     public function test_arrival_time_must_be_during_the_lesson(): void
     {
         $this->travelTo('2026-09-12 10:00:00');
