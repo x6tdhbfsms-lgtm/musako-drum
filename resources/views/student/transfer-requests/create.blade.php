@@ -103,6 +103,16 @@
                 </section>
             @endforeach
         </fieldset>
+        <aside data-transfer-selection-popup hidden role="status" aria-live="polite" aria-atomic="true" class="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border-2 border-amber-400 bg-white p-4 shadow-xl">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold text-amber-800">選択中の振替先（まだ申請していません）</p>
+                    <p data-transfer-popup-time class="mt-1 text-lg font-bold tabular-nums"></p>
+                    <p data-transfer-popup-venue class="mt-1 break-words text-sm text-stone-600"></p>
+                </div>
+                <button type="button" data-transfer-popup-close aria-label="選択日時のポップを閉じる" class="min-h-11 shrink-0 rounded-xl border border-stone-300 px-3 text-sm font-semibold">閉じる</button>
+            </div>
+        </aside>
         <p data-transfer-selection role="status" class="rounded-xl bg-amber-50 p-4 text-sm">週間の表から希望の空き枠を選択してください。</p>
         <label class="flex items-start gap-2 rounded-xl bg-stone-100 p-4 text-sm"><input type="checkbox" name="special_handling" value="1" @checked(old('special_handling'))>災害・交通機関の事故・講師都合等による特例を希望（理由必須。講師による確認が必要です）</label>
         <label class="grid gap-2 text-sm font-semibold"><span data-transfer-reason-label>理由（通常は任意・特例を希望する場合は必須）</span><textarea name="reason" rows="3" maxlength="1000" @required(old('special_handling')) class="rounded-xl border border-stone-300 p-3 font-normal">{{ old('reason') }}</textarea></label>

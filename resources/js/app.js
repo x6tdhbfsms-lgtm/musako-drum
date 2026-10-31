@@ -14,6 +14,10 @@ document.querySelectorAll('[data-transfer-calendar]').forEach((calendar) => {
     const heading = calendar.querySelector('[data-week-heading]');
     const summary = calendar.querySelector('[data-transfer-selection]');
     const submit = calendar.querySelector('[data-transfer-submit]');
+    const selectionPopup = calendar.querySelector('[data-transfer-selection-popup]');
+    calendar.querySelector('[data-transfer-popup-close]').addEventListener('click', () => {
+        selectionPopup.hidden = true;
+    });
     const specialHandling = calendar.querySelector('[name="special_handling"]');
     const reason = calendar.querySelector('[name="reason"]');
     const updateReasonRequirement = () => {
@@ -35,6 +39,9 @@ document.querySelectorAll('[data-transfer-calendar]').forEach((calendar) => {
     const updateSelection = () => {
         const selected = radios.find((radio) => radio.checked);
         submit.disabled = !selected;
+        selectionPopup.hidden = !selected;
+        calendar.querySelector('[data-transfer-popup-time]').textContent = selected?.dataset.slotTime ?? '';
+        calendar.querySelector('[data-transfer-popup-venue]').textContent = selected?.dataset.slotVenue ?? '';
         summary.textContent = selected
             ? '選択中：' + selected.dataset.slotSummary
             : '週間の表から希望の空き枠を選択してください。';
