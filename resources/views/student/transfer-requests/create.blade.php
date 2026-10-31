@@ -44,21 +44,21 @@
                 <span data-week-heading role="status" class="text-center text-sm font-semibold"></span>
                 <button type="button" data-week-next class="min-h-11 shrink-0 rounded-xl border border-stone-300 px-3 disabled:opacity-40">次の週</button>
             </nav>
-            <p class="mt-3 text-xs text-stone-600">本日から1か月先まで、平日12:00〜21:00・土日10:00〜20:00の空き時間を、電子ドラムは15分刻み、studio34は30分刻みで表示しています。同じ会場なら続けて予約できます。「—」は選択できる枠がありません。スマートフォンでは表を横にスクロールできます。</p>
+            <p class="mt-3 text-xs text-stone-600">本日から1か月先まで、平日12:00〜21:00・土日10:00〜20:00の空き時間を、電子ドラムは15分刻み、studio34は30分刻みで表示しています。同じ会場なら続けて予約できます。「—」は選択できる枠がありません。表の中を上下左右にスクロールできます。日付と曜日は上部に固定されます。</p>
             @if ($availableSlots->isEmpty())
                 <p class="mt-3 rounded-xl border border-dashed border-stone-300 p-4 text-stone-500">現在選択できる振替先がありません。</p>
             @endif
             @foreach ($weeks as $week)
                 <section data-transfer-week="{{ $week->format('Y-m-d') }}" data-week-title="{{ $week->format('Y年n月j日') }}〜{{ $week->addDays(6)->format('n月j日') }}" class="mt-4">
-                    <div class="overflow-x-auto rounded-xl border border-stone-200" tabindex="0" role="region" aria-label="{{ $week->format('n月j日') }}から1週間の空き枠">
+                    <div class="max-h-[70dvh] overflow-auto rounded-xl border border-stone-200" tabindex="0" role="region" aria-label="{{ $week->format('n月j日') }}から1週間の空き枠">
                         <table class="w-full min-w-[1000px] table-fixed border-separate border-spacing-0 text-center text-sm">
                             <caption class="bg-white p-3 font-bold">{{ $week->format('Y年n月j日') }}〜{{ $week->addDays(6)->format('n月j日') }}</caption>
                             <thead>
                                 <tr>
-                                    <th scope="col" class="sticky left-0 z-10 w-16 border-b border-r border-stone-200 bg-stone-100 p-2">時間</th>
+                                    <th scope="col" class="sticky top-0 left-0 z-30 w-16 border-b border-r border-stone-200 bg-stone-100 p-2">時間</th>
                                     @for ($offset = 0; $offset < 7; $offset++)
                                         @php $date = $week->addDays($offset); @endphp
-                                        <th scope="col" @class(['border-b border-r border-stone-200 p-3', 'bg-amber-100' => $date->isSameDay($today), 'bg-stone-100' => ! $date->isSameDay($today), 'text-red-700' => $date->isSunday(), 'text-blue-700' => $date->isSaturday()])>
+                                        <th scope="col" @class(['sticky top-0 z-20 border-b border-r border-stone-200 p-3', 'bg-amber-100' => $date->isSameDay($today), 'bg-stone-100' => ! $date->isSameDay($today), 'text-red-700' => $date->isSunday(), 'text-blue-700' => $date->isSaturday()])>
                                             {{ $date->format('n/j') }}（{{ $weekdayNames[$date->dayOfWeek] }}）
                                         </th>
                                     @endfor
