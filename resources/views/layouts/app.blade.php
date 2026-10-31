@@ -26,18 +26,31 @@
                         <a href="{{ route('student.contract-change-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
                         <a href="{{ route('student.invoices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">ご請求</a>
                     @else
-                        <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">カレンダー</a>
-                        <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン枠</a>
-                        <a href="{{ route('staff.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">申請管理</a>
-                        <a href="{{ route('staff.transfer-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">振替</a>
-                        <a href="{{ route('staff.transfer-requests.deferred') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">保留レッスン</a>
-                        <a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">在籍申請</a>
-                        <a href="{{ route('staff.procedure-requests.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
+                        <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">Home</a>
+                        <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン一覧</a>
+                        <details class="group relative">
+                            <summary class="cursor-pointer list-none rounded-full px-3 py-2 hover:bg-stone-100">申請管理 <span aria-hidden="true">⌄</span></summary>
+                            <div class="absolute right-0 z-50 mt-2 grid min-w-44 gap-1 rounded-2xl border border-stone-200 bg-white p-2 text-sm shadow-xl">
+                                <a href="{{ route('staff.reservations.index') }}" class="rounded-xl px-3 py-2 hover:bg-stone-100">予約申請</a>
+                                <a href="{{ route('staff.transfer-requests.index') }}" class="rounded-xl px-3 py-2 hover:bg-stone-100">振替</a>
+                                <a href="{{ route('staff.transfer-requests.deferred') }}" class="rounded-xl px-3 py-2 hover:bg-stone-100">保留レッスン</a>
+                            </div>
+                        </details>
+                        <details class="group relative">
+                            <summary class="cursor-pointer list-none rounded-full px-3 py-2 hover:bg-stone-100">各種手続き <span aria-hidden="true">⌄</span></summary>
+                            <div class="absolute right-0 z-50 mt-2 grid min-w-44 gap-1 rounded-2xl border border-stone-200 bg-white p-2 text-sm shadow-xl">
+                                <a href="{{ route('staff.procedure-requests.index') }}" class="rounded-xl px-3 py-2 hover:bg-stone-100">契約・情報変更</a>
+                                <a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-xl px-3 py-2 hover:bg-stone-100">休会・退会・再開</a>
+                            </div>
+                        </details>
                         <a href="{{ route('staff.students.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">生徒</a>
-                        <a href="{{ route('staff.pricing-settings.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">料金設定</a>
-                        <a href="{{ route('staff.invoices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">請求管理</a>
-                        <a href="{{ route('staff.trial-lessons.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">体験</a>
-                        <a href="{{ route('staff.admission-applications.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">入会</a>
+                        <details class="group relative">
+                            <summary class="cursor-pointer list-none rounded-full px-3 py-2 hover:bg-stone-100">料金・請求 <span aria-hidden="true">⌄</span></summary>
+                            <div class="absolute right-0 z-50 mt-2 grid min-w-44 gap-1 rounded-2xl border border-stone-200 bg-white p-2 text-sm shadow-xl">
+                                <a href="{{ route('staff.pricing-settings.index') }}" class="rounded-xl px-3 py-2 hover:bg-stone-100">料金設定</a>
+                                <a href="{{ route('staff.invoices.index') }}" class="rounded-xl px-3 py-2 hover:bg-stone-100">請求管理</a>
+                            </div>
+                        </details>
                     @endif
                     @if (auth()->user()->role === App\Enums\UserRole::Admin)
                     <a href="{{ route('login') }}" target="_blank" rel="noopener" class="rounded-full px-3 py-2 hover:bg-stone-100">別の区分でログイン ↗</a>
