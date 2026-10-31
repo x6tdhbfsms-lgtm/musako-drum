@@ -1,10 +1,10 @@
 @if ($slot instanceof \App\Models\RegularScheduleOccurrence)
-    <a href="{{ route('staff.regular-schedules.index', ['month' => $slot->lesson_entitlement_month->format('Y-m')]) }}" class="block min-w-0 rounded-lg border-l-4 border p-2 text-xs {{ $slot->status->value === 'conflict' ? 'border-red-300 bg-red-50 text-red-900' : 'border-violet-300 bg-violet-50 text-violet-900' }}">
+    <article class="block min-w-0 rounded-lg border-l-4 border p-2 text-xs {{ $slot->status->value === 'conflict' ? 'border-red-300 bg-red-50 text-red-900' : 'border-violet-300 bg-violet-50 text-violet-900' }}">
         <strong class="block tabular-nums">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong>
         <span class="mt-1 block truncate">{{ $slot->studentProfile->user->name }}</span>
         <span class="block truncate">{{ $slot->venue?->name ?? '会場未定' }}</span>
-        <span class="mt-1 block font-bold">{{ $slot->status->value === 'conflict' ? '定期・要調整' : '定期・仮押さえ' }} →</span>
-    </a>
+        <span class="mt-1 block font-bold">{{ $slot->status->value === 'conflict' ? '要調整' : '仮押さえ' }}</span>
+    </article>
 @else
 @php
     $slotLabel = ['open' => '受付中', 'closed' => '予約不可', 'cancelled' => '休講'][$slot->status->value];
