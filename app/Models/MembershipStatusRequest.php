@@ -16,6 +16,7 @@ class MembershipStatusRequest extends Model
         'student_profile_id',
         'type',
         'effective_on',
+        'pause_months',
         'reason',
         'student_note',
         'status',
@@ -34,6 +35,7 @@ class MembershipStatusRequest extends Model
         return [
             'type' => MembershipRequestType::class,
             'effective_on' => 'date',
+            'pause_months' => 'integer',
             'status' => ApplicationStatus::class,
             'requested_at' => 'datetime',
             'reviewed_at' => 'datetime',

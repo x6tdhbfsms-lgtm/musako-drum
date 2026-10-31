@@ -244,7 +244,7 @@ class TransferTermsTest extends TestCase
         LessonEnrollment::factory()->for($student)->create();
 
         $this->actingAs($student->user)->post(route('student.membership-status-requests.store'), [
-            'type' => 'pause', 'effective_on' => '2026-10-01',
+            'type' => 'pause', 'effective_on' => '2026-10-01', 'pause_months' => 1,
         ])->assertSessionHasErrors('effective_on');
 
         $this->assertDatabaseCount('membership_status_requests', 0);

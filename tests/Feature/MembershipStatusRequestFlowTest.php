@@ -10,6 +10,7 @@ use App\Models\MembershipStatusRequest;
 use App\Models\StudentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class MembershipStatusRequestFlowTest extends TestCase
@@ -25,6 +26,7 @@ class MembershipStatusRequestFlowTest extends TestCase
         $this->actingAs($student->user)
             ->post(route('student.membership-status-requests.store'), [
                 'type' => MembershipRequestType::Pause->value,
+                'pause_months' => 2,
                 'effective_on' => '2026-10-01',
                 'reason' => '仕事が忙しいため',
             ])
@@ -34,9 +36,55 @@ class MembershipStatusRequestFlowTest extends TestCase
         $this->assertDatabaseHas('membership_status_requests', [
             'student_profile_id' => $student->id,
             'type' => MembershipRequestType::Pause->value,
+            'pause_months' => 2,
             'status' => ApplicationStatus::Pending->value,
         ]);
         $this->assertSame('2026-10-01', MembershipStatusRequest::query()->firstOrFail()->effective_on->toDateString());
+    }
+
+    #[TestWith([1])]
+    #[TestWith([2])]
+    #[TestWith([3])]
+    public function test_pause_duration_is_saved_and_visible_to_student_and_admin(int $months): void
+    {
+        $this->travelTo('2026-10-10 23:59:00');
+        $student = StudentProfile::factory()->create();
+        LessonEnrollment::factory()->for($student)->create();
+        $this->actingAs($student->user)->post(route('student.membership-status-requests.store'), [
+            'type' => 'pause', 'effective_on' => '2026-11-01', 'pause_months' => $months,
+        ])->assertSessionHasNoErrors()->assertRedirectToRoute('student.membership-status-requests.index');
+        $request = MembershipStatusRequest::query()->sole();
+        $this->assertSame($months, $request->pause_months);
+        $this->get(route('student.membership-status-requests.index'))->assertOk()->assertSee('休会期間 '.$months.'か月');
+        $this->actingAs(User::factory()->admin()->create())->get(route('staff.membership-status-requests.show', $request))
+            ->assertOk()->assertSee($months.'か月');
+    }
+
+    #[TestWith([null])]
+    #[TestWith([0])]
+    #[TestWith([4])]
+    public function test_pause_requires_a_duration_between_one_and_three_months(?int $months): void
+    {
+        $this->travelTo('2026-10-10 12:00:00');
+        $student = StudentProfile::factory()->create();
+        LessonEnrollment::factory()->for($student)->create();
+        $this->actingAs($student->user)->post(route('student.membership-status-requests.store'), [
+            'type' => 'pause', 'effective_on' => '2026-11-01', 'pause_months' => $months,
+        ])->assertSessionHasErrors(['pause_months' => '休会期間を1〜3か月から選択してください。']);
+        $this->assertDatabaseCount('membership_status_requests', 0);
+    }
+
+    #[TestWith(['pause'])]
+    #[TestWith(['withdraw'])]
+    public function test_pause_and_withdraw_reject_month_after_deadline(string $type): void
+    {
+        $this->travelTo('2026-10-11 00:00:00');
+        $student = StudentProfile::factory()->create();
+        LessonEnrollment::factory()->for($student)->create();
+        $this->actingAs($student->user)->post(route('student.membership-status-requests.store'), [
+            'type' => $type, 'effective_on' => '2026-11-01', 'pause_months' => 1,
+        ])->assertSessionHasErrors('effective_on');
+        $this->assertDatabaseCount('membership_status_requests', 0);
     }
 
     public function test_student_cannot_submit_a_second_pending_membership_request(): void
@@ -101,6 +149,7 @@ class MembershipStatusRequestFlowTest extends TestCase
         $this->actingAs($student->user)
             ->post(route('student.membership-status-requests.store'), [
                 'type' => MembershipRequestType::Pause->value,
+                'pause_months' => 2,
                 'effective_on' => '2026-09-11',
             ])
             ->assertSessionHasErrors('effective_on');

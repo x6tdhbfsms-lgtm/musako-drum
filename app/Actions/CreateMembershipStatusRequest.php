@@ -23,8 +23,9 @@ class CreateMembershipStatusRequest
         CarbonInterface $effectiveOn,
         ?string $reason,
         ?string $studentNote,
+        ?int $pauseMonths = null,
     ): MembershipStatusRequest {
-        $membershipStatusRequest = DB::transaction(function () use ($studentProfile, $type, $effectiveOn, $reason, $studentNote): MembershipStatusRequest {
+        $membershipStatusRequest = DB::transaction(function () use ($studentProfile, $type, $effectiveOn, $reason, $studentNote, $pauseMonths): MembershipStatusRequest {
             $lockedStudent = StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
 
             $hasOutstandingRequest = $lockedStudent->membershipStatusRequests()
@@ -64,6 +65,7 @@ class CreateMembershipStatusRequest
                 'student_profile_id' => $lockedStudent->id,
                 'type' => $type,
                 'effective_on' => $effectiveOn->toDateString(),
+                'pause_months' => $type === MembershipRequestType::Pause ? $pauseMonths : null,
                 'reason' => $reason,
                 'student_note' => $studentNote,
                 'status' => ApplicationStatus::Pending,

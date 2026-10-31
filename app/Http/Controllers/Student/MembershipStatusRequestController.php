@@ -53,6 +53,7 @@ class MembershipStatusRequestController extends Controller
             CarbonImmutable::parse($request->validated('effective_on'), config('app.timezone')),
             $request->validated('reason'),
             $request->validated('student_note'),
+            $request->validated('pause_months'),
         );
 
         return redirect()->route('student.membership-status-requests.index')->with('success', '在籍に関する申請を受け付けました。');
