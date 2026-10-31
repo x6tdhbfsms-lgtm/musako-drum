@@ -31,6 +31,16 @@ class AdmissionApplicationFlowTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    public function test_staff_registration_automatically_assigns_mogi_without_a_teacher_selector(): void
+    {
+        TeacherProfile::factory()->create(['display_name' => '別の試験講師']);
+        $teacher = TeacherProfile::factory()->create(['display_name' => '茂木']);
+        $this->actingAs(User::factory()->admin()->create())
+            ->get(route('staff.admission-applications.create'))->assertOk()
+            ->assertSee('<input type="hidden" name="teacher_profile_id" value="'.$teacher->id.'">', false)
+            ->assertDontSee('<select name="teacher_profile_id"', false);
+    }
+
     #[TestWith(['2026-10-01'])]
     #[TestWith(['2026-11-01'])]
     public function test_approval_confirms_lessons_through_two_months_ahead(string $startsOn): void
