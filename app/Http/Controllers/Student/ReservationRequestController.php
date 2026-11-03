@@ -30,7 +30,9 @@ class ReservationRequestController extends Controller
                 fn ($query) => $query->whereRaw('1 = 0'),
                 fn ($query) => $query->whereBelongsTo($user->studentProfile, 'studentProfile')
             )
-            ->with(['lessonSlot.teacherProfile', 'lessonSlot.venue', 'lessonSlot.course'])
+            ->with(['lessonSlot.venue', 'lessonSlot.course', 'resultingTransferRequest'])
+            ->withExists(['transferRequests as has_pending_transfer' => fn ($query) => $query->where('status', 'pending')])
+            ->withExists(['transferRequests as has_approved_transfer' => fn ($query) => $query->where('status', 'approved')])
             ->orderByDesc(
                 LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'reservation_requests.lesson_slot_id')
             )

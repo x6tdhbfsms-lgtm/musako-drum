@@ -15,9 +15,16 @@ class StoreTransferRequestRequest extends FormRequest
     public function authorize(): bool
     {
         $reservationRequest = $this->route('reservation_request');
+        $user = $this->user();
+        if ($reservationRequest instanceof ReservationRequest && $user?->role?->value === 'student') {
+            // Let an owner reach the confirmation screen even if the lesson was
+            // cancelled or its deadline passed while the calendar was open.
+            // CreateTransferRequest rechecks all eligibility before saving.
+            return $user->studentProfile?->is($reservationRequest->studentProfile) === true;
+        }
 
         return $reservationRequest instanceof ReservationRequest
-            && ($this->user()?->can('requestTransfer', $reservationRequest) ?? false);
+            && ($user?->can('requestTransfer', $reservationRequest) ?? false);
     }
 
     /**

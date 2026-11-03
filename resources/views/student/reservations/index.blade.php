@@ -1,14 +1,17 @@
 @extends('layouts.app')
 @section('title', '予約一覧 | MUSAKO')
 @section('content')
-<div><p class="text-sm font-semibold text-amber-700">MY RESERVATIONS</p><h1 class="text-2xl font-bold sm:text-3xl">予約一覧</h1><p class="mt-2 text-sm text-stone-600">申請状況と確定したレッスンを確認できます。</p></div>
+<div><p class="text-sm font-semibold text-amber-700">MY RESERVATIONS</p><h1 class="text-2xl font-bold sm:text-3xl">レッスン一覧</h1><p class="mt-2 text-sm text-stone-600">申請状況と確定したレッスンを確認できます。</p></div>
+@if (session('success'))<div role="status" class="mt-5 rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-5 text-lg font-bold text-emerald-900"><span class="mr-2 inline-flex size-8 items-center justify-center rounded-full bg-emerald-600 text-white">✓</span>{{ session('success') }}</div>@endif
 <div class="mt-7 grid gap-4">
     @forelse ($reservations as $reservation)
         <article class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <div class="flex flex-wrap items-center gap-2"><strong class="text-lg">{{ $reservation->lessonSlot->starts_at->format('Y年n月j日 H:i') }}〜{{ $reservation->lessonSlot->ends_at->format('H:i') }}</strong><span class="rounded-full px-3 py-1 text-xs font-semibold {{ ['pending' => 'bg-amber-100 text-amber-800', 'approved' => 'bg-emerald-100 text-emerald-800', 'rejected' => 'bg-red-100 text-red-700', 'cancelled' => 'bg-stone-200 text-stone-600'][$reservation->status->value] }}">{{ ['pending' => '承認待ち', 'approved' => '予約確定', 'rejected' => '却下', 'cancelled' => 'キャンセル済み'][$reservation->status->value] }}</span></div>
-                    <p class="mt-2 text-sm text-stone-600">{{ $reservation->lessonSlot->teacherProfile->display_name }} · {{ $reservation->lessonSlot->course?->name ?? 'コース指定なし' }} · {{ $reservation->lessonSlot->venue?->name ?? '会場未定' }}</p>
+                    <div class="flex flex-wrap items-center gap-2"><strong class="text-lg">{{ $reservation->lessonSlot->starts_at->format('Y年n月j日 H:i') }}〜{{ $reservation->lessonSlot->ends_at->format('H:i') }}</strong><span class="rounded-full px-3 py-1 text-xs font-semibold {{ ['pending' => 'bg-amber-100 text-amber-800', 'approved' => 'bg-emerald-100 text-emerald-800', 'rejected' => 'bg-red-100 text-red-700', 'cancelled' => 'bg-stone-200 text-stone-600'][$reservation->status->value] }}">{{ ['pending' => '承認待ち', 'approved' => '予約確定', 'rejected' => '却下', 'cancelled' => 'キャンセル済み'][$reservation->status->value] }}</span>
+                        @if ($reservation->has_pending_transfer)<span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800">振替申請中</span>@elseif ($reservation->has_approved_transfer)<span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">振替済み</span>@endif
+                    </div>
+                    <p class="mt-2 text-sm text-stone-600">{{ $reservation->lessonSlot->course?->name ?? 'コース指定なし' }} · {{ $reservation->lessonSlot->venue?->name ?? '会場未定' }}</p>
                     @if ($reservation->staff_note)<p class="mt-2 text-sm text-stone-500">先生から: {{ $reservation->staff_note }}</p>@endif
                 </div>
                 <div class="grid gap-2 sm:min-w-56">

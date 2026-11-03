@@ -12,7 +12,9 @@ use App\Http\Requests\StoreStaffAdmissionRequest;
 use App\Models\AdmissionApplication;
 use App\Models\Course;
 use App\Models\TeacherProfile;
+use App\Models\User;
 use App\Models\Venue;
+use App\Services\StudentLoginNameGenerator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
@@ -25,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 
 class AdmissionApplicationController extends Controller
 {
-    public function create(Request $request): View
+    public function create(Request $request, StudentLoginNameGenerator $loginNames): View
     {
         abort_unless($request->user()->role === UserRole::Admin, 403);
 
@@ -34,14 +36,20 @@ class AdmissionApplicationController extends Controller
             'venues' => Venue::where('is_active', true)->orderBy('name')->get(),
             'teachers' => TeacherProfile::orderBy('display_name')->get(),
             'defaultCourse' => Course::where('code', 'INDIVIDUAL-60')->first(),
+            'suggestedLoginName' => $loginNames->nextAvailable(),
         ]);
     }
 
-    public function store(StoreStaffAdmissionRequest $request, ReviewAdmissionApplication $review): RedirectResponse
+    public function store(StoreStaffAdmissionRequest $request, ReviewAdmissionApplication $review, StudentLoginNameGenerator $loginNames): RedirectResponse
     {
         try {
-            $application = DB::transaction(function () use ($request, $review) {
+            $loginName = null;
+            $application = DB::transaction(function () use ($request, $review, $loginNames, &$loginName) {
+                // Serialize staff-created accounts so simultaneous registrations receive different numbers.
+                User::query()->orderBy('id')->lockForUpdate()->first();
+                $loginName = $loginNames->nextAvailable();
                 $attributes = $request->safe()->except(['privacy_accepted', 'website', 'regular_week_pattern', 'password', 'password_confirmation']);
+                $attributes['login_name'] = $loginName;
                 if ($attributes['lesson_type'] !== 'regular') {
                     $attributes['weekday'] = null;
                     $attributes['starts_at_time'] = null;
@@ -77,7 +85,7 @@ class AdmissionApplicationController extends Controller
         }
 
         return redirect()->route('staff.students.show', $application->converted_student_profile_id)
-            ->with('success', '生徒と契約を登録しました。設定したログイン名とパスワードを生徒へ直接お伝えください。固定日時のあるレギュラー契約はレッスンを確定しました。');
+            ->with('success', '生徒と契約を登録しました。ログイン名は '.$loginName.' です。パスワードと一緒に生徒へ直接お伝えください。固定日時のあるレギュラー契約はレッスンを確定しました。');
     }
 
     public function index(Request $request): View

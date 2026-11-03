@@ -35,7 +35,7 @@ class TransferRequestFlowTest extends TestCase
             ->assertSessionHasErrors('requested_starts_at');
         $this->assertSame($before, LessonSlot::count());
         $this->post(route('student.transfer-requests.store', $original), ['requested_starts_at' => '2026-09-21 14:00'])
-            ->assertSessionHasNoErrors()->assertRedirectToRoute('student.transfer-requests.index');
+            ->assertSessionHasNoErrors()->assertRedirectToRoute('student.reservations.index');
         $transfer = TransferRequest::sole();
         $this->assertSame('2026-09-21 14:00', $transfer->requestedLessonSlot->starts_at->format('Y-m-d H:i'));
         $this->assertSame($original->lessonSlot->teacher_profile_id, $transfer->requestedLessonSlot->teacher_profile_id);
@@ -55,7 +55,7 @@ class TransferRequestFlowTest extends TestCase
         $this->assertDatabaseCount('transfer_requests', 0);
         $payload['reason'] = '公共交通機関の事故による特例希望';
         $this->post(route('student.transfer-requests.store', $original), $payload)
-            ->assertSessionHasNoErrors()->assertRedirectToRoute('student.transfer-requests.index');
+            ->assertSessionHasNoErrors()->assertRedirectToRoute('student.reservations.index');
         $this->assertDatabaseCount('transfer_requests', 1);
     }
 
@@ -76,7 +76,7 @@ class TransferRequestFlowTest extends TestCase
                 'requested_lesson_slot_id' => $target->id,
                 'reason' => '予定変更',
             ])
-            ->assertRedirectToRoute('student.transfer-requests.index')
+            ->assertRedirectToRoute('student.reservations.index')
             ->assertSessionHas('success');
 
         $this->assertDatabaseHas('transfer_requests', [
@@ -85,6 +85,117 @@ class TransferRequestFlowTest extends TestCase
             'requested_lesson_slot_id' => $target->id,
             'status' => ApplicationStatus::Pending->value,
         ]);
+    }
+
+    public function test_student_sees_a_final_transfer_confirmation_before_any_request_is_created(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-09-10 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-09-20 14:00:00');
+        $target = LessonSlot::factory()->create(['starts_at' => '2026-09-21 14:00:00', 'ends_at' => '2026-09-21 15:00:00']);
+
+        $this->actingAs($student->user)
+            ->post(route('student.transfer-requests.prepare-confirmation', $original), ['requested_lesson_slot_id' => $target->id])
+            ->assertRedirectToRoute('student.transfer-requests.confirmation', $original);
+        $this->get(route('student.transfer-requests.confirmation', $original))
+            ->assertOk()
+            ->assertSee('振替の最終確認')
+            ->assertSee('2026年9月21日 14:00')
+            ->assertSee('この内容で振替を申請する');
+        $this->assertDatabaseCount('transfer_requests', 0);
+    }
+
+    public function test_final_transfer_confirmation_shows_an_error_if_original_was_cancelled(): void
+    {
+        $this->travelTo('2026-09-10 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-09-20 14:00:00');
+        $target = LessonSlot::factory()->create(['starts_at' => '2026-09-21 14:00:00', 'ends_at' => '2026-09-21 15:00:00']);
+
+        $this->actingAs($student->user)
+            ->post(route('student.transfer-requests.prepare-confirmation', $original), ['requested_lesson_slot_id' => $target->id]);
+        $original->update(['status' => ReservationStatus::Cancelled]);
+
+        $this->get(route('student.transfer-requests.confirmation', $original))
+            ->assertOk()
+            ->assertSee('この内容では振替を申請できません')
+            ->assertSee('予約がキャンセル済みの場合は申請できません。')
+            ->assertDontSee('この内容で振替を申請する');
+        $this->assertDatabaseCount('transfer_requests', 0);
+    }
+
+    public function test_final_transfer_confirmation_rechecks_the_previous_day_deadline(): void
+    {
+        $this->travelTo('2026-09-10 11:59:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-09-11 14:00:00');
+        $target = LessonSlot::factory()->create(['starts_at' => '2026-09-15 14:00:00', 'ends_at' => '2026-09-15 15:00:00']);
+
+        $this->actingAs($student->user)
+            ->post(route('student.transfer-requests.prepare-confirmation', $original), ['requested_lesson_slot_id' => $target->id]);
+        $this->travelTo('2026-09-10 12:00:00');
+
+        $this->get(route('student.transfer-requests.confirmation', $original))
+            ->assertOk()
+            ->assertSee('振替申請期限（前日12:00）を過ぎています。期限後の振替は申請できません。')
+            ->assertDontSee('この内容で振替を申請する');
+        $this->assertDatabaseCount('transfer_requests', 0);
+    }
+
+    public function test_final_transfer_confirmation_rejects_a_target_outside_the_one_month_window(): void
+    {
+        $this->travelTo('2026-09-10 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-09-20 14:00:00');
+        $target = LessonSlot::factory()->create(['starts_at' => '2026-10-15 14:00:00', 'ends_at' => '2026-10-15 15:00:00']);
+
+        $this->actingAs($student->user)
+            ->post(route('student.transfer-requests.prepare-confirmation', $original), ['requested_lesson_slot_id' => $target->id]);
+        $this->get(route('student.transfer-requests.confirmation', $original))
+            ->assertOk()
+            ->assertSee('振替先は1か月先まで選択できます。')
+            ->assertDontSee('この内容で振替を申請する');
+        $this->assertDatabaseCount('transfer_requests', 0);
+    }
+
+    public function test_final_submit_rechecks_a_cancellation_made_after_confirmation_loaded(): void
+    {
+        $this->travelTo('2026-09-10 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-09-20 14:00:00');
+        $target = LessonSlot::factory()->create(['starts_at' => '2026-09-21 14:00:00', 'ends_at' => '2026-09-21 15:00:00']);
+
+        $this->actingAs($student->user)
+            ->post(route('student.transfer-requests.prepare-confirmation', $original), ['requested_lesson_slot_id' => $target->id]);
+        $this->get(route('student.transfer-requests.confirmation', $original))->assertOk();
+        $original->update(['status' => ReservationStatus::Cancelled]);
+
+        $this->post(route('student.transfer-requests.store', $original), ['requested_lesson_slot_id' => $target->id])
+            ->assertRedirectToRoute('student.transfer-requests.confirmation', $original);
+        $this->get(route('student.transfer-requests.confirmation', $original))
+            ->assertOk()
+            ->assertSee('予約がキャンセル済みの場合は申請できません。')
+            ->assertDontSee('この内容で振替を申請する');
+        $this->assertDatabaseCount('transfer_requests', 0);
+    }
+
+    public function test_confirmed_transfer_returns_to_lesson_list_with_pending_status_visible(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-09-10 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $original = $this->approvedReservation($student, '2026-09-20 14:00:00');
+        $target = LessonSlot::factory()->create(['starts_at' => '2026-09-21 14:00:00', 'ends_at' => '2026-09-21 15:00:00']);
+
+        $this->actingAs($student->user)
+            ->post(route('student.transfer-requests.prepare-confirmation', $original), ['requested_lesson_slot_id' => $target->id]);
+        $this->get(route('student.transfer-requests.confirmation', $original));
+        $this->post(route('student.transfer-requests.store', $original), ['requested_lesson_slot_id' => $target->id])
+            ->assertRedirectToRoute('student.reservations.index')
+            ->assertSessionHas('success');
+        $this->get(route('student.reservations.index'))->assertOk()->assertSee('振替申請中');
+        $this->assertDatabaseCount('transfer_requests', 1);
     }
 
     public function test_student_cannot_request_a_transfer_at_the_previous_day_deadline(): void
@@ -97,7 +208,7 @@ class TransferRequestFlowTest extends TestCase
         $this->actingAs($student->user)
             ->post(route('student.transfer-requests.store', $original), ['requested_lesson_slot_id' => $target->id])
             ->assertSessionHasErrors([
-                'reservation' => '振替申請期限（前日12:00）を過ぎています。',
+                'reservation' => '振替申請期限（前日12:00）を過ぎています。期限後の振替は申請できません。',
             ]);
 
         $this->assertDatabaseCount('transfer_requests', 0);
@@ -162,6 +273,8 @@ class TransferRequestFlowTest extends TestCase
         ]);
         $this->assertSame(ApplicationStatus::Approved, $transfer->fresh()->status);
         $this->assertNotNull($transfer->fresh()->resulting_reservation_request_id);
+        $this->actingAs($student->user)->get(route('student.reservations.index'))
+            ->assertOk()->assertSee('振替済み');
     }
 
     public function test_rejection_preserves_the_original_reservation_and_history(): void

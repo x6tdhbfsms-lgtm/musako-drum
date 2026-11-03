@@ -102,7 +102,7 @@ class AttendanceNoticeFlowTest extends TestCase
             ->assertSee('最終更新日時：2026年9月12日 11:15');
         $this->get(route('student.reservations.show', $reservation))->assertOk()
             ->assertSee('初回連絡日時：2026年9月12日 10:00')
-            ->assertSee('最終更新日時：2026年9月12日 11:15');
+            ->assertSee('連絡・更新日時：2026年9月12日 11:15');
         $this->actingAs($reservation->lessonSlot->teacherProfile->user)
             ->get(route('staff.reservations.show', $reservation))->assertOk()
             ->assertSee('初回連絡日時：2026年9月12日 10:00')
@@ -161,7 +161,7 @@ class AttendanceNoticeFlowTest extends TestCase
             ->get(route('staff.dashboard'))
             ->assertSee($today->studentProfile->user->name)
             ->assertDontSee($other->studentProfile->user->name)
-            ->assertSee('10分遅れ');
+            ->assertDontSee('10分遅れ');
     }
 
     private function approvedReservation(StudentProfile $student, ?LessonSlot $slot = null): ReservationRequest

@@ -26,7 +26,7 @@ class TrialLessonFlowTest extends TestCase
         $slot = LessonSlot::factory()->forTrials()->create(['starts_at' => now()->addDays(3), 'ends_at' => now()->addDays(3)->addHour()]);
         $admin = User::factory()->admin()->create();
 
-        $this->get(route('trial-lessons.index'))->assertOk()->assertSee('はじめてのドラム体験')->assertSee($slot->teacherProfile->display_name);
+        $this->get(route('trial-lessons.index'))->assertOk()->assertSee('はじめてのドラム体験')->assertDontSee($slot->teacherProfile->display_name)->assertSee($slot->venue?->name ?? '会場調整中');
 
         $response = $this->post(route('trial-lessons.store'), $this->validPayload($slot));
 
@@ -139,10 +139,10 @@ class TrialLessonFlowTest extends TestCase
         $this->assertNotNull($request->no_show_at);
     }
 
-    public function test_staff_dashboard_separates_pending_and_upcoming_trials(): void
+    public function test_staff_dashboard_does_not_show_trial_lesson_summary_or_entries(): void
     {
         $teacher = TeacherProfile::factory()->create();
-        $pending = TrialLessonRequest::factory()->for(LessonSlot::factory()->for($teacher)->forTrials())->create(['name' => '未処理体験']);
+        TrialLessonRequest::factory()->for(LessonSlot::factory()->for($teacher)->forTrials())->create(['name' => '未処理体験']);
         $upcoming = TrialLessonRequest::factory()->for(LessonSlot::factory()->for($teacher)->forTrials()->state([
             'starts_at' => now()->addDays(3),
             'ends_at' => now()->addDays(3)->addHour(),
@@ -150,10 +150,8 @@ class TrialLessonFlowTest extends TestCase
 
         $this->actingAs($teacher->user)->get(route('staff.dashboard'))
             ->assertOk()
-            ->assertSee('体験レッスン')
-            ->assertSee('新規 1件')
-            ->assertSee($upcoming->name)
-            ->assertDontSee($pending->name);
+            ->assertDontSee('TRIAL LESSONS')
+            ->assertDontSee($upcoming->name);
     }
 
     public function test_staff_notification_escapes_public_free_text(): void

@@ -49,6 +49,50 @@ class MonthlyLessonUsageTest extends TestCase
         $this->assertSame('completed', $summary->items->firstWhere('reservation.id', $completed->id)['category']);
     }
 
+    public function test_monthly_pending_count_includes_booking_transfer_and_deferred_transfer_requests(): void
+    {
+        $this->travelTo('2026-09-15 12:00:00');
+        [$student, $course, $enrollment] = $this->studentWithEnrollment(4);
+        $this->reservation($student, $course, $enrollment, '2026-09-18 10:00:00', ReservationStatus::Pending);
+        $transferSource = $this->reservation($student, $course, $enrollment, '2026-09-20 10:00:00', ReservationStatus::Approved);
+        TransferRequest::factory()->for($student)->create([
+            'original_reservation_request_id' => $transferSource->id,
+        ]);
+        $deferredSource = $this->reservation($student, $course, $enrollment, '2026-09-22 10:00:00', ReservationStatus::Approved);
+        TransferRequest::factory()->for($student)->create([
+            'original_reservation_request_id' => $deferredSource->id,
+            'requested_lesson_slot_id' => null,
+            'status' => ApplicationStatus::Approved,
+        ]);
+
+        $summary = app(MonthlyLessonUsageCalculator::class)->calculate($student, CarbonImmutable::parse('2026-09-01'));
+
+        $this->assertSame(3, $summary->pending);
+    }
+
+    public function test_student_dashboard_shows_only_completed_and_pending_monthly_counts_and_annual_transfer_allowance(): void
+    {
+        $this->travelTo('2026-09-15 12:00:00');
+        [$student, $course, $enrollment] = $this->studentWithEnrollment(4);
+        $completed = $this->reservation($student, $course, $enrollment, '2026-09-01 10:00:00', ReservationStatus::Approved);
+        $completed->update(['completed_at' => '2026-09-01 11:00:00']);
+        $this->reservation($student, $course, $enrollment, '2026-09-22 10:00:00', ReservationStatus::Pending);
+
+        $response = $this->actingAs($student->user)
+            ->get(route('student.dashboard', ['month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('実施済み')
+            ->assertSee('申請中')
+            ->assertSee('年間の振替可能回数')
+            ->assertSee('残り 12回');
+
+        preg_match('/<dl id="monthly-status-summary".*?<\/dl>/s', $response->getContent(), $summaryMarkup);
+        $this->assertStringContainsString('実施済み', $summaryMarkup[0]);
+        $this->assertStringContainsString('申請中', $summaryMarkup[0]);
+        $this->assertStringNotContainsString('予約確定', $summaryMarkup[0]);
+        $this->assertStringNotContainsString('予約可能', $summaryMarkup[0]);
+    }
+
     public function test_student_cannot_request_more_than_a_two_lesson_monthly_contract(): void
     {
         $this->travelTo('2026-09-01 09:00:00');

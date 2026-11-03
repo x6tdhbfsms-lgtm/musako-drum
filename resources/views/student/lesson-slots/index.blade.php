@@ -32,7 +32,6 @@
                         <strong class="block text-sm">{{ $slot->starts_at->format('H:i') }}〜{{ $slot->ends_at->format('H:i') }}</strong>
                         <p class="mt-1 break-words">{{ $slot->venue?->name ?? '会場未定' }}</p>
                         <p class="mt-1">{{ $slot->course?->name }}</p>
-                        <p class="mt-1 text-stone-600">{{ $slot->teacherProfile->display_name }}</p>
                         @if ($requestedSlotIds->contains($slot->id))<p class="mt-2 font-semibold">申請済み</p>
                         @elseif ($slot->approved_reservations_count + $slot->approved_trial_requests_count >= $slot->capacity)<p class="mt-2 font-semibold">満席</p>
                         @elseif ($summary && $summary->contracted > 0 && $summary->remaining === 0)<p class="mt-2 font-semibold">上限到達</p>

@@ -45,23 +45,26 @@ class StudentLoginNameTest extends TestCase
         $this->assertAuthenticatedAs($admin);
     }
 
-    public function test_admin_registers_student_without_email_and_chosen_password_works(): void
+    public function test_admin_registers_student_with_automatically_generated_login_name_and_chosen_password(): void
     {
         Notification::fake();
         $admin = User::factory()->admin()->create();
+        User::factory()->create(['login_name' => 'student001']);
         $course = Course::factory()->create(['code' => 'INDIVIDUAL-60', 'default_lesson_minutes' => 60]);
         $venue = Venue::factory()->create(['name' => 'studio34', 'code' => 'MUSAKO']);
         $teacher = TeacherProfile::factory()->create();
         $data = [
-            'name' => '登録テスト', 'login_name' => 'test-student-01',
+            'name' => '登録テスト',
             'password' => 'Trial-Password-2026', 'password_confirmation' => 'Trial-Password-2026',
             'course_id' => $course->id, 'venue_id' => $venue->id, 'teacher_profile_id' => $teacher->id,
             'lesson_type' => 'flex', 'pricing_category' => 'standard', 'monthly_lesson_count' => 2,
             'lesson_minutes' => 60, 'preferred_start_date' => today()->toDateString(), 'privacy_accepted' => 1,
         ];
-        $this->actingAs($admin)->post(route('staff.admission-applications.store'), $data)->assertSessionHasNoErrors()->assertRedirect();
+        $this->actingAs($admin)->get(route('staff.admission-applications.create'))->assertOk()->assertSeeText('student002');
+        $this->actingAs($admin)->post(route('staff.admission-applications.store'), $data)->assertSessionHasNoErrors()->assertRedirect()->assertSessionHas('success', fn (string $message): bool => str_contains($message, 'student002'));
         $application = AdmissionApplication::sole();
         $student = $application->convertedUser;
+        $this->assertSame('student002', $student->login_name);
         $this->assertNull($student->email);
         $this->assertTrue(Hash::check($data['password'], $student->password));
         $this->assertNull($application->initial_password_hash);
@@ -69,10 +72,19 @@ class StudentLoginNameTest extends TestCase
         $this->assertSame(UserRole::Student, $student->role);
         $this->assertDatabaseCount('password_reset_tokens', 0);
         Notification::assertNotSentTo($student, AdmissionApplicationNotification::class);
-        $this->post(route('staff.admission-applications.store'), $data)->assertSessionHasErrors('login_name');
         $this->assertDatabaseCount('student_profiles', 1);
         $this->post('/logout');
-        $this->postJson('/login', ['identifier' => $data['login_name'], 'password' => $data['password']])->assertOk();
+        $this->postJson('/login', ['identifier' => $student->login_name, 'password' => $data['password']])->assertOk();
+    }
+
+    public function test_admin_registration_skips_existing_and_pending_student_login_names(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->admin()->create();
+        User::factory()->create(['login_name' => 'student001']);
+        AdmissionApplication::factory()->create(['login_name' => 'student002', 'pending_login_name' => 'student002']);
+
+        $this->actingAs($admin)->get(route('staff.admission-applications.create'))->assertOk()->assertSeeText('student003');
     }
 
     public function test_admin_resets_password_without_putting_it_in_audit_or_old_input(): void

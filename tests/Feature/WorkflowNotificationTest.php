@@ -112,7 +112,7 @@ class WorkflowNotificationTest extends TestCase
         $this->actingAs($student->user)->post(route('student.transfer-requests.store', $reservation), [
             'requested_lesson_slot_id' => $targetSlot->id,
             'reason' => '学校行事',
-        ])->assertRedirectToRoute('student.transfer-requests.index');
+        ])->assertRedirectToRoute('student.reservations.index');
         $transfer = TransferRequest::query()->firstOrFail();
 
         Notification::assertSentTo($teacher->user, TransferApplicationNotification::class, fn ($notification): bool => $notification->eventStatus === ApplicationStatus::Pending);

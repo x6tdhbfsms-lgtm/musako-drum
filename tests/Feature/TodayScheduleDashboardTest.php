@@ -37,11 +37,14 @@ class TodayScheduleDashboardTest extends TestCase
 
         $this->actingAs($teacher->user)
             ->get(route('staff.dashboard', ['view' => 'day', 'date' => '2026-09-15']))
-            ->assertSee('本日のレッスン')
+            ->assertOk()
+            ->assertViewHas('todayLessonCount', 2)
+            ->assertSee('本日のレッスン件数')
             ->assertSee('山田さん')
-            ->assertSee('遅刻 15分')
             ->assertSee('佐藤さん')
             ->assertSee('振替')
+            ->assertDontSee('本日のお休み・遅刻')
+            ->assertDontSee('15分遅れ')
             ->assertDontSee('別講師の生徒');
     }
 

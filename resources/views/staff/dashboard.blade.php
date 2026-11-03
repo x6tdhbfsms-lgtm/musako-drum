@@ -46,46 +46,36 @@
     </div>
 </section>
 
-<section class="mt-8"><div class="flex items-center justify-between"><h2 class="text-xl font-bold">本日のお休み・遅刻</h2><span class="rounded-full bg-stone-200 px-3 py-1 text-xs font-semibold">{{ $todayNotices->count() }}件</span></div><div class="mt-4 grid gap-3 sm:grid-cols-2">@forelse ($todayNotices as $notice)<a href="{{ route('staff.reservations.show', $notice->reservationRequest) }}" class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"><div class="flex items-center justify-between gap-3"><strong>{{ $notice->reservationRequest->studentProfile->user->name }}</strong><span class="rounded-full {{ $notice->type->value === 'absence' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800' }} px-3 py-1 text-xs font-semibold">{{ $notice->type->value === 'absence' ? 'お休み' : '遅刻' }}</span></div><p class="mt-2 text-sm font-semibold">{{ $notice->reservationRequest->lessonSlot->starts_at->format('H:i') }}〜{{ $notice->reservationRequest->lessonSlot->ends_at->format('H:i') }}</p>@if ($notice->late_minutes || $notice->expected_arrival_at)<p class="mt-1 text-sm text-stone-600">{{ $notice->late_minutes ? $notice->late_minutes.'分遅れ' : '' }}{{ $notice->expected_arrival_at ? ' 到着予定 '.$notice->expected_arrival_at->format('H:i') : '' }}</p>@endif @if ($notice->notes)<p class="mt-2 text-sm text-stone-500">{{ $notice->notes }}</p>@endif</a>@empty<div class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-500 sm:col-span-2">本日の連絡はありません。</div>@endforelse</div></section>
-
-<div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><a href="{{ route('staff.reservations.index') }}" class="rounded-2xl bg-amber-400 p-5 shadow-sm"><span class="text-sm font-semibold">予約の承認待ち</span><strong class="mt-1 block text-3xl">{{ $pendingCount }}</strong></a><a href="{{ route('staff.transfer-requests.index') }}" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm"><span class="text-sm text-emerald-800">振替の承認待ち</span><strong class="mt-1 block text-3xl">{{ $pendingTransferCount }}</strong></a><a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-2xl border border-sky-200 bg-sky-50 p-5 shadow-sm"><span class="text-sm text-sky-800">在籍申請の承認待ち</span><strong class="mt-1 block text-3xl">{{ $pendingMembershipCount }}</strong></a><a href="{{ route('staff.procedure-requests.index') }}" class="rounded-2xl border border-violet-200 bg-violet-50 p-5 shadow-sm"><span class="text-sm text-violet-800">各種手続きの承認待ち</span><strong class="mt-1 block text-3xl">{{ $pendingProcedureCount }}</strong></a><a href="{{ route('staff.inquiries.index') }}" class="rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm"><span class="text-sm text-orange-800">未解決のお問い合わせ</span><strong class="mt-1 block text-3xl">{{ $openInquiryCount }}</strong></a><a href="{{ route('staff.lesson-slots.index') }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">今後のレッスン枠</span><strong class="mt-1 block text-3xl">{{ $upcomingSlotCount }}</strong></a></div>
-
-<section class="mt-8 rounded-3xl border border-violet-200 bg-violet-50 p-5 sm:p-6" aria-labelledby="trial-summary-title"><div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-xs font-bold tracking-widest text-violet-700">TRIAL LESSONS</p><h2 id="trial-summary-title" class="text-xl font-bold">体験レッスン</h2></div><div class="flex flex-wrap gap-2"><a href="{{ route('staff.trial-lessons.index', ['status' => 'pending']) }}" class="rounded-full bg-white px-3 py-2 text-sm font-bold">新規 {{ $pendingTrialCount }}件</a><a href="{{ route('staff.admission-applications.index', ['status' => 'pending']) }}" class="rounded-full bg-white px-3 py-2 text-sm font-bold">入会待ち {{ $pendingAdmissionCount }}件</a></div></div><div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">@forelse ($upcomingTrials as $trial)<a href="{{ route('staff.trial-lessons.show', $trial) }}" class="min-w-0 rounded-2xl bg-white p-4 shadow-sm"><span class="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-800">体験</span><p class="mt-2 font-bold">{{ $trial->lessonSlot->starts_at->format('n/j H:i') }}</p><p class="truncate text-sm">{{ $trial->name }}</p><p class="mt-1 truncate text-xs text-stone-500">{{ $trial->lessonSlot->teacherProfile->display_name }}／{{ $trial->lessonSlot->venue?->name ?? '会場未定' }}</p></a>@empty<p class="text-sm text-stone-600 sm:col-span-2 lg:col-span-4">今後14日間の承認済み体験レッスンはありません。</p>@endforelse</div></section>
-
-<section class="mt-8" aria-labelledby="today-lessons-title">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-            <p class="text-xs font-semibold tracking-widest text-amber-700">TODAY</p>
-            <h2 id="today-lessons-title" class="text-xl font-bold">本日のレッスン</h2>
-        </div>
-        <a href="{{ route('staff.dashboard', ['view' => 'day', 'date' => today()->format('Y-m-d')]) }}" class="text-sm font-semibold text-amber-700">日表示で確認 →</a>
-    </div>
-    <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        @forelse ($todayReservations as $reservation)
-            <a href="{{ route('staff.reservations.show', $reservation) }}" class="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-amber-400">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-lg font-bold">{{ $reservation->lessonSlot->starts_at->format('H:i') }}〜{{ $reservation->lessonSlot->ends_at->format('H:i') }}</p>
-                        <p class="truncate font-semibold">{{ $reservation->studentProfile->user->name }}</p>
-                    </div>
-                    <div class="flex shrink-0 flex-wrap justify-end gap-1">
-                        @if ($reservation->attendanceNotice?->type?->value === 'absence')<span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">お休み</span>@endif
-                        @if ($reservation->attendanceNotice?->type?->value === 'late')<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">遅刻{{ $reservation->attendanceNotice->late_minutes ? ' '.$reservation->attendanceNotice->late_minutes.'分' : '' }}</span>@endif
-                        @if ($reservation->resultingTransferRequest)<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">振替</span>@endif
-                    </div>
-                </div>
-                <div class="mt-3 grid gap-1 text-sm text-stone-600">
-                    <p class="truncate">{{ $reservation->lessonSlot->course?->name ?? 'コース未設定' }}</p>
-                    <p class="truncate">{{ $reservation->lessonSlot->venue?->name ?? '会場未設定' }}／{{ $reservation->lessonSlot->teacherProfile?->display_name ?? '講師未設定' }}</p>
-                    @if ($reservation->attendanceNotice?->expected_arrival_at)<p>到着予定 {{ $reservation->attendanceNotice->expected_arrival_at->format('H:i') }}</p>@endif
-                </div>
-            </a>
-        @empty
-            <div class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-500 sm:col-span-2 xl:col-span-3">本日の確定レッスンはありません。</div>
-        @endforelse
-    </div>
+<section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="重要なお知らせ">
+    <a href="{{ route('staff.dashboard', ['view' => 'day', 'date' => today()->format('Y-m-d')]) }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <span class="text-sm font-semibold text-stone-600">本日のレッスン件数</span>
+        <strong class="mt-1 block text-3xl">{{ $todayLessonCount }}</strong>
+    </a>
+    <a href="{{ route('staff.transfer-requests.index') }}" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+        <span class="text-sm font-semibold text-emerald-800">振替の承認待ち</span>
+        <strong class="mt-1 block text-3xl">{{ $pendingTransferCount }}</strong>
+    </a>
+    <a href="{{ route('staff.transfer-requests.deferred') }}" class="rounded-2xl border {{ $overdueDeferredTransferCount > 0 ? 'border-red-300 bg-red-50' : 'border-violet-200 bg-violet-50' }} p-5 shadow-sm">
+        <span class="flex items-center justify-between gap-2 text-sm font-semibold {{ $overdueDeferredTransferCount > 0 ? 'text-red-800' : 'text-violet-800' }}">
+            保留中のレッスン
+            @if ($overdueDeferredTransferCount > 0)<span class="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-lg font-black text-white" aria-label="前月以前の保留あり" title="前月以前の保留があります。確認してください。">！</span>@endif
+        </span>
+        <strong class="mt-1 block text-3xl">{{ $deferredTransferCount }}</strong>
+        @if ($overdueDeferredTransferCount > 0)<span class="mt-1 block text-sm font-bold text-red-800">前月以前の保留が{{ $overdueDeferredTransferCount }}件あります</span>@endif
+    </a>
+    <a href="{{ route('staff.membership-status-requests.index') }}" class="rounded-2xl border border-sky-200 bg-sky-50 p-5 shadow-sm">
+        <span class="text-sm font-semibold text-sky-800">在籍申請の承認待ち</span>
+        <strong class="mt-1 block text-3xl">{{ $pendingMembershipCount }}</strong>
+    </a>
+    <a href="{{ route('staff.procedure-requests.index') }}" class="rounded-2xl border border-violet-200 bg-violet-50 p-5 shadow-sm">
+        <span class="text-sm font-semibold text-violet-800">レッスン変更などの承認待ち</span>
+        <strong class="mt-1 block text-3xl">{{ $pendingProcedureCount }}</strong>
+    </a>
+    <a href="{{ route('staff.inquiries.index') }}" class="rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
+        <span class="text-sm font-semibold text-orange-800">未解決のお問い合わせ</span>
+        <strong class="mt-1 block text-3xl">{{ $openInquiryCount }}</strong>
+    </a>
 </section>
-
 @if ($billingSummary)<section class="mt-8 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"><div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="text-xs font-semibold tracking-widest text-amber-700">BILLING STATUS</p><h2 class="mt-1 text-xl font-bold">今月の請求状況</h2></div><a href="{{ route('staff.invoices.index') }}" class="min-h-11 rounded-xl bg-stone-900 px-5 py-3 text-center text-sm font-semibold text-white">請求管理</a></div><dl class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">@foreach ([['未確定', $billingSummary['draft'].'件'], ['未入金', $billingSummary['unpaid'].'件'], ['一部入金', $billingSummary['partial'].'件'], ['期限超過', $billingSummary['overdue'].'件'], ['未収金', '¥'.number_format($billingSummary['outstanding'])]] as [$label, $value])<div class="rounded-xl border border-stone-200 bg-white p-3"><dt class="text-xs text-stone-500">{{ $label }}</dt><dd class="mt-1 break-words text-lg font-bold">{{ $value }}</dd></div>@endforeach</dl></section>@endif
 
 

@@ -40,6 +40,13 @@ class CalendarRange
         };
     }
 
+    public static function weekStartingOn(CarbonImmutable $focus): self
+    {
+        $start = $focus->startOfDay();
+
+        return new self($start, $start, $start->addDays(6)->endOfDay(), 'week');
+    }
+
     public function days(): CarbonPeriod
     {
         return CarbonPeriod::create($this->start->startOfDay(), $this->end->startOfDay());

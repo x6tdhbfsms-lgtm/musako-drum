@@ -77,6 +77,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/reservations/{reservation_request}/attendance-notice', [AttendanceNoticeController::class, 'store'])->name('attendance-notices.store');
         Route::get('/transfer-requests', [StudentTransferRequestController::class, 'index'])->name('transfer-requests.index');
         Route::get('/reservations/{reservation_request}/transfer-request', [StudentTransferRequestController::class, 'create'])->name('transfer-requests.create');
+        Route::post('/reservations/{reservation_request}/transfer-request/confirm', [StudentTransferRequestController::class, 'prepareConfirmation'])->name('transfer-requests.prepare-confirmation');
+        Route::get('/reservations/{reservation_request}/transfer-request/confirm', [StudentTransferRequestController::class, 'showConfirmation'])->name('transfer-requests.confirmation');
         Route::post('/reservations/{reservation_request}/transfer-request', [StudentTransferRequestController::class, 'store'])->name('transfer-requests.store');
         Route::get('/membership-status-requests', [StudentMembershipStatusRequestController::class, 'index'])->name('membership-status-requests.index');
         Route::post('/membership-status-requests', [StudentMembershipStatusRequestController::class, 'store'])->name('membership-status-requests.store');
@@ -84,6 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/contract-change-requests', [StudentContractChangeRequestController::class, 'store'])->name('contract-change-requests.store');
         Route::get('/personal-information-change-requests', [StudentPersonalInformationChangeRequestController::class, 'index'])->name('personal-information-change-requests.index');
         Route::post('/personal-information-change-requests', [StudentPersonalInformationChangeRequestController::class, 'store'])->name('personal-information-change-requests.store');
+        Route::put('/personal-information-change-requests/password', [StudentPersonalInformationChangeRequestController::class, 'changePassword'])->name('personal-information-change-requests.password');
         Route::get('/payment-method-change-requests', [StudentPaymentMethodChangeRequestController::class, 'index'])->name('payment-method-change-requests.index');
         Route::post('/payment-method-change-requests', [StudentPaymentMethodChangeRequestController::class, 'store'])->name('payment-method-change-requests.store');
         Route::get('/inquiries', [StudentInquiryController::class, 'index'])->name('inquiries.index');
@@ -127,6 +130,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/inquiries/{inquiry}', [StaffInquiryController::class, 'show'])->name('inquiries.show');
         Route::patch('/inquiries/{inquiry}', [StaffInquiryController::class, 'update'])->name('inquiries.update');
         Route::resource('students', StaffStudentController::class)->only(['index', 'show', 'edit', 'update']);
+        Route::patch('/students/{student}/reservations/{reservation}/lesson-content', [StaffStudentController::class, 'updateNextLessonContent'])->middleware('role:admin')->name('students.reservations.lesson-content.update');
         Route::get('/students/{student}/enrollments/{enrollment}/edit', [StaffStudentController::class, 'editEnrollment'])->name('students.enrollments.edit');
         Route::patch('/students/{student}/enrollments/{enrollment}', [StaffStudentController::class, 'updateEnrollment'])->name('students.enrollments.update');
         Route::get('/pricing-settings', [PricingSettingController::class, 'index'])->name('pricing-settings.index');

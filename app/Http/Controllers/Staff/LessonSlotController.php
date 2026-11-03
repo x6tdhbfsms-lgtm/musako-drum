@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Enums\ReservationStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreLessonSlotRequest;
@@ -35,13 +36,25 @@ class LessonSlotController extends Controller
         /** @var User $user */
         $user = $request->user();
         $teacherProfile = $user->teacherProfile;
+        $activeReservationStatuses = [ReservationStatus::Pending->value, ReservationStatus::Approved->value];
         $lessonSlots = LessonSlot::query()
-            ->with(['teacherProfile.user', 'venue', 'course'])
-            ->withCount('reservationRequests')
+            ->with([
+                'teacherProfile.user',
+                'venue',
+                'course',
+                'reservationRequests' => fn ($query) => $query
+                    ->whereIn('status', $activeReservationStatuses)
+                    ->with('studentProfile.user')
+                    ->orderBy('requested_at'),
+            ])
+            ->withCount([
+                'reservationRequests as active_reservations_count' => fn ($query) => $query->whereIn('status', $activeReservationStatuses),
+            ])
             ->when(
                 $user->role === UserRole::Teacher,
                 fn ($query) => $teacherProfile === null ? $query->whereRaw('1 = 0') : $query->whereBelongsTo($teacherProfile, 'teacherProfile')
             )
+            ->where('starts_at', '>=', now())
             ->orderBy('starts_at')
             ->paginate(20);
 

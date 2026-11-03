@@ -64,8 +64,36 @@ class TransferTermsTest extends TestCase
 
         $this->assertSame(12, $allowance['planned_lessons']);
         $this->assertSame(3, $allowance['free_transfer_limit']);
+        $this->assertSame(0, $allowance['used_transfers']);
+        $this->assertSame(3, $allowance['remaining_transfers']);
         $this->assertSame('2026-04-01', $allowance['year_start']->toDateString());
         $this->assertSame('2027-03-31', $allowance['year_end']->toDateString());
+    }
+
+    public function test_annual_transfer_allowance_counts_only_approved_student_transfers(): void
+    {
+        $this->travelTo('2026-10-01');
+        $student = StudentProfile::factory()->create();
+        LessonEnrollment::factory()->for($student)->create(['starts_on' => '2026-04-01', 'monthly_lesson_limit' => 4]);
+        TransferRequest::factory()->count(2)->for($student)->create([
+            'status' => ApplicationStatus::Approved,
+            'reviewed_at' => '2026-06-01',
+        ]);
+        TransferRequest::factory()->for($student)->create([
+            'status' => ApplicationStatus::Approved,
+            'reviewed_at' => '2026-06-02',
+            'terms_snapshot' => ['cause' => 'teacher'],
+        ]);
+        TransferRequest::factory()->for($student)->create([
+            'status' => ApplicationStatus::Pending,
+            'reviewed_at' => null,
+        ]);
+
+        $allowance = app(TransferTermsService::class)->annualAllowance($student, CarbonImmutable::parse('2026-10-01'));
+
+        $this->assertSame(12, $allowance['free_transfer_limit']);
+        $this->assertSame(2, $allowance['used_transfers']);
+        $this->assertSame(10, $allowance['remaining_transfers']);
     }
 
     public function test_contract_versions_are_not_double_counted_and_april_resets_the_year(): void

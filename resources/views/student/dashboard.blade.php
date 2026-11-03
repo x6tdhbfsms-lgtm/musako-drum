@@ -2,7 +2,7 @@
 @section('title', 'レッスンカレンダー | MUSAKO')
 @section('content')
 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div><p class="text-sm font-semibold tracking-widest text-amber-700">MY CALENDAR</p><h1 class="mt-1 text-2xl font-bold sm:text-4xl">こんにちは、{{ auth()->user()->name }}さん</h1><p class="mt-2 text-sm text-stone-600">ご自身のレッスンと申請中の予定を確認できます。</p></div>
+    <div><p class="text-sm font-semibold tracking-widest text-amber-700">MY CALENDAR</p><h1 class="mt-1 text-2xl font-bold sm:text-4xl">こんにちは、{{ auth()->user()->name }}さん</h1><p class="mt-1 text-xs text-stone-500">ログイン名：<span class="font-semibold">{{ auth()->user()->login_name }}</span></p><p class="mt-2 text-sm text-stone-600">ご自身のレッスンと申請中の予定を確認できます。</p></div>
 </div>
 @if ($errors->any())<div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>@endif
 
@@ -10,9 +10,17 @@
     <h2 id="next-lesson-title" class="text-sm font-bold text-emerald-800">次回のレッスン</h2>
     @if ($nextReservation)
         <a href="{{ route('student.reservations.show', $nextReservation) }}" class="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div><strong class="block text-2xl tabular-nums">{{ $nextReservation->lessonSlot->starts_at->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$nextReservation->lessonSlot->starts_at->dayOfWeek] }}） {{ $nextReservation->lessonSlot->starts_at->format('H:i') }}〜{{ $nextReservation->lessonSlot->ends_at->format('H:i') }}</strong><p class="mt-2 text-sm">{{ $nextReservation->lessonSlot->venue?->name ?? '会場未定' }} · {{ $nextReservation->lessonSlot->teacherProfile->display_name }}</p></div>
+            <div><strong class="block text-2xl tabular-nums">{{ $nextReservation->lessonSlot->starts_at->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$nextReservation->lessonSlot->starts_at->dayOfWeek] }}） {{ $nextReservation->lessonSlot->starts_at->format('H:i') }}〜{{ $nextReservation->lessonSlot->ends_at->format('H:i') }}</strong><p class="mt-2 text-sm">{{ $nextReservation->lessonSlot->venue?->name ?? '会場未定' }}</p></div>
             <span class="text-sm font-bold text-emerald-800">詳細を見る →</span>
         </a>
+        <div class="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+            <h3 class="text-sm font-bold text-emerald-900">次回レッスンカルテ</h3>
+            @if ($nextReservation->lesson_content)
+                <p class="mt-2 whitespace-pre-line text-sm text-stone-700">{{ $nextReservation->lesson_content }}</p>
+            @else
+                <p class="mt-2 text-sm text-stone-500">レッスン内容はまだ登録されていません。</p>
+            @endif
+        </div>
     @else
         <p class="mt-2 text-sm text-stone-600">確定した今後のレッスンはありません。</p>
     @endif
@@ -33,7 +41,6 @@
                 <p class="mt-2 text-lg font-bold text-amber-800">1回 {{ $enrollment->lesson_minutes ?? '未設定' }}分 · 月{{ $enrollment->monthly_lesson_limit ?? '未設定' }}回@if ($fixedSchedule) · 第{{ implode('・第', $weeks) }}{{ ['日','月','火','水','木','金','土'][$enrollment->weekday] }}曜日 {{ substr($enrollment->starts_at_time, 0, 5) }}〜@endif</p>
                 <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                     <div class="min-w-0"><dt class="text-xs text-stone-500">会場</dt><dd class="mt-1 break-words font-semibold">{{ $enrollment->venue?->name ?? '会場未定' }}</dd></div>
-                    <div class="min-w-0"><dt class="text-xs text-stone-500">担当講師</dt><dd class="mt-1 break-words font-semibold">{{ $enrollment->teacherProfile?->display_name ?? '講師未定' }}</dd></div>
                     <div><dt class="text-xs text-stone-500">レッスン形式</dt><dd class="mt-1 font-semibold">{{ $enrollment->lesson_type?->label() ?? '確認中' }}</dd></div>
                     @if (! $fixedSchedule)<div><dt class="text-xs text-stone-500">曜日・時間</dt><dd class="mt-1 font-semibold">{{ $enrollment->lesson_type === App\Enums\LessonType::Flex ? '予約ごとに調整' : '固定日時未登録（各レッスンの予定をご確認ください）' }}</dd></div>@endif
                 </dl>
@@ -42,19 +49,26 @@
             <p class="text-sm text-stone-600">現在有効な契約はありません。レッスン内容は教室へお問い合わせください。</p>
         @endforelse
     </div>
+    @if ($annualTransferAllowance)
+        <div class="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4" aria-label="年間の振替可能回数">
+            <h3 class="font-bold text-indigo-950">年間の振替可能回数</h3>
+            <p class="mt-1 text-sm text-indigo-900">{{ $annualTransferAllowance['year_start']->format('Y年n月') }}〜{{ $annualTransferAllowance['year_end']->format('Y年n月') }}：無料振替 {{ $annualTransferAllowance['free_transfer_limit'] }}回</p>
+            <p class="mt-1 text-sm font-semibold text-indigo-950">使用済み {{ $annualTransferAllowance['used_transfers'] }}回 · 残り {{ $annualTransferAllowance['remaining_transfers'] }}回</p>
+            <p class="mt-1 text-xs text-indigo-800">講師都合の振替は使用回数に含みません。上限を超える場合は規約に基づく追加料金がかかります。</p>
+        </div>
+    @endif
 </section>
 
 @if ($monthlySummary)
 <section class="mt-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm" aria-labelledby="monthly-summary-title">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><p class="text-xs font-semibold tracking-widest text-amber-700">MONTHLY LESSONS</p><h2 id="monthly-summary-title" class="mt-1 text-xl font-bold">{{ $month->format('n月') }}のレッスン</h2><p class="mt-1 text-sm text-stone-600">確定・申請中・実施済みを含む回数です。</p></div>
+        <div><p class="text-xs font-semibold tracking-widest text-amber-700">MONTHLY LESSONS</p><h2 id="monthly-summary-title" class="mt-1 text-xl font-bold">{{ $month->format('n月') }}のレッスン</h2><p class="mt-1 text-sm text-stone-600">実施済みと、予約・振替の申請中や日程保留中の回数です。</p></div>
     </div>
-    <dl class="mt-5 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-7">
-        @foreach ([['実施済み', $monthlySummary->completed], ['予約確定', $monthlySummary->confirmed], ['申請中', $monthlySummary->pending], ['振替予定', $monthlySummary->transferScheduled], ['欠席', $monthlySummary->absent], ['キャンセル', $monthlySummary->cancelled], ['予約可能', $monthlySummary->remaining]] as [$label, $count])
-            <div class="rounded-xl border border-stone-200 bg-white p-3"><dt class="text-xs text-stone-500">{{ $label }}</dt><dd class="mt-1 text-xl font-bold">{{ $count }}<span class="ml-0.5 text-xs font-normal">回</span></dd></div>
+    <dl id="monthly-status-summary" class="mt-5 grid grid-cols-2 gap-3 text-sm">
+        @foreach ([['実施済み', $monthlySummary->completed], ['申請中', $monthlySummary->pending]] as [$label, $count])
+            <div class="rounded-xl border border-stone-200 bg-white p-4"><dt class="text-sm text-stone-500">{{ $label }}</dt><dd class="mt-1 text-2xl font-bold">{{ $count }}<span class="ml-0.5 text-sm font-normal">回</span></dd></div>
         @endforeach
     </dl>
-    @if ($monthlySummary->contracted > 0 && $monthlySummary->remaining === 0)<p class="mt-4 rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-900">今月の予約可能回数を使い切っています。</p>@endif
 </section>
 @endif
 
@@ -81,12 +95,31 @@
     </div>
 
     <div class="mt-4 md:hidden">
-        <div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm"><div class="grid grid-cols-7 text-center text-[11px] font-semibold text-stone-400">@foreach (['日','月','火','水','木','金','土'] as $dayName)<span class="py-1">{{ $dayName }}</span>@endforeach</div><div class="mt-1 grid grid-cols-7 gap-1">@foreach ($calendarDays as $day) @php $hasEntries = $calendarEntriesByDay->has($day->format('Y-m-d')); @endphp <a href="{{ route('student.dashboard', ['month' => $month->format('Y-m'), 'date' => $day->format('Y-m-d')]) }}" class="relative grid min-h-11 place-items-center rounded-xl text-sm font-semibold {{ $selectedDate->isSameDay($day) ? 'bg-stone-900 text-white' : ($day->month === $month->month ? 'hover:bg-stone-100' : 'text-stone-300') }}">{{ $day->day }}@if ($hasEntries)<span class="absolute bottom-1 size-1 rounded-full {{ $selectedDate->isSameDay($day) ? 'bg-amber-300' : 'bg-amber-500' }}"></span>@endif</a> @endforeach</div></div>
+        <div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
+            <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-stone-400">
+                @foreach (['日', '月', '火', '水', '木', '金', '土'] as $dayName)<span class="py-1">{{ $dayName }}</span>@endforeach
+            </div>
+            <div class="mt-1 grid grid-cols-7 gap-1">
+                @foreach ($calendarDays as $day)
+                    @php
+                        $dayEntries = $calendarEntriesByDay->get($day->format('Y-m-d'), collect());
+                        $reservationEntries = $dayEntries->filter(fn ($entry) => $entry['reservation'] !== null)->values();
+                    @endphp
+                    @if ($reservationEntries->count() === 1)
+                        @php $reservationEntry = $reservationEntries->first(); @endphp
+                        <a data-mobile-reservation-day-detail-link href="{{ route('student.reservations.show', $reservationEntry['reservation']) }}" aria-label="{{ $reservationEntry['slot']->starts_at->format('n月j日 H:i') }}の予約詳細を見る" class="relative grid min-h-11 min-w-0 place-items-center rounded-xl text-sm font-semibold touch-manipulation {{ $selectedDate->isSameDay($day) ? 'bg-stone-900 text-white' : ($day->month === $month->month ? 'hover:bg-stone-100' : 'text-stone-300') }}">{{ $day->day }}<span class="absolute bottom-1 size-1 rounded-full {{ $selectedDate->isSameDay($day) ? 'bg-amber-300' : 'bg-amber-500' }}"></span></a>
+                        @elseif ($dayEntries->isNotEmpty())
+                        <a href="{{ route('student.dashboard', ['month' => $month->format('Y-m'), 'date' => $day->format('Y-m-d')]) }}" class="relative grid min-h-11 min-w-0 place-items-center rounded-xl text-sm font-semibold {{ $selectedDate->isSameDay($day) ? 'bg-stone-900 text-white' : ($day->month === $month->month ? 'hover:bg-stone-100' : 'text-stone-300') }}">{{ $day->day }}<span class="absolute bottom-1 size-1 rounded-full {{ $selectedDate->isSameDay($day) ? 'bg-amber-300' : 'bg-amber-500' }}"></span></a>
+                    @else
+                        <a href="{{ route('student.dashboard', ['month' => $month->format('Y-m'), 'date' => $day->format('Y-m-d')]) }}" class="relative grid min-h-11 min-w-0 place-items-center rounded-xl text-sm font-semibold {{ $selectedDate->isSameDay($day) ? 'bg-stone-900 text-white' : ($day->month === $month->month ? 'hover:bg-stone-100' : 'text-stone-300') }}">{{ $day->day }}</a>
+                    @endif
+                @endforeach
+            </div>
+        </div>
         <div class="mt-4"><h3 class="text-lg font-bold">{{ $selectedDate->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$selectedDate->dayOfWeek] }}）</h3><div class="mt-3 grid gap-3">@forelse ($calendarEntriesByDay->get($selectedDate->format('Y-m-d'), collect()) as $entry) @include('student.calendar._entry', ['entry' => $entry, 'compact' => false]) @empty <div class="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center text-sm text-stone-500">この日のご自身のレッスンはありません。</div> @endforelse</div></div>
     </div>
 </section>
 
-<div class="mt-8 grid gap-4 sm:grid-cols-2"><a href="{{ route('student.reservations.index') }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">承認待ち</span><strong class="mt-2 block text-3xl">{{ $pendingCount }}</strong></a><a href="{{ route('student.reservations.index') }}" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><span class="text-sm text-stone-500">確定予約</span><strong class="mt-2 block text-3xl">{{ $approvedCount }}</strong></a></div>
 @php
     $procedures = [
         ['振替', 'レッスンの振替申請・履歴', route('student.transfer-requests.index')],
@@ -104,6 +137,7 @@
         ['料金区分変更', '一般／ジュニア', route('student.contract-change-requests.index', ['type' => 'pricing_category'])],
         ['個人情報変更', '氏名・連絡先・住所', route('student.personal-information-change-requests.index')],
         ['支払い方法変更', '決済情報は保存しません', route('student.payment-method-change-requests.index')],
+        ['ご請求', '請求内容・お支払い状況の確認', route('student.invoices.index')],
         ['その他問い合わせ', '教室へのお問い合わせ', route('student.inquiries.index')],
     ];
 @endphp

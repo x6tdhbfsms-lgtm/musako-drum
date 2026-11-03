@@ -96,6 +96,12 @@ class CalendarDashboardTest extends TestCase
             ->get(route('student.dashboard', ['month' => '2026-09']))
             ->assertOk()
             ->assertSee('レッスンカレンダー')
+            ->assertSee(route('student.reservations.show', $approved), escape: false)
+            ->assertSee('data-reservation-detail-link', escape: false)
+            ->assertSee('data-mobile-reservation-day-detail-link', escape: false)
+            ->assertSeeText('予約詳細を見る')
+            ->assertDontSeeText('承認待ち')
+            ->assertDontSee('<span class="text-sm text-stone-500">確定予約</span>', escape: false)
             ->assertDontSee(route('student.reservations.store', $available), escape: false)
             ->assertSee(route('student.membership-status-requests.index', ['type' => 'pause']), escape: false)
             ->assertSee(route('student.membership-status-requests.index', ['type' => 'withdraw']), escape: false)
@@ -141,6 +147,24 @@ class CalendarDashboardTest extends TestCase
         }
     }
 
+    public function test_staff_week_view_starts_on_the_selected_day_and_shows_the_next_six_days(): void
+    {
+        $this->travelTo('2026-10-30 09:00:00');
+        $teacher = TeacherProfile::factory()->create();
+        $beforeToday = $this->reservation(StudentProfile::factory()->create(), $teacher, '2026-10-29 14:00:00', ReservationStatus::Approved);
+        $today = $this->reservation(StudentProfile::factory()->create(), $teacher, '2026-10-30 14:00:00', ReservationStatus::Approved);
+        $lastDay = $this->reservation(StudentProfile::factory()->create(), $teacher, '2026-11-05 14:00:00', ReservationStatus::Approved);
+
+        $this->actingAs($teacher->user)
+            ->get(route('staff.dashboard', ['view' => 'week']))
+            ->assertOk()
+            ->assertSee($today->studentProfile->user->name)
+            ->assertSee($lastDay->studentProfile->user->name)
+            ->assertDontSee($beforeToday->studentProfile->user->name)
+            ->assertViewHas('calendarRange', fn ($range): bool => $range->start->toDateString() === '2026-10-30'
+                && $range->end->toDateString() === '2026-11-05');
+    }
+
     public function test_student_reservation_detail_exposes_actions_and_forbids_another_student(): void
     {
         $student = StudentProfile::factory()->create();
@@ -150,14 +174,41 @@ class CalendarDashboardTest extends TestCase
         $this->actingAs($student->user)
             ->get(route('student.reservations.show', $reservation))
             ->assertOk()
-            ->assertSee('お休み連絡')
-            ->assertSee('遅刻連絡')
-            ->assertSee('振替を申請する')
-            ->assertSee('予約をキャンセル');
+            ->assertSeeInOrder(['レッスンを振替', '振替を申請する →', 'お休み・遅刻の連絡', 'お休みを連絡する', '遅刻を連絡する'])
+            ->assertDontSee('遅刻予定分数')
+            ->assertDontSee('到着予定時刻')
+            ->assertDontSee('予約をキャンセル');
 
         $this->actingAs($otherStudent->user)
             ->get(route('student.reservations.show', $reservation))
             ->assertForbidden();
+    }
+
+    public function test_reservation_detail_highlights_the_newest_contact_or_transfer_history(): void
+    {
+        $this->travelTo('2026-10-31 11:00:00');
+        $student = StudentProfile::factory()->create();
+        $teacher = TeacherProfile::factory()->create();
+        $reservation = $this->reservation($student, $teacher, '2026-11-07 14:00:00', ReservationStatus::Approved);
+        AttendanceNotice::factory()->for($reservation)->create([
+            'type' => AttendanceNoticeType::Late,
+            'created_at' => '2026-10-31 11:05:00',
+            'submitted_at' => '2026-10-31 11:10:00',
+        ]);
+        $requestedSlot = $this->slot($teacher, '2026-11-08 14:00:00');
+        TransferRequest::factory()
+            ->for($student)
+            ->for($reservation, 'originalReservationRequest')
+            ->for($requestedSlot, 'requestedLessonSlot')
+            ->create([
+                'status' => ApplicationStatus::Pending,
+                'requested_at' => '2026-10-31 11:20:00',
+            ]);
+
+        $this->actingAs($student->user)
+            ->get(route('student.reservations.show', $reservation))
+            ->assertOk()
+            ->assertSeeInOrder(['最新の履歴', '振替承認待ち', '2026年11月8日 14:00', '過去の連絡・振替履歴（1件）', '遅刻連絡済み']);
     }
 
     public function test_rejected_reservation_slot_is_not_shown_as_available_again(): void

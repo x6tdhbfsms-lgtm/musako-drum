@@ -13,6 +13,7 @@ use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\Venue;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class InquiryAndStudentDetailTest extends TestCase
@@ -122,6 +123,37 @@ class InquiryAndStudentDetailTest extends TestCase
         $this->actingAs($teacher->user)->get(route('staff.students.show', $student))
             ->assertOk()
             ->assertSee($student->user->name);
+    }
+
+    public function test_student_detail_uses_japanese_reservation_status_labels_and_hides_repeated_course_names(): void
+    {
+        $this->travelTo('2026-10-31 10:00:00');
+        $student = StudentProfile::factory()->create();
+        $admin = User::factory()->admin()->create();
+
+        foreach ([
+            ['2026-12-22 18:00:00', ReservationStatus::Approved],
+            ['2026-10-20 14:15:00', ReservationStatus::Cancelled],
+            ['2026-10-15 18:00:00', ReservationStatus::Rejected],
+        ] as [$startsAt, $status]) {
+            $slot = LessonSlot::factory()->create([
+                'starts_at' => $startsAt,
+                'ends_at' => Carbon::parse($startsAt)->addMinutes(45),
+            ]);
+            ReservationRequest::factory()->for($student)->for($slot)->create(['status' => $status]);
+        }
+
+        $this->actingAs($admin)->get(route('staff.students.show', $student))
+            ->assertOk()
+            ->assertSeeText('予約確定')
+            ->assertSeeText('現在の料金')
+            ->assertSeeText('キャンセル')
+            ->assertSeeText('却下')
+            ->assertDontSeeText('approved')
+            ->assertDontSeeText('cancelled')
+            ->assertDontSeeText('rejected')
+            ->assertDontSeeText('CURRENT PRICING')
+            ->assertDontSeeText('電子ドラムコース');
     }
 
     private function inquiry(StudentProfile $student): Inquiry

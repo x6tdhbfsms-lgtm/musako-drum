@@ -34,13 +34,7 @@ class TransferTermsService
     {
         $original = $transfer->originalReservationRequest;
         $allowance = $this->annualAllowance($transfer->studentProfile, $formalizedAt);
-        $used = TransferRequest::query()->where('student_profile_id', $transfer->student_profile_id)
-            ->where('status', ApplicationStatus::Approved)
-            ->where('reviewed_at', '>=', $allowance['year_start'])
-            ->where('reviewed_at', '<', $allowance['year_start']->addYear())
-            ->whereKeyNot($transfer->id)
-            ->get(['terms_snapshot'])
-            ->filter(fn ($item) => ($item->terms_snapshot['cause'] ?? 'student') !== 'teacher')->count();
+        $used = $this->approvedStudentTransferCount($transfer->studentProfile, $formalizedAt, exceptTransferRequestId: $transfer->id);
         $days = (int) $formalizedAt->startOfDay()->diffInDays(CarbonImmutable::instance($original->lessonSlot->starts_at)->startOfDay(), false);
         $roomType = $original->lessonSlot->venue?->termsRoomType();
         $cancellation = $cause === 'teacher' ? 0 : $this->studioCancellationFee($original->lessonSlot, $formalizedAt);
@@ -108,7 +102,7 @@ class TransferTermsService
 
     }
 
-    /** @return array{year_start: CarbonImmutable, year_end: CarbonImmutable, planned_lessons: int, free_transfer_limit: int} */
+    /** @return array{year_start: CarbonImmutable, year_end: CarbonImmutable, planned_lessons: int, free_transfer_limit: int, used_transfers: int, remaining_transfers: int} */
     public function annualAllowance(StudentProfile $student, CarbonImmutable $date): array
     {
         $yearStart = $date->setTimezone(config('app.timezone'))->startOfYear()->addMonths(3);
@@ -135,12 +129,35 @@ class TransferTermsService
                 ->sum(fn (Collection $versions) => (int) $versions->sortByDesc('starts_on')->first()->monthly_lesson_limit);
         }
 
+        $freeTransferLimit = intdiv($planned, 4);
+        $usedTransfers = $this->approvedStudentTransferCount($student, $date);
+
         return [
             'year_start' => $yearStart,
             'year_end' => $yearStart->addYear()->subDay(),
             'planned_lessons' => $planned,
-            'free_transfer_limit' => intdiv($planned, 4),
+            'free_transfer_limit' => $freeTransferLimit,
+            'used_transfers' => $usedTransfers,
+            'remaining_transfers' => max(0, $freeTransferLimit - $usedTransfers),
         ];
+    }
+
+    private function approvedStudentTransferCount(StudentProfile $student, CarbonImmutable $date, ?int $exceptTransferRequestId = null): int
+    {
+        $yearStart = $date->setTimezone(config('app.timezone'))->startOfYear()->addMonths(3);
+        if ($date->lt($yearStart)) {
+            $yearStart = $yearStart->subYear();
+        }
+
+        return TransferRequest::query()
+            ->whereBelongsTo($student, 'studentProfile')
+            ->where('status', ApplicationStatus::Approved)
+            ->where('reviewed_at', '>=', $yearStart)
+            ->where('reviewed_at', '<', $yearStart->addYear())
+            ->when($exceptTransferRequestId !== null, fn ($query) => $query->whereKeyNot($exceptTransferRequestId))
+            ->get(['terms_snapshot'])
+            ->filter(fn (TransferRequest $transfer): bool => ($transfer->terms_snapshot['cause'] ?? 'student') !== 'teacher')
+            ->count();
     }
 
     /** @param Collection<int, LessonEnrollment> $byId */

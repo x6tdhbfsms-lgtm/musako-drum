@@ -14,6 +14,7 @@ use App\Models\PricingSetting;
 use App\Models\User;
 use App\Services\LessonPricingService;
 use App\Services\TeacherBookingAvailability;
+use App\Services\TransferTermsService;
 use App\Support\CalendarRange;
 use App\Support\MonthlyLessonUsageCalculator;
 use App\Support\StudentLessonSlotState;
@@ -29,6 +30,7 @@ class DashboardController extends Controller
         MonthlyLessonUsageCalculator $monthlyLessonUsage,
         LessonPricingService $pricingService,
         TeacherBookingAvailability $availability,
+        TransferTermsService $transferTerms,
     ): View {
         $validated = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
@@ -125,8 +127,6 @@ class DashboardController extends Controller
         );
 
         return view('student.dashboard', [
-            'pendingCount' => $reservations === null ? 0 : (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
-            'approvedCount' => $reservations === null ? 0 : (clone $reservations)->where('status', ReservationStatus::Approved)->count(),
             'nextReservation' => $reservations === null ? null : (clone $reservations)
                 ->where('status', ReservationStatus::Approved)
                 ->whereHas('lessonSlot', fn ($query) => $query->where('starts_at', '>', now()))
@@ -150,6 +150,9 @@ class DashboardController extends Controller
                 ->with(['course', 'teacherProfile', 'venue'])
                 ->orderBy('starts_on')
                 ->get() ?? collect(),
+            'annualTransferAllowance' => $studentProfile === null
+                ? null
+                : $transferTerms->annualAllowance($studentProfile, CarbonImmutable::now(config('app.timezone'))),
             'pricingQuotes' => $pricingQuotes,
             'pricingSetting' => PricingSetting::query()->effectiveOn(today())->first(),
         ]);

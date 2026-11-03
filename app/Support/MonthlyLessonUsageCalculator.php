@@ -40,14 +40,19 @@ class MonthlyLessonUsageCalculator
 
             $isTransfer = $reservation->resultingTransferRequest?->status === ApplicationStatus::Approved;
             $hasPendingTransfer = $reservation->transferRequests->contains('status', ApplicationStatus::Pending);
+            $hasDeferredTransfer = $reservation->transferRequests->contains(fn ($transfer) => $transfer->isAwaitingSchedule());
             if ($hasPendingTransfer || ($isTransfer && $reservation->lessonSlot->starts_at->isFuture())) {
                 $transferScheduled++;
+            }
+
+            if ($reservation->status === ReservationStatus::Pending || $hasPendingTransfer || $hasDeferredTransfer) {
+                $pending++;
             }
 
             $category = 'rejected';
             $countsTowardLimit = false;
 
-            if ($reservation->transferRequests->contains(fn ($transfer) => $transfer->isAwaitingSchedule())) {
+            if ($hasDeferredTransfer) {
                 $used++;
                 $transferScheduled++;
                 $countsTowardLimit = true;
@@ -57,7 +62,6 @@ class MonthlyLessonUsageCalculator
                 $cancelled++;
                 $category = 'cancelled';
             } elseif ($reservation->status === ReservationStatus::Pending) {
-                $pending++;
                 $used++;
                 $countsTowardLimit = true;
                 $category = 'pending';

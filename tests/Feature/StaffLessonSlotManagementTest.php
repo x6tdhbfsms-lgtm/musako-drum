@@ -7,7 +7,9 @@ use App\Enums\ReservationStatus;
 use App\Models\Course;
 use App\Models\LessonSlot;
 use App\Models\ReservationRequest;
+use App\Models\StudentProfile;
 use App\Models\TeacherProfile;
+use App\Models\User;
 use App\Models\Venue;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,48 @@ use Tests\TestCase;
 class StaffLessonSlotManagementTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_lesson_slot_list_shows_names_for_pending_and_confirmed_students_only(): void
+    {
+        $teacher = TeacherProfile::factory()->create();
+        $slot = LessonSlot::factory()->for($teacher)->create();
+        $pendingStudent = StudentProfile::factory()->for(User::factory()->state(['name' => '申請中の生徒']), 'user')->create();
+        $confirmedStudent = StudentProfile::factory()->for(User::factory()->state(['name' => '確定した生徒']), 'user')->create();
+        $cancelledStudent = StudentProfile::factory()->for(User::factory()->state(['name' => '取消済みの生徒']), 'user')->create();
+        ReservationRequest::factory()->for($slot)->for($pendingStudent, 'studentProfile')->create(['status' => ReservationStatus::Pending]);
+        ReservationRequest::factory()->for($slot)->for($confirmedStudent, 'studentProfile')->create(['status' => ReservationStatus::Approved]);
+        ReservationRequest::factory()->for($slot)->for($cancelledStudent, 'studentProfile')->create(['status' => ReservationStatus::Cancelled]);
+
+        $response = $this->actingAs($teacher->user)->get(route('staff.lesson-slots.index'));
+
+        $response->assertSeeText('申請中の生徒')
+            ->assertSeeText('確定した生徒')
+            ->assertSeeText('申請中')
+            ->assertSeeText('確定')
+            ->assertDontSeeText('取消済みの生徒')
+            ->assertSeeText('予約2名');
+    }
+
+    public function test_lesson_slot_list_hides_slots_that_have_already_started(): void
+    {
+        $this->travelTo('2026-10-20 15:00:00');
+        $teacher = TeacherProfile::factory()->create();
+        $pastSlot = LessonSlot::factory()->for($teacher)->create([
+            'starts_at' => '2026-10-20 14:00:00',
+            'ends_at' => '2026-10-20 15:00:00',
+        ]);
+        $upcomingSlot = LessonSlot::factory()->for($teacher)->create([
+            'starts_at' => '2026-10-20 16:00:00',
+            'ends_at' => '2026-10-20 17:00:00',
+        ]);
+
+        $this->actingAs($teacher->user)
+            ->get(route('staff.lesson-slots.index'))
+            ->assertOk()
+            ->assertViewHas('lessonSlots', fn ($slots): bool => $slots->pluck('id')->all() === [$upcomingSlot->id])
+            ->assertSeeText('16:00〜17:00')
+            ->assertDontSeeText('14:00〜15:00');
+    }
 
     public function test_teacher_can_create_a_lesson_slot_for_themselves(): void
     {

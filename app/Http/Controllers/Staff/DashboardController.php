@@ -2,17 +2,13 @@
 
 namespace App\Http\Controllers\Staff;
 
-use App\Enums\AdmissionApplicationStatus;
 use App\Enums\ApplicationStatus;
 use App\Enums\InvoicePaymentStatus;
 use App\Enums\MonthlyInvoiceStatus;
 use App\Enums\ReservationStatus;
-use App\Enums\TrialLessonStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StaffCalendarRequest;
-use App\Models\AdmissionApplication;
-use App\Models\AttendanceNotice;
 use App\Models\ContractChangeRequest;
 use App\Models\Inquiry;
 use App\Models\LessonSlot;
@@ -25,7 +21,6 @@ use App\Models\RegularScheduleOccurrence;
 use App\Models\ReservationRequest;
 use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
-use App\Models\TrialLessonRequest;
 use App\Models\User;
 use App\Models\Venue;
 use App\Services\LessonOperatingHours;
@@ -44,7 +39,9 @@ class DashboardController extends Controller
             $validated['date'] ?? now()->format('Y-m-d'),
             config('app.timezone'),
         );
-        $calendarRange = CalendarRange::forView($focus, $calendarView);
+        $calendarRange = $calendarView === 'week'
+            ? CalendarRange::weekStartingOn($focus)
+            : CalendarRange::forView($focus, $calendarView);
         $reservationStatus = isset($validated['reservation_status'])
             ? ReservationStatus::from($validated['reservation_status'])
             : null;
@@ -93,29 +90,6 @@ class DashboardController extends Controller
         $firstTimelineHour = min($openingHour, (int) ($calendarSlots->min(fn ($slot): int => $slot->starts_at->hour) ?? $openingHour));
         $lastTimelineHour = max($closingHour - 1, (int) ($calendarSlots->max(fn ($slot): int => $slot->starts_at->hour) ?? ($closingHour - 1)));
 
-        $reservations = ReservationRequest::query()
-            ->when(
-                $user->role === UserRole::Teacher,
-                fn ($query) => $teacherProfile === null
-                    ? $query->whereRaw('1 = 0')
-                    : $query->whereHas('lessonSlot', fn ($slots) => $slots->whereBelongsTo($teacherProfile, 'teacherProfile'))
-            );
-        $slots = LessonSlot::query()
-            ->when(
-                $user->role === UserRole::Teacher,
-                fn ($query) => $teacherProfile === null ? $query->whereRaw('1 = 0') : $query->whereBelongsTo($teacherProfile, 'teacherProfile')
-            );
-        $todayNotices = AttendanceNotice::query()
-            ->with(['reservationRequest.studentProfile.user', 'reservationRequest.lessonSlot'])
-            ->whereHas('reservationRequest.lessonSlot', function ($query) use ($teacherProfile, $user): void {
-                $query->whereDate('starts_at', today()->toDateString())
-                    ->when(
-                        $user->role === UserRole::Teacher,
-                        fn ($slots) => $teacherProfile === null ? $slots->whereRaw('1 = 0') : $slots->whereBelongsTo($teacherProfile, 'teacherProfile')
-                    );
-            })
-            ->get()
-            ->sortBy(fn (AttendanceNotice $notice) => $notice->reservationRequest->lessonSlot->starts_at);
         $pendingTransferCount = TransferRequest::query()
             ->where('status', ApplicationStatus::Pending)
             ->when(
@@ -128,15 +102,7 @@ class DashboardController extends Controller
                     })
             )
             ->count();
-        $todayReservations = ReservationRequest::query()
-            ->with([
-                'studentProfile.user',
-                'lessonSlot.teacherProfile',
-                'lessonSlot.venue',
-                'lessonSlot.course',
-                'attendanceNotice',
-                'resultingTransferRequest',
-            ])
+        $todayLessonCount = ReservationRequest::query()
             ->where('status', ReservationStatus::Approved)
             ->whereHas('lessonSlot', function ($query) use ($teacherProfile, $user): void {
                 $query->whereBetween('starts_at', [today()->startOfDay(), today()->endOfDay()])
@@ -145,17 +111,31 @@ class DashboardController extends Controller
                         fn ($slots) => $teacherProfile === null ? $slots->whereRaw('1 = 0') : $slots->whereBelongsTo($teacherProfile, 'teacherProfile')
                     );
             })
-            ->orderBy(LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'reservation_requests.lesson_slot_id'))
-            ->get();
-        $trialScope = TrialLessonRequest::query()
-            ->when($user->role === UserRole::Teacher, fn ($query) => $query->whereHas('lessonSlot', fn ($slots) => $slots->where('teacher_profile_id', $teacherProfile?->id ?? 0)));
-        $upcomingTrials = (clone $trialScope)
-            ->with(['lessonSlot.teacherProfile', 'lessonSlot.venue'])
-            ->where('status', TrialLessonStatus::Approved)
-            ->whereHas('lessonSlot', fn ($query) => $query->whereBetween('starts_at', [now(), now()->addDays(14)]))
-            ->orderBy(LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'trial_lesson_requests.lesson_slot_id'))
-            ->limit(8)
-            ->get();
+            ->count();
+        $currentBillingMonth = CarbonImmutable::now(config('app.timezone'))->startOfMonth();
+        $deferredTransfers = TransferRequest::query()
+            ->where('status', ApplicationStatus::Approved)
+            ->whereNull('requested_lesson_slot_id')
+            ->whereNull('resulting_reservation_request_id')
+            ->when(
+                $user->role === UserRole::Teacher,
+                fn ($query) => $teacherProfile === null
+                    ? $query->whereRaw('1 = 0')
+                    : $query->whereHas('originalReservationRequest.lessonSlot', fn ($slots) => $slots->whereBelongsTo($teacherProfile, 'teacherProfile'))
+            );
+        $deferredTransferCount = (clone $deferredTransfers)->count();
+        $overdueDeferredTransferCount = (clone $deferredTransfers)
+            ->whereHas('originalReservationRequest', function ($reservations) use ($currentBillingMonth): void {
+                $reservations->where(function ($lesson) use ($currentBillingMonth): void {
+                    $lesson->whereDate('lesson_entitlement_month', '<', $currentBillingMonth->toDateString())
+                        ->orWhere(function ($lessonWithoutEntitlement) use ($currentBillingMonth): void {
+                            $lessonWithoutEntitlement
+                                ->whereNull('lesson_entitlement_month')
+                                ->whereHas('lessonSlot', fn ($slots) => $slots->where('starts_at', '<', $currentBillingMonth));
+                        });
+                });
+            })
+            ->count();
         $nextRegularMonth = CarbonImmutable::now(config('app.timezone'))->addMonth()->startOfMonth();
         $regularScope = RegularScheduleOccurrence::query()
             ->whereDate('lesson_entitlement_month', $nextRegularMonth)
@@ -163,20 +143,15 @@ class DashboardController extends Controller
         $regularBatchScope = RegularScheduleBatch::query()
             ->whereDate('entitlement_month', $nextRegularMonth)
             ->when($user->role === UserRole::Teacher, fn ($query) => $query->whereHas('lessonEnrollment', fn ($enrollments) => $enrollments->where('teacher_profile_id', $teacherProfile?->id ?? 0)));
-        $currentBillingMonth = CarbonImmutable::now(config('app.timezone'))->startOfMonth();
         $billingInvoices = $user->role === UserRole::Admin
             ? MonthlyInvoice::query()->whereDate('billing_month', $currentBillingMonth)->get()
             : collect();
 
         return view('staff.dashboard', [
-            'pendingCount' => (clone $reservations)->where('status', ReservationStatus::Pending)->count(),
-            'upcomingSlotCount' => (clone $slots)->where('starts_at', '>', now())->count(),
-            'todayNotices' => $todayNotices,
-            'todayReservations' => $todayReservations,
-            'pendingTrialCount' => (clone $trialScope)->where('status', TrialLessonStatus::Pending)->count(),
-            'upcomingTrials' => $upcomingTrials,
-            'pendingAdmissionCount' => AdmissionApplication::query()->where('status', AdmissionApplicationStatus::Pending)->count(),
             'pendingTransferCount' => $pendingTransferCount,
+            'todayLessonCount' => $todayLessonCount,
+            'deferredTransferCount' => $deferredTransferCount,
+            'overdueDeferredTransferCount' => $overdueDeferredTransferCount,
             'pendingMembershipCount' => MembershipStatusRequest::query()->where('status', ApplicationStatus::Pending)->count(),
             'pendingProcedureCount' => ContractChangeRequest::query()->where('status', ApplicationStatus::Pending)->count()
                 + PersonalInformationChangeRequest::query()->where('status', ApplicationStatus::Pending)->count()

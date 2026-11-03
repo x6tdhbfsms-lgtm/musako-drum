@@ -29,7 +29,7 @@
         <p class="mt-2 text-sm">{{ $reservationRequest->lessonSlot->venue?->name ?? '会場未定' }}</p>
         <p class="mt-2 text-sm text-stone-300">申請期限 {{ $reservationRequest->transferRequestDeadline()->format('Y年n月j日 H:i') }}</p>
     </section>
-    <form method="post" action="{{ route(auth()->user()->role->value === 'student' ? 'student.transfer-requests.store' : 'staff.transfer-requests.store', $reservationRequest) }}" class="mt-6 grid gap-5">
+    <form method="post" action="{{ route(auth()->user()->role->value === 'student' ? 'student.transfer-requests.prepare-confirmation' : 'staff.transfer-requests.store', $reservationRequest) }}" class="mt-6 grid gap-5">
         @csrf
         <section class="rounded-2xl border border-violet-200 bg-violet-50 p-4">
             <h2 class="font-bold text-violet-900">希望の日が空いていない・まだ日程が決まらない場合</h2>

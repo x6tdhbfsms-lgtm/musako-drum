@@ -33,6 +33,24 @@ class PortalAuthenticationTest extends TestCase
         $this->get(route('login'))->assertOk()->assertSee('別々のタブ');
     }
 
+    public function test_brand_link_returns_to_the_current_portal_when_both_portals_are_logged_in(): void
+    {
+        $teacher = User::factory()->teacher()->create(['password' => 'portal-password']);
+        $student = StudentProfile::factory()->for(User::factory()->create(['password' => 'portal-password']))->create();
+
+        $this->post('/login', ['identifier' => $teacher->email, 'password' => 'portal-password'])
+            ->assertRedirectToRoute('staff.dashboard');
+        $this->post('/login', ['identifier' => $student->user->login_name, 'password' => 'portal-password'])
+            ->assertRedirectToRoute('student.dashboard');
+
+        $this->get(route('student.dashboard'))
+            ->assertOk()
+            ->assertSee('href="'.route('student.dashboard').'"', escape: false);
+        $this->get(route('staff.dashboard'))
+            ->assertOk()
+            ->assertSee('href="'.route('staff.dashboard').'"', escape: false);
+    }
+
     #[TestWith(['staff'])]
     #[TestWith(['student'])]
     public function test_logout_only_ends_the_selected_portal_and_preserves_other_forms(string $portal): void

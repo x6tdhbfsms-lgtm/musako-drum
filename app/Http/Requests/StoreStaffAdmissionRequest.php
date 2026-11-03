@@ -17,6 +17,7 @@ class StoreStaffAdmissionRequest extends StoreAdmissionApplicationRequest
     public function rules(): array
     {
         $rules = parent::rules();
+        unset($rules['login_name']);
         $rules['address'] = ['nullable', 'string', 'max:255'];
         $rules['venue_id'][0] = 'required';
         $rules['teacher_profile_id'][0] = 'required';

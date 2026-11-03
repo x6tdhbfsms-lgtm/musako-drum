@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Staff;
 
 use App\Actions\UpdateStaffEnrollment;
 use App\Actions\UpdateStaffStudent;
+use App\Enums\EnrollmentStatus;
+use App\Enums\ReservationStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateStaffEnrollmentRequest;
 use App\Http\Requests\UpdateStaffStudentRequest;
 use App\Models\Course;
 use App\Models\LessonEnrollment;
+use App\Models\LessonSlot;
+use App\Models\ReservationRequest;
 use App\Models\StudentProfile;
 use App\Models\TeacherProfile;
 use App\Models\User;
@@ -60,13 +64,34 @@ class StudentController extends Controller
         return redirect()->route('staff.students.show', $student)->with('success', '適用日を指定して契約情報を更新しました。作成済みのレッスン予定と請求は変更していません。必要に応じて予定を確認してください。');
     }
 
+    public function updateNextLessonContent(Request $request, StudentProfile $student, ReservationRequest $reservation): RedirectResponse
+    {
+        Gate::authorize('update', $student);
+        abort_unless($reservation->student_profile_id === $student->id, 404);
+        abort_unless($reservation->status === ReservationStatus::Approved, 404);
+        abort_unless($reservation->lessonSlot()->exists(), 404);
+
+        $validated = $request->validate([
+            'lesson_content' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $reservation->update(['lesson_content' => $validated['lesson_content'] ?? null]);
+
+        return redirect()->route('staff.reservations.show', $reservation)->with('success', 'このレッスンの内容を保存しました。');
+    }
+
     public function index(Request $request): View
     {
         Gate::authorize('viewAny', StudentProfile::class);
         /** @var User $user */
         $user = $request->user();
+        $today = CarbonImmutable::today(config('app.timezone'));
         $students = StudentProfile::query()
-            ->with(['user', 'enrollments' => fn ($query) => $query->activeOn(now())->with(['course', 'teacherProfile', 'venue'])])
+            ->with(['user', 'enrollments' => fn ($query) => $query
+                ->where('status', EnrollmentStatus::Active)
+                ->where(fn ($period) => $period->whereNull('ends_on')->orWhereDate('ends_on', '>=', $today))
+                ->with('course')
+                ->orderBy('starts_on')])
             ->when($user->role === UserRole::Teacher, fn ($query) => $query->where(function ($students) use ($user): void {
                 $students->whereHas('enrollments', fn ($enrollments) => $enrollments->whereBelongsTo($user->teacherProfile, 'teacherProfile'))
                     ->orWhereHas('reservationRequests.lessonSlot', fn ($slots) => $slots->whereBelongsTo($user->teacherProfile, 'teacherProfile'));
@@ -75,7 +100,27 @@ class StudentController extends Controller
             ->orderBy('id')
             ->paginate(30);
 
-        return view('staff.students.index', compact('students'));
+        $studentsByCourse = collect([
+            'electronic_drum' => collect(),
+            'studio34' => collect(),
+            'other' => collect(),
+        ]);
+
+        foreach ($students as $student) {
+            $enrollments = $student->enrollments;
+            $currentEnrollments = $enrollments->filter(fn ($enrollment) => ! $enrollment->starts_on->isAfter($today));
+            $classificationEnrollments = $currentEnrollments->isNotEmpty() ? $currentEnrollments : $enrollments;
+            $courseNames = $classificationEnrollments
+                ->map(fn ($enrollment) => mb_strtolower($enrollment->course?->name ?? ''));
+
+            $group = $courseNames->contains(fn (string $name): bool => str_contains($name, '電子ドラム') || str_contains($name, '別棟音楽室'))
+                ? 'electronic_drum'
+                : ($courseNames->contains(fn (string $name): bool => str_contains($name, 'studio34')) ? 'studio34' : 'other');
+
+            $studentsByCourse[$group]->push($student);
+        }
+
+        return view('staff.students.index', compact('students', 'studentsByCourse'));
     }
 
     public function show(
@@ -102,7 +147,8 @@ class StudentController extends Controller
         ]);
         $upcomingReservations = $studentProfile->reservationRequests()->with(['lessonSlot.course', 'lessonSlot.teacherProfile', 'lessonSlot.venue'])
             ->whereHas('lessonSlot', fn ($query) => $query->where('starts_at', '>=', now()))
-            ->latest('requested_at')->get();
+            ->orderBy(LessonSlot::query()->select('starts_at')->whereColumn('lesson_slots.id', 'reservation_requests.lesson_slot_id'))
+            ->get();
         $recentReservations = $studentProfile->reservationRequests()->with(['lessonSlot.course', 'attendanceNotice'])
             ->whereHas('lessonSlot', fn ($query) => $query->where('starts_at', '<', now()))
             ->latest('requested_at')->limit(20)->get();

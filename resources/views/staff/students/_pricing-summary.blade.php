@@ -1,5 +1,5 @@
 <section class="mt-8 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="student-pricing-title">
-    <div class="flex flex-wrap items-end justify-between gap-2"><div><p class="text-xs font-semibold tracking-widest text-amber-700">CURRENT PRICING</p><h2 id="student-pricing-title" class="mt-1 text-xl font-bold">契約料金目安</h2></div><a href="{{ route('staff.pricing-settings.index') }}" class="text-sm font-semibold text-amber-700">料金設定を確認 →</a></div>
+    <div class="flex flex-wrap items-end justify-between gap-2"><div><p class="text-xs font-semibold tracking-widest text-amber-700">現在の料金</p><h2 id="student-pricing-title" class="mt-1 text-xl font-bold">契約料金目安</h2></div><a href="{{ route('staff.pricing-settings.index') }}" class="text-sm font-semibold text-amber-700">料金設定を確認 →</a></div>
     @if ($hasInactiveFlexWarning)<p class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">2ヶ月以上レッスンがありません。</p>@endif
     <div class="mt-5 grid gap-3 lg:grid-cols-2">
         @forelse ($currentEnrollments as $enrollment)

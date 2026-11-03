@@ -39,47 +39,7 @@ class CreateTransferRequest
                 ->lockForUpdate()
                 ->findOrFail($originalReservation->id);
             $requestedSlot = $requestedLessonSlotId === null ? null : LessonSlot::query()->lockForUpdate()->findOrFail($requestedLessonSlotId);
-            if ($requestedSlot !== null) {
-                $this->availability->assertAvailable($requestedSlot, 'requested_lesson_slot_id', $lockedReservation->id);
-            }
-
-            if ($lockedReservation->student_profile_id !== $studentProfile->id
-                || $lockedReservation->status !== ReservationStatus::Approved) {
-                throw ValidationException::withMessages(['reservation' => '承認済みのご自身の予約だけ振替申請できます。']);
-            }
-
-            $this->terms->assertEligible($lockedReservation, $requestedSlot ?? $lockedReservation->lessonSlot, 'reservation');
-
-            $now = CarbonImmutable::now(config('app.timezone'));
-            if ($specialHandling && trim($reason ?? '') === '') {
-                throw ValidationException::withMessages(['reason' => '特例を希望する理由を入力してください。']);
-            }
-            if (! $specialHandling && $now->greaterThanOrEqualTo($lockedReservation->transferRequestDeadline())) {
-                throw ValidationException::withMessages(['reservation' => '振替申請期限（前日12:00）を過ぎています。']);
-            }
-
-            if ($requestedSlot !== null) {
-                if ($requestedSlot->id === $lockedReservation->lesson_slot_id) {
-                    throw ValidationException::withMessages(['requested_lesson_slot_id' => '元の予約とは別の枠を選択してください。']);
-                }
-
-                if ($requestedSlot->status !== LessonSlotStatus::Open || ! $requestedSlot->starts_at->isFuture() || ! $requestedSlot->booking_audience->acceptsRegular()) {
-                    throw ValidationException::withMessages(['requested_lesson_slot_id' => '選択した枠は現在予約できません。']);
-                }
-
-                if ($requestedSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count() >= $requestedSlot->capacity) {
-                    throw ValidationException::withMessages(['requested_lesson_slot_id' => '選択した枠は満席です。']);
-                }
-
-                if ($studentProfile->reservationRequests()->where('lesson_slot_id', $requestedSlot->id)->exists()) {
-                    throw ValidationException::withMessages(['requested_lesson_slot_id' => '選択した枠にはすでに予約履歴があります。']);
-                }
-
-            }
-
-            if ($lockedReservation->transferRequests()->where('status', ApplicationStatus::Pending)->exists()) {
-                throw ValidationException::withMessages(['reservation' => 'この予約には承認待ちの振替申請があります。']);
-            }
+            $this->assertCanRequest($studentProfile, $lockedReservation, $requestedSlot, $reason, $specialHandling);
 
             return TransferRequest::create([
                 'student_profile_id' => $studentProfile->id,
@@ -95,5 +55,53 @@ class CreateTransferRequest
         $this->notifications->transferSubmitted($transferRequest);
 
         return $transferRequest;
+    }
+
+    public function assertCanRequest(
+        StudentProfile $studentProfile,
+        ReservationRequest $originalReservation,
+        ?LessonSlot $requestedSlot,
+        ?string $reason,
+        bool $specialHandling = false,
+    ): void {
+        if ($originalReservation->student_profile_id !== $studentProfile->id
+            || $originalReservation->status !== ReservationStatus::Approved) {
+            throw ValidationException::withMessages(['reservation' => '承認済みのご自身の予約だけ振替申請できます。予約がキャンセル済みの場合は申請できません。']);
+        }
+
+        $this->terms->assertEligible($originalReservation, $requestedSlot ?? $originalReservation->lessonSlot, 'reservation');
+
+        $now = CarbonImmutable::now(config('app.timezone'));
+        if ($specialHandling && trim($reason ?? '') === '') {
+            throw ValidationException::withMessages(['reason' => '特例を希望する場合は理由を入力してください。']);
+        }
+        if (! $specialHandling && $now->greaterThanOrEqualTo($originalReservation->transferRequestDeadline())) {
+            throw ValidationException::withMessages(['reservation' => '振替申請期限（前日12:00）を過ぎています。期限後の振替は申請できません。']);
+        }
+
+        if ($requestedSlot !== null) {
+            if ($requestedSlot->id === $originalReservation->lesson_slot_id) {
+                throw ValidationException::withMessages(['requested_lesson_slot_id' => '元の予約とは別の枠を選択してください。']);
+            }
+
+            if ($requestedSlot->status !== LessonSlotStatus::Open || ! $requestedSlot->starts_at->isFuture() || ! $requestedSlot->booking_audience->acceptsRegular()) {
+                throw ValidationException::withMessages(['requested_lesson_slot_id' => '選択した枠は現在予約できません。空き枠を選び直してください。']);
+            }
+
+            if ($requestedSlot->exists) {
+                $this->availability->assertAvailable($requestedSlot, 'requested_lesson_slot_id', $originalReservation->id);
+                if ($requestedSlot->reservationRequests()->where('status', ReservationStatus::Approved)->count() >= $requestedSlot->capacity) {
+                    throw ValidationException::withMessages(['requested_lesson_slot_id' => '選択した枠は満席です。空き枠を選び直してください。']);
+                }
+
+                if ($studentProfile->reservationRequests()->where('lesson_slot_id', $requestedSlot->id)->exists()) {
+                    throw ValidationException::withMessages(['requested_lesson_slot_id' => '選択した枠にはすでに予約履歴があります。']);
+                }
+            }
+        }
+
+        if ($originalReservation->transferRequests()->where('status', ApplicationStatus::Pending)->exists()) {
+            throw ValidationException::withMessages(['reservation' => 'この予約には承認待ちの振替申請があります。']);
+        }
     }
 }

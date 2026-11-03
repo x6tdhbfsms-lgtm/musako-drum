@@ -10,18 +10,16 @@
 <body class="min-h-screen bg-stone-50 text-stone-900 antialiased">
     <header class="border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur">
         <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <a href="/" class="flex items-center gap-3">
+            <a href="{{ auth()->check() ? (auth()->user()->role === App\Enums\UserRole::Student ? route('student.dashboard') : route('staff.dashboard')) : route('home') }}" class="flex items-center gap-3">
                 <span class="grid size-10 place-items-center rounded-2xl bg-amber-400 text-xl shadow-sm">🥁</span>
                 <span><strong class="block text-sm tracking-wide">MUSAKO</strong><span class="text-xs text-stone-500">ドラム教室</span></span>
             </a>
             @auth
                 <nav class="flex flex-wrap items-center justify-end gap-2 text-sm">
-                    <span class="rounded-full bg-stone-100 px-3 py-2 text-xs font-semibold">{{ ['admin' => '管理者', 'teacher' => '講師', 'student' => '生徒'][auth()->user()->role->value] }}：{{ auth()->user()->role->value === 'teacher' ? (auth()->user()->teacherProfile?->display_name ?? auth()->user()->name) : auth()->user()->name }}</span>
                     @if (auth()->user()->role->value === 'student')
                         <a href="{{ route('student.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">カレンダー</a>
                         <a href="{{ route('student.reservations.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン一覧</a>
                         <a href="{{ route('student.dashboard') }}#student-procedures" class="rounded-full px-3 py-2 hover:bg-stone-100">各種手続き</a>
-                        <a href="{{ route('student.invoices.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">ご請求</a>
                     @else
                         <a href="{{ route('staff.dashboard') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">Home</a>
                         <a href="{{ route('staff.lesson-slots.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">レッスン一覧</a>

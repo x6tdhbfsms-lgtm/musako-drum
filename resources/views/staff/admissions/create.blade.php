@@ -4,12 +4,12 @@
 <div class="mx-auto max-w-4xl space-y-6">
 <a href="{{ route('staff.students.index') }}" class="text-sm font-bold text-amber-700">← 生徒一覧</a>
 <h1 class="text-2xl font-bold">新規生徒登録</h1>
-<p class="text-sm text-stone-600">体験を経由せず入会登録できます。登録すると生徒アカウントと契約を作成します。ログイン名とパスワードを生徒へ直接お伝えください。月2回は第1・第3週、月4回は第1〜4週が標準です。電子ドラム30分・45分ではキッズ料金も選択できます。</p>
+<p class="text-sm text-stone-600">体験を経由せず入会登録できます。登録すると生徒アカウントと契約を作成します。ログイン名は登録時に自動発行されます。月2回は第1・第3週、月4回は第1〜4週が標準です。電子ドラム30分・45分ではキッズ料金も選択できます。</p>
 <form data-staff-admission method="post" action="{{ route('staff.admission-applications.store') }}" class="space-y-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8">@csrf
 @if ($errors->any())<div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 <div class="grid gap-5 sm:grid-cols-2">
 <label class="grid gap-2 text-sm font-semibold">氏名<input name="name" required maxlength="100" value="{{ old('name') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
-<label class="grid gap-2 text-sm font-semibold">ログイン名<input name="login_name" required minlength="3" maxlength="64" autocomplete="off" value="{{ old('login_name') }}" class="min-h-12 rounded-xl border border-stone-300 px-3"><span class="text-xs font-normal text-stone-500">半角英数字・ハイフン・アンダーバー（3〜64文字）。氏名とは別に設定します。</span></label>
+<div class="grid content-start gap-2 text-sm"><span class="font-semibold">ログイン名</span><p class="min-h-12 rounded-xl border border-stone-200 bg-stone-50 px-3 py-3 font-mono">{{ $suggestedLoginName }}（登録時に自動採番）</p><span class="text-xs text-stone-500">現在の候補です。登録時に重複を再確認して確定します。</span></div>
 <label class="grid gap-2 text-sm font-semibold">パスワード<input type="password" name="password" required minlength="12" maxlength="72" autocomplete="new-password" class="min-h-12 rounded-xl border border-stone-300 px-3"><span class="text-xs font-normal text-stone-500">12文字以上</span></label>
 <label class="grid gap-2 text-sm font-semibold">パスワード（確認）<input type="password" name="password_confirmation" required minlength="12" maxlength="72" autocomplete="new-password" class="min-h-12 rounded-xl border border-stone-300 px-3"></label>
 <label class="grid gap-2 text-sm font-semibold">コース<select name="course_id" required class="min-h-12 rounded-xl border border-stone-300 bg-white px-3">@foreach ($courses as $course)<option data-minutes="{{ $course->default_lesson_minutes }}" data-room="{{ str_contains($course->code, 'ELECTRONIC-') ? 'music_room' : 'studio34' }}" value="{{ $course->id }}" @selected(old('course_id', $defaultCourse?->id) == $course->id)>{{ $course->name }}</option>@endforeach</select></label>

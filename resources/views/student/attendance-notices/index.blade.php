@@ -20,7 +20,7 @@
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h2 class="text-lg font-bold">{{ $reservation->lessonSlot->starts_at->format('Y年n月j日 H:i') }}〜{{ $reservation->lessonSlot->ends_at->format('H:i') }}</h2>
-                        <p class="mt-1 text-sm text-stone-600">{{ $reservation->lessonSlot->teacherProfile->display_name }} · {{ $reservation->lessonSlot->venue?->name ?? '会場未定' }}</p>
+                        <p class="mt-1 text-sm text-stone-600">{{ $reservation->lessonSlot->venue?->name ?? '会場未定' }}</p>
                     </div>
                     @if ($notice)
                         <span class="self-start rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">連絡済み・更新可能</span>
