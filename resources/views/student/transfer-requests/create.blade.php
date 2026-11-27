@@ -3,6 +3,8 @@
 @section('content')
 @php
     $today = \Carbon\CarbonImmutable::now(config('app.timezone'));
+    $transferDeadline = $reservationRequest->transferRequestDeadline();
+    $transferDeadlinePassed = $today->greaterThanOrEqualTo($transferDeadline);
     $firstWeek = $today->startOfWeek(\Carbon\CarbonInterface::MONDAY);
     $lastWeek = $today->addMonthNoOverflow()->startOfWeek(\Carbon\CarbonInterface::MONDAY);
     $weeks = collect();
@@ -13,13 +15,16 @@
     $timeStep = $availableSlots->contains(fn ($slot) => $slot->starts_at->minute % 30 !== 0) ? 15 : 30;
     $weekdayNames = ['日', '月', '火', '水', '木', '金', '土'];
 @endphp
-<div data-transfer-calendar>
+<div data-transfer-calendar data-transfer-deadline-passed="{{ $transferDeadlinePassed ? 'true' : 'false' }}">
     <h1 class="text-2xl font-bold sm:text-3xl">週間の空き枠から振替先を選択</h1>
-    <p class="mt-2 text-sm text-stone-600">希望の日時の空き枠を選び、会場を確認してください。会場が変わる場合は、講師の移動時間15分を確保できる枠だけ表示されます。正式な申請期限は元レッスン前日の12:00です。生徒様の送信は希望受付となり、講師が確定した日時で期限・追加料金を判定します。</p>
-<aside class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>レッスン予定日より4日を切ってのご申請は、振替料金1,000円が発生します（電子ドラムコースの前日申請は、現在の規約では追加なし）。</p><p class="mt-2 font-semibold">前日のお昼12:00以降は通常の振替申請ができません。</p><p class="mt-2">料金・期限は講師が正式に確定した日時で判定します。自然災害などの特例は先生へご相談ください。</p></aside>
-    <p class="mt-3 text-sm">このレッスンは{{ $reservationRequest->lessonSlot->starts_at->copy()->subDays(3)->format('n月j日') }}から直前振替料金の対象です。電子ドラムの前日申請は除きます。</p>
-    <p class="mt-3 text-sm font-semibold">このレッスンの通常申請受付：{{ $reservationRequest->transferRequestDeadline()->format('Y年n月j日 H:i') }}より前まで</p>
-    @if (now()->greaterThanOrEqualTo($reservationRequest->transferRequestDeadline()))<p role="alert" class="mt-2 text-sm font-bold text-red-700">通常の申請期限を過ぎています。特例のご相談は先生の確認が必要です。</p>@endif
+    <aside data-transfer-policy hidden role="alert" aria-live="assertive" class="mt-4 rounded-xl border-2 border-red-300 bg-red-50 p-4 text-sm text-red-900">
+        <h2 class="font-bold">振替申請の期限・料金をご確認ください</h2>
+        <p class="mt-2">レッスン予定日より4日を切って送信すると、振替料金1,000円が発生します（電子ドラムコースの前日申請は追加なし）。</p>
+        <p class="mt-2 font-semibold">このレッスンは{{ $reservationRequest->lessonSlot->starts_at->copy()->subDays(3)->format('n月j日') }}から直前振替料金の対象です。電子ドラムの前日申請は除きます。</p>
+        <p class="mt-2 rounded-lg bg-white p-3 text-base font-extrabold text-red-800">通常の申請受付期限：{{ $transferDeadline->format('Y年n月j日 H:i') }}より前</p>
+        @if ($transferDeadlinePassed)<p class="mt-2 font-bold">通常の振替申請期限を過ぎています。通常申請はできません。特例は先生へご相談ください。</p>@else<p class="mt-2 font-semibold">前日のお昼12:00以降は通常の振替申請ができません。</p>@endif
+        <p class="mt-2">申請を送信した時点で受付完了となり、料金・期限は送信日時で判定します。自然災害などの特例は先生へご相談ください。</p>
+    </aside>
     @if ($errors->any())
         <div role="alert" class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>
     @endif
@@ -35,10 +40,11 @@
             <h2 class="font-bold text-violet-900">希望の日が空いていない・まだ日程が決まらない場合</h2>
             <p class="mt-2 text-sm text-stone-700">日付を選ばず保留を申請できます。先生の承認後に元の予約が外れ、日程保留中になります。翌月以降の日程も先生が後から設定できます。休会・退会月以降への繰越はできません。</p>
             <button name="defer_schedule" value="1" formnovalidate class="mt-3 min-h-12 rounded-xl bg-violet-700 px-5 font-bold text-white">振替日を保留して申請する</button>
-            <p class="mt-2 text-xs text-stone-600">期限・追加料金は先生が保留を承認した日時で判定します。理由・備考は下の欄に入力できます。</p>
+            <p class="mt-2 text-xs text-stone-600">送信をもって受付完了となり、期限・追加料金は送信日時で判定します。理由・備考は下の欄に入力できます。</p>
         </section>
         <fieldset class="min-w-0">
-            <legend class="font-bold">予約可能な振替先</legend>
+            <legend class="font-bold">予約可能な振替先（第三希望まで選択できます）</legend>
+            <p class="mt-2 text-xs text-stone-600">選択した順に第一希望・第二希望・第三希望として先生に届きます。</p>
             <nav data-week-controls hidden aria-label="表示する週を変更" class="mt-4 flex items-center justify-between gap-2">
                 <button type="button" data-week-prev class="min-h-11 shrink-0 rounded-xl border border-stone-300 px-3 disabled:opacity-40">前の週</button>
                 <span data-week-heading role="status" class="text-center text-sm font-semibold"></span>

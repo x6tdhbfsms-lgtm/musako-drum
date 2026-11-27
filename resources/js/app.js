@@ -8,12 +8,14 @@ document.querySelectorAll('[data-calendar-date]').forEach((input) => {
 
 document.querySelectorAll('[data-transfer-calendar]').forEach((calendar) => {
     const weeks = [...calendar.querySelectorAll('[data-transfer-week]')];
-    const radios = [...calendar.querySelectorAll('[name="requested_starts_at"]')];
+    const choices = [...calendar.querySelectorAll('[name="requested_starts_at[]"]')];
     const previous = calendar.querySelector('[data-week-prev]');
     const next = calendar.querySelector('[data-week-next]');
     const heading = calendar.querySelector('[data-week-heading]');
     const summary = calendar.querySelector('[data-transfer-selection]');
     const submit = calendar.querySelector('[data-transfer-submit]');
+    const policy = calendar.querySelector('[data-transfer-policy]');
+    const deadlinePassed = calendar.dataset.transferDeadlinePassed === 'true';
     const selectionPopup = calendar.querySelector('[data-transfer-selection-popup]');
     calendar.querySelector('[data-transfer-popup-close]').addEventListener('click', () => {
         selectionPopup.hidden = true;
@@ -25,8 +27,6 @@ document.querySelectorAll('[data-transfer-calendar]').forEach((calendar) => {
         calendar.querySelector('[data-transfer-reason-label]').textContent = specialHandling.checked
             ? '特例の理由（必須）' : '理由（任意）';
     };
-    specialHandling.addEventListener('change', updateReasonRequirement);
-    updateReasonRequirement();
     let weekIndex = 0;
 
     const showWeek = (index) => {
@@ -37,21 +37,32 @@ document.querySelectorAll('[data-transfer-calendar]').forEach((calendar) => {
         heading.textContent = weeks[index].dataset.weekTitle;
     };
     const updateSelection = () => {
-        const selected = radios.find((radio) => radio.checked);
-        submit.disabled = !selected;
-        selectionPopup.hidden = !selected;
-        calendar.querySelector('[data-transfer-popup-time]').textContent = selected?.dataset.slotTime ?? '';
-        calendar.querySelector('[data-transfer-popup-venue]').textContent = selected?.dataset.slotVenue ?? '';
-        summary.textContent = selected
-            ? '選択中：' + selected.dataset.slotSummary
+        const selected = choices.filter((choice) => choice.checked);
+        choices.forEach((choice) => {
+            const order = selected.indexOf(choice);
+            choice.closest('label').querySelector('[data-slot-priority]').textContent = order < 0 ? '' : `第${order + 1}希望 · `;
+            choice.disabled = !choice.checked && selected.length >= 3;
+        });
+        submit.disabled = selected.length === 0 || (deadlinePassed && !specialHandling.checked);
+        policy.hidden = selected.length === 0;
+        selectionPopup.hidden = selected.length === 0;
+        calendar.querySelector('[data-transfer-popup-time]').textContent = selected.map((choice, index) => `第${index + 1}希望：${choice.dataset.slotTime}`).join(' ／ ');
+        calendar.querySelector('[data-transfer-popup-venue]').textContent = selected.map((choice) => choice.dataset.slotVenue).join(' ／ ');
+        summary.textContent = selected.length
+            ? '選択中：' + selected.map((choice, index) => `第${index + 1}希望 ${choice.dataset.slotSummary}`).join('　｜　')
             : '週間の表から希望の空き枠を選択してください。';
     };
+    specialHandling.addEventListener('change', () => {
+        updateReasonRequirement();
+        updateSelection();
+    });
+    updateReasonRequirement();
 
     calendar.querySelector('[data-week-controls]').hidden = false;
     previous.addEventListener('click', () => showWeek(Math.max(0, weekIndex - 1)));
     next.addEventListener('click', () => showWeek(Math.min(weeks.length - 1, weekIndex + 1)));
-    radios.forEach((radio) => radio.addEventListener('change', updateSelection));
-    const selectedWeek = radios.find((radio) => radio.checked)?.closest('[data-transfer-week]');
+    choices.forEach((choice) => choice.addEventListener('change', updateSelection));
+    const selectedWeek = choices.find((choice) => choice.checked)?.closest('[data-transfer-week]');
     showWeek(Math.max(0, weeks.indexOf(selectedWeek)));
     updateSelection();
 });

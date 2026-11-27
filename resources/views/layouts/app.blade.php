@@ -48,6 +48,7 @@
                         </details>
                     @endif
                     @if (auth()->user()->role === App\Enums\UserRole::Admin)
+                    <a href="{{ route('staff.notifications.index') }}" class="rounded-full px-3 py-2 hover:bg-stone-100">通知一覧</a>
                     <a href="{{ route('login') }}" target="_blank" rel="noopener" class="rounded-full px-3 py-2 hover:bg-stone-100">別の区分でログイン ↗</a>
                     @endif
                     <form method="post" action="{{ route('logout') }}">@csrf<input type="hidden" name="portal" value="{{ auth()->user()->role->value === 'student' ? 'student' : 'staff' }}"><button class="rounded-full border border-stone-300 px-3 py-2 hover:bg-stone-100">ログアウト</button></form>

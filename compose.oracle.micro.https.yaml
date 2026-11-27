@@ -1,5 +1,8 @@
 # Apply after compose.oracle.micro.yaml; preserves x86/1GB and mail isolation.
 services:
+  app:
+    volumes:
+      - ./resources/views/staff/dashboard.blade.php:/var/www/html/resources/views/staff/dashboard.blade.php:ro
   web:
     ports: !override
       - '${ORACLE_BIND_IP:-0.0.0.0}:${ORACLE_HTTP_PORT:-80}:80'

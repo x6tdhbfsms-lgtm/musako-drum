@@ -118,18 +118,30 @@ class DeferredTransferTest extends TestCase
         $this->assertDatabaseCount('lesson_slots', 1);
     }
 
-    public function test_hold_requires_timely_teacher_approval_and_rejection_preserves_original(): void
+    public function test_hold_approval_after_deadline_uses_submission_time_and_rejection_preserves_original(): void
     {
         Notification::fake();
         $original = $this->original();
         $this->actingAs($original->studentProfile->user)->post(route('student.transfer-requests.store', $original), ['defer_schedule' => 1])->assertSessionHasNoErrors();
         $transfer = TransferRequest::sole();
         $this->travelTo('2026-11-09 12:00:01');
-        $this->actingAs($original->lessonSlot->teacherProfile->user)->patch(route('staff.transfer-requests.update', $transfer), ['decision' => 'approved'])->assertSessionHasErrors('transfer_request');
-        $this->assertSame(ReservationStatus::Approved, $original->fresh()->status);
-        $this->patch(route('staff.transfer-requests.update', $transfer), ['decision' => 'rejected'])->assertSessionHasNoErrors();
-        $this->assertSame(ReservationStatus::Approved, $original->fresh()->status);
-        $this->assertSame(ApplicationStatus::Rejected, $transfer->fresh()->status);
+        $this->actingAs($original->lessonSlot->teacherProfile->user)
+            ->patch(route('staff.transfer-requests.update', $transfer), ['decision' => 'approved'])
+            ->assertSessionHasNoErrors();
+        $this->assertTrue($transfer->fresh()->isAwaitingSchedule());
+        $this->assertSame('2026-11-01T10:00:00+09:00', $transfer->fresh()->terms_snapshot['formalized_at']);
+        $this->assertSame(ReservationStatus::Cancelled, $original->fresh()->status);
+
+        $rejectedOriginal = $this->original();
+        $this->actingAs($rejectedOriginal->studentProfile->user)
+            ->post(route('student.transfer-requests.store', $rejectedOriginal), ['defer_schedule' => 1])
+            ->assertSessionHasNoErrors();
+        $rejectedTransfer = TransferRequest::query()->where('id', '!=', $transfer->id)->sole();
+        $this->actingAs($rejectedOriginal->lessonSlot->teacherProfile->user)
+            ->patch(route('staff.transfer-requests.update', $rejectedTransfer), ['decision' => 'rejected'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(ReservationStatus::Approved, $rejectedOriginal->fresh()->status);
+        $this->assertSame(ApplicationStatus::Rejected, $rejectedTransfer->fresh()->status);
     }
 
     public function test_electronic_45_minute_hold_can_start_at_quarter_past(): void

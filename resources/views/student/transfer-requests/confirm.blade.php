@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-3xl">
     <p class="text-sm font-semibold tracking-widest text-amber-700">TRANSFER REVIEW</p>
     <h1 class="mt-1 text-2xl font-bold sm:text-3xl">振替の最終確認</h1>
-    <p class="mt-2 text-sm text-stone-600">内容を確認して申請してください。申請後、先生の確認をもって正式に確定します。</p>
+    <p class="mt-2 text-sm text-stone-600">内容を確認して送信してください。送信をもって受付完了となり、料金・期限は送信日時で記録します。振替先は先生の確認後に確定します。</p>
 
     @if ($confirmationErrors->isNotEmpty())
         <div role="alert" class="mt-5 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-red-900">
@@ -15,6 +15,14 @@
     @if ($errors->any())
         <div role="alert" class="mt-5 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-red-900"><strong>申請できませんでした</strong><p class="mt-1 text-sm">{{ $errors->first() }}</p></div>
     @endif
+
+    <aside role="alert" class="mt-5 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-red-900">
+        <h2 class="font-extrabold">振替申請の期限・料金</h2>
+        <p class="mt-2">レッスン予定日より4日を切って送信すると、振替料金1,000円が発生します（電子ドラムコースの前日申請は追加なし）。</p>
+        <p class="mt-2 font-semibold">このレッスンは{{ $reservationRequest->lessonSlot->starts_at->copy()->subDays(3)->format('n月j日') }}から直前振替料金の対象です。電子ドラムの前日申請は除きます。</p>
+        <p class="mt-3 rounded-lg bg-white p-3 text-base font-extrabold text-red-800">通常の申請受付期限：{{ $reservationRequest->transferRequestDeadline()->format('Y年n月j日 H:i') }}より前</p>
+        <p class="mt-2">料金・期限はこの申請を送信した日時で判定します。自然災害などの特例は先生へご相談ください。</p>
+    </aside>
 
     <section class="mt-6 grid gap-4 sm:grid-cols-2">
         <article class="rounded-2xl bg-stone-900 p-5 text-white">
@@ -28,8 +36,15 @@
                 <h2 class="mt-2 font-bold">日程未定（保留を希望）</h2>
                 <p class="mt-2 text-sm text-stone-600">先生の承認後、日程が決まった時点で枠を設定します。</p>
             @else
-                <h2 class="mt-2 font-bold">{{ $target?->starts_at?->format('Y年n月j日 H:i') }}〜{{ $target?->ends_at?->format('H:i') }}</h2>
-                <p class="mt-2 text-sm text-stone-600">{{ $target?->venue?->name ?? '会場未定' }}</p>
+                @if ($targets->isNotEmpty())
+                    @foreach ($targets as $index => $choice)
+                        <p class="mt-2 font-bold">第{{ $index + 1 }}希望：{{ $choice->starts_at->format('Y年n月j日 H:i') }}〜{{ $choice->ends_at->format('H:i') }}</p>
+                        <p class="text-sm text-stone-600">{{ $choice->venue?->name ?? '会場未定' }}</p>
+                    @endforeach
+                @else
+                    <h2 class="mt-2 font-bold">{{ $target?->starts_at?->format('Y年n月j日 H:i') }}〜{{ $target?->ends_at?->format('H:i') }}</h2>
+                    <p class="mt-2 text-sm text-stone-600">{{ $target?->venue?->name ?? '会場未定' }}</p>
+                @endif
             @endif
         </article>
     </section>
@@ -45,7 +60,7 @@
             @endif
             <div class="flex justify-between gap-3 rounded-lg bg-amber-100 p-3"><dt>現在の規約での目安</dt><dd class="font-bold">{{ $quote['requires_review'] || is_null($quote['total']) ? '先生の確認が必要' : number_format($quote['total']).'円' }}</dd></div>
         </dl>
-        <p class="mt-3 text-xs text-stone-500">追加料金は先生が正式に確定した日時と理由で最終判定します。表示額は現在時点の目安です。電子ドラムの会場キャンセル料はかかりません。</p>
+        <p class="mt-3 text-xs text-stone-500">表示額はこの申請を送信した日時に基づく目安です。先生の確認後に振替先が確定します。電子ドラムの会場キャンセル料はかかりません。</p>
     </section>
 
     @if (!empty($data['reason']))<section class="mt-4 rounded-2xl bg-white p-5 shadow-sm"><h2 class="font-bold">申請理由</h2><p class="mt-2 whitespace-pre-wrap text-sm">{{ $data['reason'] }}</p></section>@endif
@@ -57,7 +72,9 @@
             <form method="post" action="{{ route('student.transfer-requests.store', $reservationRequest) }}">
                 @csrf
                 @if (!empty($data['defer_schedule']))<input type="hidden" name="defer_schedule" value="1">@else
-                    @if (!empty($data['requested_starts_at']))<input type="hidden" name="requested_starts_at" value="{{ $data['requested_starts_at'] }}">@else<input type="hidden" name="requested_lesson_slot_id" value="{{ $data['requested_lesson_slot_id'] }}">@endif
+                    @if (!empty($data['requested_starts_at']))
+                        @foreach ((array) $data['requested_starts_at'] as $time)<input type="hidden" name="requested_starts_at[]" value="{{ $time }}">@endforeach
+                    @else<input type="hidden" name="requested_lesson_slot_id" value="{{ $data['requested_lesson_slot_id'] }}">@endif
                 @endif
                 @if (!empty($data['special_handling']))<input type="hidden" name="special_handling" value="1">@endif
                 @if (!empty($data['reason']))<input type="hidden" name="reason" value="{{ $data['reason'] }}">@endif

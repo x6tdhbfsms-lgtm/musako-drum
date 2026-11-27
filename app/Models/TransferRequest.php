@@ -15,6 +15,7 @@ class TransferRequest extends Model
         'student_profile_id',
         'original_reservation_request_id',
         'requested_lesson_slot_id',
+        'requested_lesson_slot_ids',
         'resulting_reservation_request_id',
         'status',
         'reason',
@@ -30,6 +31,7 @@ class TransferRequest extends Model
     {
         return [
             'terms_snapshot' => 'array',
+            'requested_lesson_slot_ids' => 'array',
             'status' => ApplicationStatus::class,
             'requested_at' => 'datetime',
             'reviewed_at' => 'datetime',

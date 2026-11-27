@@ -99,15 +99,25 @@ class TransferRequestController extends Controller
 
         $reservationRequest->loadMissing(['studentProfile', 'lessonSlot.venue', 'lessonSlot.course', 'lessonEnrollment']);
         $target = null;
+        $targets = collect();
         $confirmationErrors = collect();
         try {
             if (! (bool) ($data['defer_schedule'] ?? false)) {
                 if (filled($data['requested_starts_at'] ?? null)) {
-                    $target = app(TransferCalendarAvailability::class)->slots($reservationRequest)
-                        ->first(fn (LessonSlot $slot) => $slot->starts_at->format('Y-m-d H:i') === $data['requested_starts_at']);
-                    if ($target === null) {
-                        throw ValidationException::withMessages(['requested_starts_at' => '選択した空き枠は現在利用できません。カレンダーから別の日時を選んでください。']);
+                    $requestedTimes = (array) $data['requested_starts_at'];
+                    $available = app(TransferCalendarAvailability::class)->slots($reservationRequest);
+                    foreach ($requestedTimes as $time) {
+                        $candidate = $available->first(fn (LessonSlot $slot) => $slot->starts_at->format('Y-m-d H:i') === $time);
+                        if ($candidate === null) {
+                            throw ValidationException::withMessages(['requested_starts_at' => '選択した空き枠は現在利用できません。カレンダーから別の日時を選んでください。']);
+                        }
+                        LessonOperatingHours::assertAllowed($candidate->starts_at, $candidate->ends_at, 'requested_starts_at');
+                        if ($candidate->starts_at->gt(today()->addMonthNoOverflow()->endOfDay())) {
+                            throw ValidationException::withMessages(['requested_starts_at' => '振替先は1か月先まで選択できます。']);
+                        }
+                        $targets->push($candidate);
                     }
+                    $target = $targets->first();
                 } else {
                     $target = LessonSlot::query()->with('venue')->find($data['requested_lesson_slot_id'] ?? null);
                     if ($target === null) {
@@ -147,7 +157,7 @@ class TransferRequestController extends Controller
         $canConfirm = $confirmationErrors->isEmpty();
 
         return view('student.transfer-requests.confirm', compact(
-            'reservationRequest', 'target', 'data', 'quote', 'canConfirm', 'confirmationErrors',
+            'reservationRequest', 'target', 'targets', 'data', 'quote', 'canConfirm', 'confirmationErrors',
         ));
     }
 
@@ -168,16 +178,23 @@ class TransferRequestController extends Controller
 
                 return;
             }
+            $slotIds = [];
             $slotId = $request->integer('requested_lesson_slot_id');
             if ($request->filled('requested_starts_at')) {
                 TeacherProfile::whereKey($reservationRequest->lessonSlot->teacher_profile_id)->lockForUpdate()->firstOrFail();
-                $candidate = app(TransferCalendarAvailability::class)->slots($reservationRequest)
-                    ->first(fn ($slot) => $slot->starts_at->format('Y-m-d H:i') === $request->input('requested_starts_at'));
-                if ($candidate === null) {
-                    throw ValidationException::withMessages(['requested_starts_at' => 'この日時は予約できなくなりました。空き時間を選び直してください。']);
+                $available = app(TransferCalendarAvailability::class)->slots($reservationRequest);
+                foreach ((array) $request->validated('requested_starts_at') as $time) {
+                    $candidate = $available->first(fn ($slot) => $slot->starts_at->format('Y-m-d H:i') === $time);
+                    if ($candidate === null) {
+                        throw ValidationException::withMessages(['requested_starts_at' => '選択した希望日時のいずれかが利用できなくなりました。空き時間を選び直してください。']);
+                    }
+                    LessonOperatingHours::assertAllowed($candidate->starts_at, $candidate->ends_at, 'requested_starts_at');
+                    if ($candidate->starts_at->gt(today()->addMonthNoOverflow()->endOfDay())) {
+                        throw ValidationException::withMessages(['requested_starts_at' => '振替先は1か月先まで選択できます。']);
+                    }
+                    $slotIds[] = LessonSlot::create($candidate->only(['teacher_profile_id', 'venue_id', 'course_id', 'starts_at', 'ends_at', 'capacity', 'status', 'booking_audience']))->id;
                 }
-                $slot = LessonSlot::create($candidate->only(['teacher_profile_id', 'venue_id', 'course_id', 'starts_at', 'ends_at', 'capacity', 'status', 'booking_audience']));
-                $slotId = $slot->id;
+                $slotId = $slotIds[0];
             }
             $target = LessonSlot::findOrFail($slotId);
             LessonOperatingHours::assertAllowed($target->starts_at, $target->ends_at, 'requested_starts_at');
@@ -191,16 +208,17 @@ class TransferRequestController extends Controller
                 $request->validated('reason'),
                 $request->validated('student_note'),
                 $request->boolean('special_handling'),
+                $slotIds,
             );
         }, 3);
 
         if ($user->role === UserRole::Student) {
             $request->session()->forget($this->confirmationSessionKey($user->id, $reservationRequest->id));
 
-            return redirect()->route('student.reservations.index')->with('success', '振替申請を受け付けました。レッスン一覧に「振替申請中」と表示しています。先生の確認後に正式確定します。');
+            return redirect()->route('student.reservations.index')->with('success', '振替申請の受付が完了しました。料金・期限は送信日時で記録し、先生の確認後に振替先が確定します。レッスン一覧に「振替申請中」と表示しています。');
         }
 
-        return redirect()->route('staff.transfer-requests.index')->with('success', '振替希望を受け付けました。講師の確定により正式となります。');
+        return redirect()->route('staff.transfer-requests.index')->with('success', '振替申請を受け付けました。料金・期限は申請時点で記録し、先生の確認後に振替先が確定します。');
     }
 
     private function confirmationSessionKey(int $userId, int $reservationId): string

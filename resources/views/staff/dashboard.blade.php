@@ -8,6 +8,11 @@
 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p class="text-sm font-semibold tracking-widest text-amber-700">STAFF SCHEDULE</p><h1 class="mt-1 text-2xl font-bold sm:text-4xl">レッスンスケジュール</h1><p class="mt-2 text-sm text-stone-600">予約・振替・出欠状況をカレンダーでまとめて確認できます。</p></div><a href="{{ route('staff.lesson-slots.create') }}" class="inline-flex min-h-12 items-center justify-center rounded-xl bg-stone-900 px-5 font-semibold text-white">＋ レッスン枠を作成</a></div>
 @if ($errors->any())<div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>@endif
 
+@if ($notificationSummary)<a href="{{ route('staff.notifications.index') }}" class="mt-5 grid gap-3 rounded-2xl border {{ $notificationSummary['upcoming_pause_deadlines'] > 0 ? 'border-red-300 bg-red-50' : 'border-amber-200 bg-amber-50' }} p-4 shadow-sm transition hover:border-amber-400 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5" aria-label="通知一覧を開く">
+    <div><div class="flex items-center gap-2"><h2 class="text-lg font-bold">通知一覧</h2>@if ($notificationSummary['pending_requests'] + $notificationSummary['upcoming_pause_deadlines'] > 0)<span class="grid size-7 place-items-center rounded-full bg-red-600 text-sm font-black text-white">{{ min(99, $notificationSummary['pending_requests'] + $notificationSummary['upcoming_pause_deadlines']) }}</span>@endif</div><p class="mt-1 text-sm text-stone-600">生徒の申請と休会期限をまとめて確認できます。</p></div>
+    <div class="grid grid-cols-2 gap-2 text-center"><span class="rounded-xl bg-white/80 px-4 py-2 text-sm font-semibold">申請・問い合わせ<strong class="ml-2 text-lg">{{ $notificationSummary['pending_requests'] }}</strong></span><span class="rounded-xl bg-white/80 px-4 py-2 text-sm font-semibold {{ $notificationSummary['upcoming_pause_deadlines'] > 0 ? 'text-red-800' : '' }}">休会期限<strong class="ml-2 text-lg">{{ $notificationSummary['upcoming_pause_deadlines'] }}</strong></span></div>
+</a>@endif
+
 <section class="mt-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5" aria-label="カレンダー操作">
     <form method="get" action="{{ route('staff.dashboard') }}" class="grid gap-3 md:grid-cols-2 lg:grid-cols-4"><input type="hidden" name="view" value="{{ $calendarView }}"><input type="hidden" name="date" value="{{ $calendarRange->focus->format('Y-m-d') }}">
         <label class="grid min-w-0 gap-1 text-xs font-semibold text-stone-600 lg:col-span-2">会場<select name="venue_id" class="min-h-11 min-w-0 w-full rounded-xl border border-stone-300 bg-white px-3 text-sm"><option value="">すべての会場</option>@foreach ($venues as $venue)<option value="{{ $venue->id }}" @selected((string) $venueFilterId === (string) $venue->id)>{{ $venue->name }}</option>@endforeach</select></label>
@@ -44,6 +49,21 @@
         @if ($calendarView === 'month')<div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm"><div class="grid grid-cols-7 text-center text-[11px] font-semibold text-stone-400">@foreach (['日','月','火','水','木','金','土'] as $dayName)<span class="py-1">{{ $dayName }}</span>@endforeach</div><div class="mt-1 grid grid-cols-7 gap-1">@foreach ($calendarDays as $day)<a href="{{ route('staff.dashboard', ['view' => 'day', 'date' => $day->format('Y-m-d'), ...$filterQuery]) }}" class="relative grid min-h-11 place-items-center rounded-xl text-sm font-semibold {{ $day->isToday() ? 'bg-stone-900 text-white' : ($day->month === $calendarRange->focus->month ? 'hover:bg-stone-100' : 'text-stone-300') }}">{{ $day->day }}@if ($calendarSlotsByDay->has($day->format('Y-m-d')))<span class="absolute bottom-1 size-1 rounded-full bg-amber-500"></span>@endif</a>@endforeach</div></div><p class="mt-3 text-center text-sm text-stone-500">日付を選ぶと当日の時間割を表示します。</p>
         @else<div class="grid gap-5">@forelse ($calendarSlotsByDay as $date => $daySlots)<section><div class="flex items-center justify-between"><h3 class="font-bold">{{ $daySlots->first()->starts_at->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$daySlots->first()->starts_at->dayOfWeek] }}）</h3><a href="{{ route('staff.lesson-slots.create', ['starts_at' => $date.'T'.sprintf('%02d:00', \App\Services\LessonOperatingHours::hours($daySlots->first()->starts_at)[0])]) }}" class="text-sm font-semibold text-amber-700">＋ 枠作成</a></div><div class="mt-2 grid gap-3">@foreach ($daySlots as $slot) @include('staff.calendar._slot', ['slot' => $slot, 'compact' => false]) @endforeach</div></section>@empty<div class="rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center text-stone-500">この期間のレッスン枠はありません。</div>@endforelse</div>@endif
     </div>
+</section>
+
+<section class="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm" aria-labelledby="studio34-availability-title">
+    <div class="p-4 sm:p-5">
+        <h2 id="studio34-availability-title" class="text-lg font-bold">studio34 空き状況</h2>
+        <p class="mt-1 text-sm text-stone-600">スタジオの空き状況を確認できます。</p>
+    </div>
+    <iframe
+        src="https://studio34.mermaid-co.jp/availability/embed"
+        title="studio34の空き状況カレンダー"
+        class="block w-full border-0"
+        style="height:460px;"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+    ></iframe>
 </section>
 
 <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="重要なお知らせ">

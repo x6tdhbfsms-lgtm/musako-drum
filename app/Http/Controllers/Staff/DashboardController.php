@@ -23,6 +23,7 @@ use App\Models\TeacherProfile;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\Venue;
+use App\Services\AdminNotificationFeed;
 use App\Services\LessonOperatingHours;
 use App\Support\CalendarRange;
 use Carbon\CarbonImmutable;
@@ -30,7 +31,7 @@ use Illuminate\Contracts\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(StaffCalendarRequest $request): View
+    public function __invoke(StaffCalendarRequest $request, AdminNotificationFeed $notificationFeed): View
     {
         $validated = $request->validated();
         $calendarView = $validated['view'] ?? 'week';
@@ -179,6 +180,7 @@ class DashboardController extends Controller
                 'overdue' => $billingInvoices->filter->is_overdue->count(),
                 'outstanding' => $billingInvoices->where('status', MonthlyInvoiceStatus::Confirmed)->sum(fn ($invoice) => $invoice->remaining_amount),
             ] : null,
+            'notificationSummary' => $user->role === UserRole::Admin ? $notificationFeed->summary() : null,
         ]);
     }
 }

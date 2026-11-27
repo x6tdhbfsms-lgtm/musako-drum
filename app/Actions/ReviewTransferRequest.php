@@ -34,8 +34,9 @@ class ReviewTransferRequest
         ApplicationStatus $decision,
         ?string $staffNote,
         string $cause = 'student',
+        ?int $selectedLessonSlotId = null,
     ): TransferRequest {
-        $reviewedTransfer = DB::transaction(function () use ($transferRequest, $reviewer, $decision, $staffNote, $cause): TransferRequest {
+        $reviewedTransfer = DB::transaction(function () use ($transferRequest, $reviewer, $decision, $staffNote, $cause, $selectedLessonSlotId): TransferRequest {
             StudentProfile::query()->lockForUpdate()->findOrFail($transferRequest->student_profile_id);
             $lockedTransfer = TransferRequest::query()->lockForUpdate()->findOrFail($transferRequest->id);
 
@@ -52,6 +53,15 @@ class ReviewTransferRequest
                 ]);
 
                 return $lockedTransfer->refresh();
+            }
+
+            if ($selectedLessonSlotId !== null) {
+                $candidateIds = $lockedTransfer->requested_lesson_slot_ids ?: [$lockedTransfer->requested_lesson_slot_id];
+                if (! in_array($selectedLessonSlotId, array_map('intval', array_filter($candidateIds)), true)) {
+                    throw ValidationException::withMessages(['selected_lesson_slot_id' => '申請された希望日時の中から確定先を選択してください。']);
+                }
+                $lockedTransfer->requested_lesson_slot_id = $selectedLessonSlotId;
+                $lockedTransfer->save();
             }
 
             $originalReservation = ReservationRequest::query()->lockForUpdate()->findOrFail($lockedTransfer->original_reservation_request_id);
@@ -76,17 +86,17 @@ class ReviewTransferRequest
             if ($cause !== 'student' && trim($staffNote ?? '') === '') {
                 throw ValidationException::withMessages(['staff_note' => '講師都合・災害等の特例は理由を記録してください。']);
             }
-            $formalizedAt = CarbonImmutable::now(config('app.timezone'));
-            if ($cause === 'student' && $formalizedAt->gte($originalReservation->transferRequestDeadline())) {
-                throw ValidationException::withMessages(['transfer_request' => '正式な申請期限（前日12:00）を過ぎています。講師の確定日時で判定します。']);
-            }
+            $submittedAt = CarbonImmutable::instance($lockedTransfer->requested_at)->setTimezone(config('app.timezone'));
 
             $this->terms->assertEligible($originalReservation, $requestedSlot ?? $originalReservation->lessonSlot, 'transfer_request');
             if ($requestedSlot === null) {
                 if ($originalReservation->studio_fee_amount === null || $originalReservation->studio_fee_priced_on === null) {
                     throw ValidationException::withMessages(['transfer_request' => '元予約のスタジオ料金記録が未設定です。管理者による確認が必要です。']);
                 }
-                $snapshot = $this->terms->quote($lockedTransfer, $formalizedAt, $cause);
+                $snapshot = $lockedTransfer->terms_snapshot && $cause === 'student'
+                    ? $lockedTransfer->terms_snapshot
+                    : $this->terms->quote($lockedTransfer, $submittedAt, $cause);
+                $snapshot['basis'] = 'request_submission';
                 $snapshot['exception_reason'] = $cause === 'student' ? null : $staffNote;
                 $snapshot['deferred_studio_fee_amount'] = $originalReservation->studio_fee_amount;
                 $snapshot['deferred_studio_fee_priced_on'] = $originalReservation->studio_fee_priced_on->toDateString();
@@ -125,7 +135,10 @@ class ReviewTransferRequest
                 ]);
             }
 
-            $termsSnapshot = $this->terms->quote($lockedTransfer, $formalizedAt, $cause);
+            $termsSnapshot = $lockedTransfer->terms_snapshot && $cause === 'student'
+                ? $lockedTransfer->terms_snapshot
+                : $this->terms->quote($lockedTransfer, $submittedAt, $cause);
+            $termsSnapshot['basis'] = 'request_submission';
             $termsSnapshot['exception_reason'] = $cause === 'student' ? null : $staffNote;
             $targetFee = match ($requestedSlot->venue?->termsRoomType()) {
                 'music_room' => 1000,

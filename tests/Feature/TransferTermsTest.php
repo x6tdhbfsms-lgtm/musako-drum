@@ -38,10 +38,10 @@ class TransferTermsTest extends TestCase
     {
         return [
             'one week' => ['2026-09-13 23:59:59', 0],
-            'six days' => ['2026-09-14 00:00:00', 805],
-            'two days' => ['2026-09-18 23:59:59', 805],
+            'six days' => ['2026-09-14 00:00:00', 0],
+            'two days' => ['2026-09-18 23:59:59', 0],
             'previous day' => ['2026-09-19 00:00:00', 1610],
-            'same day' => ['2026-09-20 10:00:00', 1610],
+            'same day' => ['2026-09-20 10:00:00', 0],
         ];
     }
 
@@ -126,8 +126,8 @@ class TransferTermsTest extends TestCase
         $transfer = $this->transfer();
         $quote = app(TransferTermsService::class)->quote($transfer, CarbonImmutable::parse('2026-09-17 10:00'));
 
-        $this->assertSame(['studio_cancellation' => 805, 'late_transfer' => 1000, 'excess_lesson' => 0, 'excess_surcharge' => 0], $quote['components']);
-        $this->assertSame(1805, $quote['total']);
+        $this->assertSame(['studio_cancellation' => 0, 'late_transfer' => 1000, 'excess_lesson' => 0, 'excess_surcharge' => 0], $quote['components']);
+        $this->assertSame(1000, $quote['total']);
     }
 
     public function test_seventh_transfer_adds_one_lesson_and_two_thousand_separately(): void
@@ -142,7 +142,7 @@ class TransferTermsTest extends TestCase
         $this->assertSame(6, $quote['used_before']);
         $this->assertSame(4000, $quote['components']['excess_lesson']);
         $this->assertSame(2000, $quote['components']['excess_surcharge']);
-        $this->assertSame(7805, $quote['total']);
+        $this->assertSame(7000, $quote['total']);
     }
 
     public function test_teacher_transfers_do_not_count_toward_the_allowance(): void
@@ -159,17 +159,23 @@ class TransferTermsTest extends TestCase
         $this->assertSame(0, $quote['total']);
     }
 
-    public function test_early_student_contact_does_not_bypass_the_formal_deadline(): void
+    public function test_late_review_uses_the_student_submission_time_for_fees_and_deadline(): void
     {
         $transfer = $this->transfer();
+        $submittedAt = $transfer->requested_at->toIso8601String();
         $this->travelTo('2026-09-19 12:00:01');
 
         $this->actingAs($transfer->originalReservationRequest->lessonSlot->teacherProfile->user)
             ->patch(route('staff.transfer-requests.update', $transfer), ['decision' => 'approved'])
-            ->assertSessionHasErrors(['transfer_request' => '正式な申請期限（前日12:00）を過ぎています。講師の確定日時で判定します。']);
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(ApplicationStatus::Pending, $transfer->fresh()->status);
-        $this->assertSame(ReservationStatus::Approved, $transfer->originalReservationRequest->fresh()->status);
+        $approved = $transfer->fresh();
+        $this->assertSame(ApplicationStatus::Approved, $approved->status);
+        $this->assertSame($submittedAt, $approved->terms_snapshot['formalized_at']);
+        $this->assertSame('request_submission', $approved->terms_snapshot['basis']);
+        $this->assertSame(0, $approved->terms_snapshot['components']['studio_cancellation']);
+        $this->assertSame(1000, $approved->terms_snapshot['components']['late_transfer']);
+        $this->assertSame(ReservationStatus::Cancelled, $transfer->originalReservationRequest->fresh()->status);
     }
 
     public function test_emergency_exception_requires_a_reason_and_charges_only_the_venue(): void
@@ -183,7 +189,7 @@ class TransferTermsTest extends TestCase
             ])->assertSessionHasNoErrors();
 
         $snapshot = $transfer->fresh()->terms_snapshot;
-        $this->assertSame(1610, $snapshot['total']);
+        $this->assertSame(0, $snapshot['total']);
         $this->assertSame('emergency', $snapshot['cause']);
         $this->assertSame('公共交通機関の人身事故', $snapshot['exception_reason']);
     }
@@ -235,8 +241,8 @@ class TransferTermsTest extends TestCase
         $invoice = $generator->generateForStudent($student, $month);
         $generator->generateForStudent($student, $month);
 
-        $this->assertSame(2, $invoice->items()->where('source_type', TransferRequest::class)->count());
-        $this->assertSame(1805, (int) $invoice->items()->where('source_type', TransferRequest::class)->sum('amount'));
+        $this->assertSame(1, $invoice->items()->where('source_type', TransferRequest::class)->count());
+        $this->assertSame(1000, (int) $invoice->items()->where('source_type', TransferRequest::class)->sum('amount'));
         $admin = User::factory()->admin()->create();
         app(ConfirmMonthlyInvoice::class)->handle($invoice, $admin, true);
         $total = $invoice->fresh()->total_amount;
@@ -319,7 +325,7 @@ class TransferTermsTest extends TestCase
         $teacher = $transfer->originalReservationRequest->lessonSlot->teacherProfile->user;
 
         $this->actingAs($teacher)->get(route('staff.transfer-requests.show', $transfer))
-            ->assertOk()->assertSee('会場キャンセル料')->assertSee('805円');
+            ->assertOk()->assertSee('会場キャンセル料')->assertSee('0円');
         $this->get(route('staff.transfer-requests.create', $transfer->originalReservationRequest))
             ->assertOk()->assertSee(route('staff.transfer-requests.store', $transfer->originalReservationRequest), false);
     }
@@ -353,7 +359,7 @@ class TransferTermsTest extends TestCase
 
     public static function trialCancellationStates(): array
     {
-        return ['before teacher confirmation' => ['pending', 0], 'after teacher confirmation' => ['approved', 805]];
+        return ['before teacher confirmation' => ['pending', 0], 'after teacher confirmation' => ['approved', 0]];
     }
 
     #[DataProvider('trialCancellationStates')]

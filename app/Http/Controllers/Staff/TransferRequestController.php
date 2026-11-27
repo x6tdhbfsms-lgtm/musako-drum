@@ -9,6 +9,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ReviewTransferRequestRequest;
 use App\Http\Requests\ScheduleDeferredTransferRequest;
+use App\Models\LessonSlot;
 use App\Models\TransferRequest;
 use App\Models\User;
 use App\Services\TransferTermsService;
@@ -64,9 +65,17 @@ class TransferRequestController extends Controller
 
         $annualAllowance = $terms->annualAllowance($transferRequest->studentProfile, CarbonImmutable::instance($transferRequest->originalReservationRequest->lessonSlot->starts_at));
 
-        $termsQuote = $transferRequest->terms_snapshot ?? $terms->quote($transferRequest, CarbonImmutable::now(config('app.timezone')));
+        $termsQuote = $transferRequest->terms_snapshot ?? $terms->quote(
+            $transferRequest,
+            CarbonImmutable::instance($transferRequest->requested_at)->setTimezone(config('app.timezone')),
+        );
+        $termsUseSubmissionTime = $transferRequest->status === ApplicationStatus::Pending
+            || ($transferRequest->terms_snapshot['basis'] ?? null) === 'request_submission';
+        $requestedOptions = LessonSlot::query()->with('venue')
+            ->whereIn('id', $transferRequest->requested_lesson_slot_ids ?: array_filter([$transferRequest->requested_lesson_slot_id]))
+            ->get()->sortBy(fn (LessonSlot $slot): int => array_search($slot->id, $transferRequest->requested_lesson_slot_ids ?: [$transferRequest->requested_lesson_slot_id], true) ?: 0)->values();
 
-        return view('staff.transfer-requests.show', compact('transferRequest', 'annualAllowance', 'termsQuote'));
+        return view('staff.transfer-requests.show', compact('transferRequest', 'annualAllowance', 'termsQuote', 'termsUseSubmissionTime', 'requestedOptions'));
     }
 
     public function schedule(ScheduleDeferredTransferRequest $request, TransferRequest $transferRequest, ScheduleDeferredTransfer $schedule): RedirectResponse
@@ -89,6 +98,7 @@ class TransferRequestController extends Controller
             ApplicationStatus::from($request->validated('decision')),
             $request->validated('staff_note'),
             $request->validated('cause', 'student'),
+            $request->validated('selected_lesson_slot_id') ? (int) $request->validated('selected_lesson_slot_id') : null,
         );
 
         return redirect()->route('staff.transfer-requests.show', $transferRequest)->with('success', '振替申請を処理しました。');

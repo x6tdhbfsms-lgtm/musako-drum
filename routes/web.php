@@ -14,6 +14,7 @@ use App\Http\Controllers\Staff\InquiryController as StaffInquiryController;
 use App\Http\Controllers\Staff\LessonSlotController;
 use App\Http\Controllers\Staff\MembershipStatusRequestController as StaffMembershipStatusRequestController;
 use App\Http\Controllers\Staff\MonthlyInvoiceController as StaffMonthlyInvoiceController;
+use App\Http\Controllers\Staff\NotificationController as StaffNotificationController;
 use App\Http\Controllers\Staff\PaymentMethodChangeRequestController as StaffPaymentMethodChangeRequestController;
 use App\Http\Controllers\Staff\PersonalInformationChangeRequestController as StaffPersonalInformationChangeRequestController;
 use App\Http\Controllers\Staff\PricingSettingController;
@@ -148,6 +149,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/invoices', [StaffMonthlyInvoiceController::class, 'index'])->name('invoices.index');
         Route::get('/invoices/{invoice}', [StaffMonthlyInvoiceController::class, 'show'])->name('invoices.show');
         Route::middleware('role:admin')->group(function () {
+            Route::get('/notifications', StaffNotificationController::class)->name('notifications.index');
             Route::post('/invoices/generate', [StaffMonthlyInvoiceController::class, 'generate'])->name('invoices.generate');
             Route::post('/invoices/{invoice}/adjustments', [StaffMonthlyInvoiceController::class, 'addAdjustment'])->name('invoices.adjustments.store');
             Route::post('/invoices/{invoice}/confirm', [StaffMonthlyInvoiceController::class, 'confirm'])->name('invoices.confirm');

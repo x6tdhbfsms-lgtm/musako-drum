@@ -24,7 +24,7 @@ class TransferTermsService
 
         return match ($slot->venue?->termsRoomType()) {
             'music_room' => 0,
-            'studio34' => $days >= 7 ? 0 : ($days >= 2 ? 805 : 1610),
+            'studio34' => $days === 1 ? 1610 : 0,
             default => null,
         };
     }

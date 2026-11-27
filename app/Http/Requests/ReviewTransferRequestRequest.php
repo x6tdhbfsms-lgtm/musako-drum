@@ -32,6 +32,7 @@ class ReviewTransferRequestRequest extends FormRequest
             'decision' => ['required', Rule::in([ApplicationStatus::Approved->value, ApplicationStatus::Rejected->value])],
             'staff_note' => ['nullable', 'string', 'max:1000'],
             'cause' => ['sometimes', Rule::in(['student', 'teacher', 'emergency'])],
+            'selected_lesson_slot_id' => ['nullable', 'integer', Rule::exists('lesson_slots', 'id')],
         ];
     }
 }

@@ -31,8 +31,9 @@ class CreateTransferRequest
         ?string $reason,
         ?string $studentNote,
         bool $specialHandling = false,
+        array $requestedLessonSlotIds = [],
     ): TransferRequest {
-        $transferRequest = DB::transaction(function () use ($studentProfile, $originalReservation, $requestedLessonSlotId, $reason, $studentNote, $specialHandling): TransferRequest {
+        $transferRequest = DB::transaction(function () use ($studentProfile, $originalReservation, $requestedLessonSlotId, $reason, $studentNote, $specialHandling, $requestedLessonSlotIds): TransferRequest {
             StudentProfile::query()->lockForUpdate()->findOrFail($studentProfile->id);
             $lockedReservation = ReservationRequest::query()
                 ->with('lessonSlot')
@@ -41,15 +42,23 @@ class CreateTransferRequest
             $requestedSlot = $requestedLessonSlotId === null ? null : LessonSlot::query()->lockForUpdate()->findOrFail($requestedLessonSlotId);
             $this->assertCanRequest($studentProfile, $lockedReservation, $requestedSlot, $reason, $specialHandling);
 
-            return TransferRequest::create([
+            $submittedAt = CarbonImmutable::now(config('app.timezone'));
+            $transferRequest = TransferRequest::create([
                 'student_profile_id' => $studentProfile->id,
                 'original_reservation_request_id' => $lockedReservation->id,
                 'requested_lesson_slot_id' => $requestedSlot?->id,
+                'requested_lesson_slot_ids' => array_values(array_unique($requestedLessonSlotIds ?: ($requestedSlot === null ? [] : [$requestedSlot->id]))),
                 'status' => ApplicationStatus::Pending,
                 'reason' => $specialHandling ? '【特例希望・講師確認必要】'.$reason : $reason,
                 'student_note' => $studentNote,
-                'requested_at' => now(),
+                'requested_at' => $submittedAt,
             ]);
+
+            $termsSnapshot = $this->terms->quote($transferRequest, $submittedAt);
+            $termsSnapshot['basis'] = 'request_submission';
+            $transferRequest->update(['terms_snapshot' => $termsSnapshot]);
+
+            return $transferRequest->refresh();
         }, 3);
 
         $this->notifications->transferSubmitted($transferRequest);

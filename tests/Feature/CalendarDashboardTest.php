@@ -147,6 +147,17 @@ class CalendarDashboardTest extends TestCase
         }
     }
 
+    public function test_staff_calendar_shows_the_studio34_availability_embed_below_the_calendar(): void
+    {
+        $teacher = TeacherProfile::factory()->create();
+
+        $this->actingAs($teacher->user)
+            ->get(route('staff.dashboard'))
+            ->assertOk()
+            ->assertSee('studio34の空き状況カレンダー')
+            ->assertSee('https://studio34.mermaid-co.jp/availability/embed');
+    }
+
     public function test_staff_week_view_starts_on_the_selected_day_and_shows_the_next_six_days(): void
     {
         $this->travelTo('2026-10-30 09:00:00');

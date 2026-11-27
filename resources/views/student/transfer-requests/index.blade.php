@@ -2,7 +2,6 @@
 @section('title', '振替申請 | MUSAKO')
 @section('content')
 <div><p class="text-sm font-semibold text-amber-700">TRANSFER</p><h1 class="text-2xl font-bold sm:text-3xl">振替するレッスンを選ぶ</h1><p class="mt-2 text-sm text-stone-600">ご自身の予約済みレッスンをすべて確認できます。振替したいコマの「このレッスンを振替」を押してください。振替日が未定の場合は、次の画面から保留申請できます。</p></div>
-<aside class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>レッスン予定日より4日を切ってのご申請は、振替料金1,000円が発生します（電子ドラムコースの前日申請は、現在の規約では追加なし）。</p><p class="mt-2 font-semibold">前日のお昼12:00以降は通常の振替申請ができません。</p><p class="mt-2">料金・期限は講師が正式に確定した日時で判定します。自然災害などの特例は先生へご相談ください。</p></aside>
 <section class="mt-6 space-y-3" aria-label="自分のレッスン一覧">
 @forelse ($lessons as $lesson)
     @php
@@ -18,7 +17,7 @@
     <article class="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="min-w-0"><h2 class="text-lg font-bold">{{ $lesson->lessonSlot->starts_at->format('Y年n月j日 H:i') }}〜{{ $lesson->lessonSlot->ends_at->format('H:i') }}</h2><p class="mt-2 break-words text-sm">{{ $lesson->lessonSlot->course?->name ?? 'コース未設定' }} · {{ $lesson->lessonSlot->venue?->name ?? '会場未定' }}</p>
-            @if ($unavailable)<p class="mt-2 text-sm text-stone-500">{{ $unavailable }}</p>@else<p class="mt-2 text-xs text-stone-500">通常の申請期限：{{ $lesson->transferRequestDeadline()->format('Y/m/d H:i') }}</p>@if ($late)<p class="mt-1 text-sm text-amber-800">通常の期限を過ぎています。自然災害などの特例は先生の確認が必要です。</p>@endif @endif</div>
+            @if ($unavailable)<p class="mt-2 text-sm text-stone-500">{{ $unavailable }}</p>@endif</div>
             <div class="grid shrink-0 gap-2">
                 @if (!$unavailable)<a href="{{ route('student.transfer-requests.create', $lesson) }}" class="inline-flex min-h-12 items-center justify-center rounded-xl bg-amber-400 px-5 text-sm font-bold">{{ $late ? '特例の振替を相談' : 'このレッスンを振替' }}</a>@endif
                 <a href="{{ route('student.reservations.show', $lesson) }}" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-stone-300 px-4 text-sm font-semibold">予約詳細</a>
